@@ -101,25 +101,65 @@ typedef struct xNetworkInterface
 	};
 */
 
+typedef struct xIPV4Parameters {
+	uint32_t ulIPAddress;				/* The actual IPv4 address. Will be 0 as long as end-point is still down. */
+	uint32_t ulNetMask;
+	uint32_t ulGatewayAddress;
+	uint32_t ulDNSServerAddresses[ ipconfigENDPOINT_DNS_ADDRESS_COUNT ];
+	uint32_t ulBroadcastAddress;
+} IPV4Parameters_t;
+
+#if( ipconfigUSE_IPv6 != 0 )
+	typedef struct xIPV6Parameters {
+		IPv6_Address_t xIPAddress;		/* The actual IPv4 address. Will be 0 as long as end-point is still down. */
+		size_t uxPrefixLength;			/* Number of valid bytes in the network prefix. */
+		IPv6_Address_t xPrefix;			/* The network prefix, e.g. fe80::/10 */
+		IPv6_Address_t xGatewayAddress;	/* Gateway to the web. */
+		IPv6_Address_t xDNSServerAddresses[ 2 ];
+	} IPV6Parameters_t;
+#endif
+
+#if( ipconfigUSE_RA != 0 )
+/* Router Advertisement (RA). End-points can obtain their IP-address by asking for a RA. */
+typedef enum xRAState
+{
+	eRAStateApply,	/* Send a Router Solicitation. */
+	eRAStateWait,	/* Wait for a Router Advertisement. */
+	eRAStateIPTest,	/* Take a random IP address, test if another device is using it already. */
+	eRAStateIPWait,	/* Wait for a reply, if any */
+	eRAStateLease,	/* The device is up, repeat the RA-process when timer expires. */
+	eRAStateFailed,
+} eRAState_t;
+
+struct xRA_DATA
+{
+	struct
+	{
+		uint32_t
+			bRouterReplied : 1,
+			bIPAddressInUse : 1;
+	} bits;
+	TickType_t ulPreferredLifeTime;
+	UBaseType_t uxRetryCount;
+	/* Maintains the RA state machine state. */
+	eRAState_t eRAState;
+};
+
+typedef struct xRA_DATA RAData_t;
+#endif	/* ( ipconfigUSE_RA != 0 ) */
+
 typedef struct xNetworkEndPoint
 {
 	union {
 		struct {
-			uint32_t ulDefaultIPAddress;	/* Use this address in case DHCP has failed. */
-			uint32_t ulIPAddress;			/* The actual IPv4 address. Will be 0 as long as end-point is still down. */
-			uint32_t ulNetMask;
-			uint32_t ulGatewayAddress;
-			uint32_t ulDNSServerAddresses[ ipconfigENDPOINT_DNS_ADDRESS_COUNT ];
-			uint32_t ulBroadcastAddress;
-		} ipv4;
+			IPV4Parameters_t ipv4_settings;
+			IPV4Parameters_t ipv4_defaults;		/* Use values form "ipv4_default" in case DHCP has failed. */
+		};
 #if( ipconfigUSE_IPv6 != 0 )
 		struct {
-			IPv6_Address_t xIPAddress;			/* The actual IPv4 address. Will be 0 as long as end-point is still down. */
-			size_t uxPrefixLength;
-			IPv6_Address_t xDefaultIPAddress;
-			IPv6_Address_t xGatewayAddress;
-			IPv6_Address_t xDNSServerAddresses[ 2 ];	/* Not yet in use. */
-		} ipv6;
+			IPV6Parameters_t ipv6_settings;
+			IPV6Parameters_t ipv6_defaults;		/* Use values form "ipv4_default" in case DHCP has failed. */
+		};
 #endif
 	};
 	MACAddress_t xMACAddress;
@@ -128,6 +168,7 @@ typedef struct xNetworkEndPoint
 		uint32_t
 			bIsDefault : 1,
 			bWantDHCP : 1,
+			bWantRA : 1,
 			#if( ipconfigUSE_IPv6 != 0 )
 				bIPv6 : 1,
 			#endif /* ipconfigUSE_IPv6 */
@@ -136,23 +177,27 @@ typedef struct xNetworkEndPoint
 			#endif /* ipconfigUSE_NETWORK_EVENT_HOOK */
 			bEndPointUp : 1;
 	} bits;
+#if( ipconfigUSE_DHCP != 0 ) || ( ipconfigUSE_RA != 0 )
+	IPTimer_t xDHCP_RATimer;
+#endif	/* ( ipconfigUSE_DHCP != 0 ) || ( ipconfigUSE_RA != 0 ) */
 #if( ipconfigUSE_DHCP != 0 )
-	IPTimer_t xDHCPTimer;
 	DHCPData_t xDHCPData;
-#endif
+#endif	/* ( ipconfigUSE_DHCP != 0 ) */
+#if( ipconfigUSE_RA != 0 )
+	RAData_t xRAData;
+#endif	/* ( ipconfigUSE_RA != 0 ) */
 	NetworkInterface_t *pxNetworkInterface;
 	struct xNetworkEndPoint *pxNext;
 } NetworkEndPoint_t;
 
+
 #if( ipconfigUSE_IPv6 != 0 )
-	static __inline BaseType_t ENDPOINT_IS_IPv4( const NetworkEndPoint_t * pxEndPoint )
-	{
-		return pxEndPoint->bits.bIPv6 == pdFALSE_UNSIGNED;
-	}
-	static __inline BaseType_t ENDPOINT_IS_IPv6( const NetworkEndPoint_t * pxEndPoint )
-	{
-		return pxEndPoint->bits.bIPv6 != pdFALSE_UNSIGNED;
-	}
+	#define END_POINT_USES_DHCP( pxEndPoint )	( ( ( pxEndPoint )->bits.bIPv6 == pdFALSE_UNSIGNED ) && ( ( pxEndPoint )->bits.bWantDHCP != pdFALSE_UNSIGNED ) )
+	#define END_POINT_USES_RA( pxEndPoint )		( ( ( pxEndPoint )->bits.bIPv6 != pdFALSE_UNSIGNED ) && ( ( pxEndPoint )->bits.bWantRA != pdFALSE_UNSIGNED ) )
+
+	#define ENDPOINT_IS_IPv4( pxEndPoint ) ( ( pxEndPoint )->bits.bIPv6 == 0u )
+	#define ENDPOINT_IS_IPv6( pxEndPoint ) ( ( pxEndPoint )->bits.bIPv6 != 0u )
+
 	static __inline void CONFIRM_EP_v4( const NetworkEndPoint_t * pxEndPoint )
 	{
 		configASSERT( pxEndPoint != NULL );
@@ -164,14 +209,12 @@ typedef struct xNetworkEndPoint
 		configASSERT( pxEndPoint->bits.bIPv6 != pdFALSE_UNSIGNED );
 	}
 #else
-	static __inline BaseType_t ENDPOINT_IS_IPv4( const NetworkEndPoint_t * pxEndPoint )
-	{
-		return pdTRUE;
-	}
-	static __inline BaseType_t ENDPOINT_IS_IPv6( const NetworkEndPoint_t * pxEndPoint )
-	{
-		return pdFALSE;
-	}
+	#define END_POINT_USES_DHCP( pxEndPoint )	( ( pxEndPoint )->bits.bWantDHCP != pdFALSE_UNSIGNED )
+	#define END_POINT_USES_RA( pxEndPoint )		( 0 )
+
+	#define ENDPOINT_IS_IPv4( pxEndPoint ) ( 1 )
+	#define ENDPOINT_IS_IPv6( pxEndPoint ) ( 0 )
+
 	static __inline void CONFIRM_EP_v4( const NetworkEndPoint_t * pxEndPoint )
 	{
 		configASSERT( pxEndPoint != NULL );
@@ -288,10 +331,6 @@ void FreeRTOS_FillEndPoint(	NetworkInterface_t *pxNetworkInterface,
 									 IPv6_Address_t *pxDNSServerAddress,	/* Not used yet. */
 									 const uint8_t ucMACAddress[ ipMAC_ADDRESS_LENGTH_BYTES ] );
 #endif
-
-/* Return pdTRUE if all end-points are up.
-When pxInterface is null, all end-points can be iterated. */
-BaseType_t FreeRTOS_AllEndPointsUp( NetworkInterface_t *pxInterface );
 
 typedef struct xRoutingStats
 {

@@ -148,6 +148,12 @@ FreeRTOS_setsockopt(). */
 	#define FREERTOS_SO_UDP_MAX_RX_PACKETS	( 16 )		/* This option helps to limit the maximum number of packets a UDP socket will buffer */
 #endif
 
+#if( ipconfigSOCKET_HAS_USER_WAKE_CALLBACK == 1 )
+	#define FREERTOS_SO_WAKEUP_CALLBACK	( 17 )
+#endif
+
+#define FREERTOS_SO_SET_LOW_HIGH_WATER	( 18 )
+
 #define FREERTOS_NOT_LAST_IN_FRAGMENTED_PACKET 	( 0x80 )  /* For internal use only, but also part of an 8-bit bitwise value. */
 #define FREERTOS_FRAGMENTED_PACKET				( 0x40 )  /* For internal use only, but also part of an 8-bit bitwise value. */
 
@@ -174,6 +180,12 @@ typedef struct xWIN_PROPS {
 	int32_t lRxWinSize;	/* Unit: MSS */
 } WinProperties_t;
 
+typedef struct xLOW_HIGH_WATER {
+	/* Structure to pass for the 'FREERTOS_SO_SET_LOW_HIGH_WATER' option */
+	size_t uxLittleSpace;	/* Send a STOP when buffer space drops below X bytes */
+	size_t uxEnoughSpace;	/* Send a GO when buffer space grows above X bytes */
+} LowHighWater_t;
+
 /* For compatibility with the expected Berkeley sockets naming. */
 #define socklen_t uint32_t
 
@@ -181,23 +193,22 @@ typedef struct xWIN_PROPS {
 Berkeley style sockaddr structure. */
 struct freertos_sockaddr
 {
-	/* sin_len and sin_family not used in the IPv4-only release. */
-	/* Otherwise, for an IPv4 address:
-	 * Set sin_len to sizeof( freertos_sockaddr )
-	 * Set sin_family FREERTOS_AF_INET
-	 */
-	uint8_t sin_len;		/* length of this structure. */
-	uint8_t sin_family;		/* FREERTOS_AF_INET. */
+	uint8_t sin_len;		/* Ignored, still present for backward compatibility. */
+	uint8_t sin_family;		/* Set to FREERTOS_AF_INET. */
 	uint16_t sin_port;
 	uint32_t sin_addr;
+#if( ipconfigUSE_IPv6 != 0 )
+	/* Make sure that the IPv4 and IPv6 socket adresses have en equal size. */
+	uint8_t sin_filler[ ipSIZE_OF_IPv6_ADDRESS ];
+#endif	
 };
 
 #if( ipconfigUSE_IPv6 != 0 )
 	struct freertos_sockaddr6 {
-		uint8_t sin_len;		/* length of this structure. */
-		uint8_t sin_family;		/* Set to FREERTOS_AF_INET6. */
+		uint8_t sin_len;			/* Ignored, still present for backward compatibility. */
+		uint8_t sin_family;			/* Set to FREERTOS_AF_INET6. */
 		uint16_t sin_port;
-	    uint32_t  sin_flowinfo;	/* IPv6 flow information. */
+	    uint32_t  sin_flowinfo;		/* IPv6 flow information. */
 		IPv6_Address_t sin_addrv6;
 	};
 #endif
@@ -255,7 +266,11 @@ BaseType_t FreeRTOS_bind( Socket_t xSocket, struct freertos_sockaddr *pxAddress,
 
 /* function to get the local address and IP port */
 /* Note that when 'ipconfigUSE_IPv6 != 0', freertos_sockaddr can be intepreted as a freertos_sockaddr6. */
-size_t FreeRTOS_GetLocalAddress( Socket_t xSocket, struct freertos_sockaddr *pxAddress );
+#if( ipconfigUSE_IPv6 != 0 )
+	size_t FreeRTOS_GetLocalAddress( Socket_t xSocket, struct freertos_sockaddr6 *pxAddress6 );
+#else
+	size_t FreeRTOS_GetLocalAddress( Socket_t xSocket, struct freertos_sockaddr *pxAddress );
+#endif
 
 /* Made available when ipconfigETHERNET_DRIVER_FILTERS_PACKETS is set to 1. */
 BaseType_t xPortHasUDPSocket( uint16_t usPortNr );
@@ -281,7 +296,11 @@ BaseType_t FreeRTOS_shutdown (Socket_t xSocket, BaseType_t xHow);
 /* Return the remote address and IP port. */
 
 /* Note that when 'ipconfigUSE_IPv6 != 0', freertos_sockaddr can be intepreted as a freertos_sockaddr6. */
-BaseType_t FreeRTOS_GetRemoteAddress( Socket_t xSocket, struct freertos_sockaddr *pxAddress );
+#if( ipconfigUSE_IPv6 != 0 )
+	BaseType_t FreeRTOS_GetRemoteAddress( Socket_t xSocket, struct freertos_sockaddr6 *pxAddress6 );
+#else
+	BaseType_t FreeRTOS_GetRemoteAddress( Socket_t xSocket, struct freertos_sockaddr *pxAddress );
+#endif
 
 #if( ipconfigUSE_IPv6 != 0 )
 	/* Get the type of IP: either 'ipTYPE_IPv4' or 'ipTYPE_IPv6'. */

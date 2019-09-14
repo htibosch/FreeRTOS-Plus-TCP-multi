@@ -51,8 +51,6 @@
 #include "FreeRTOS_DHCP.h"
 #include "FreeRTOS_Routing.h"
 
-#include "eventLogging.h"
-
 /*lint -e9071 defined macro is reserved to the compiler [MISRA 2012 Rule 21.1, required]. */
 #define __STM32_HAL_LEGACY   1
 
@@ -522,9 +520,9 @@ BaseType_t xMACEntry = ETH_MAC_ADDRESS1;	/* ETH_MAC_ADDRESS0 reserved for the pr
 				{
 				uint8_t ucMACAddress[ 6 ] = { 0x33, 0x33, 0xff, 0, 0, 0 };
 
-					ucMACAddress[ 3 ] = pxEndPoint->ipv6.xIPAddress.ucBytes[ 13 ];
-					ucMACAddress[ 4 ] = pxEndPoint->ipv6.xIPAddress.ucBytes[ 14 ];
-					ucMACAddress[ 5 ] = pxEndPoint->ipv6.xIPAddress.ucBytes[ 15 ];
+					ucMACAddress[ 3 ] = pxEndPoint->ipv6_settings.xIPAddress.ucBytes[ 13 ];
+					ucMACAddress[ 4 ] = pxEndPoint->ipv6_settings.xIPAddress.ucBytes[ 14 ];
+					ucMACAddress[ 5 ] = pxEndPoint->ipv6_settings.xIPAddress.ucBytes[ 15 ];
 					prvMACAddressConfig( &xETH, xMACEntry, ucMACAddress );
 					xMACEntry += 8;
 				}
@@ -722,8 +720,6 @@ __IO ETH_DMADescTypeDef *pxDmaTxDesc;
 /* Do not wait too long for a free TX DMA buffer. */
 const TickType_t xBlockTimeTicks = pdMS_TO_TICKS( 50u );
 
-eventLogAdd("Outp %p", pxDescriptor);
-
 	/* Open a do {} while ( 0 ) loop to be able to call break. */
 	do
 	{
@@ -855,6 +851,9 @@ static BaseType_t xMayAcceptPacket( NetworkBufferDescriptor_t *pxDescriptor )
 {
 const ProtocolPacket_t *pxProtPacket = ( const ProtocolPacket_t * )pxDescriptor->pucEthernetBuffer;
 
+	pxDescriptor->pxInterface = pxMyInterface;
+	pxDescriptor->pxEndPoint = FreeRTOS_MatchingEndpoint( pxMyInterface, pxDescriptor->pucEthernetBuffer );
+
 	#warning _HT_ This is temporarily for debugging
 	if( pxProtPacket->xTCPPacket.xEthernetHeader.usFrameType == ipIPv6_FRAME_TYPE )
 	{
@@ -884,6 +883,8 @@ const ProtocolPacket_t *pxProtPacket = ( const ProtocolPacket_t * )pxDescriptor-
 		const IPHeader_t *pxIPHeader = &(pxProtPacket->xTCPPacket.xIPHeader);
 		uint32_t ulDestinationIPAddress;
 
+BaseType_t doDebug = pdFALSE;
+BaseType_t index;
 		/* Ensure that the incoming packet is not fragmented (only outgoing packets
 		 * can be fragmented) as these are the only handled IP frames currently. */
 		if( ( pxIPHeader->usFragmentOffset & FreeRTOS_ntohs( ipFRAGMENT_OFFSET_BIT_MASK ) ) != 0U )
@@ -901,6 +902,18 @@ const ProtocolPacket_t *pxProtPacket = ( const ProtocolPacket_t * )pxDescriptor-
 		}
 
 		ulDestinationIPAddress = pxIPHeader->ulDestinationIPAddress;
+		
+const uint32_t addresses[] = {
+	FreeRTOS_inet_addr_quick( 172,  16, 255, 255 ),
+	FreeRTOS_inet_addr_quick( 192, 168,   2, 255 ),
+//	FreeRTOS_inet_addr_quick( 239, 255, 255, 250 ),
+	FreeRTOS_inet_addr_quick( 255, 255, 255, 255 ),
+};
+for( index = 0; index < ARRAY_SIZE(addresses); index++) {
+	if( addresses[index] == ulDestinationIPAddress ) {
+		doDebug = pdTRUE;
+	}
+}
 //		/* Is the packet for this node? */
 //		if( ( ulDestinationIPAddress != *ipLOCAL_IP_ADDRESS_POINTER ) &&
 //			/* Is it a broadcast address x.x.x.255 ? */
@@ -918,6 +931,21 @@ const ProtocolPacket_t *pxProtPacket = ( const ProtocolPacket_t * )pxDescriptor-
 			if( ulDestinationIPAddress != ipLLMNR_IP_ADDR )
 		#endif
 			{
+			BaseType_t xDoLog = pdTRUE;
+				uint32_t exceptions[] = {
+					FreeRTOS_inet_addr_quick( 239, 255, 255, 250 ),
+					FreeRTOS_inet_addr_quick( 239, 192, 152, 143 ),
+				};
+				for( index = 0; index < ARRAY_SIZE(exceptions); index++) {
+					if( exceptions[index] == ulDestinationIPAddress ) {
+						xDoLog = pdFALSE;
+						break;
+					}
+				}
+				if( ( xDoLog ) && ( prvIsIPv4Multicast( ulDestinationIPAddress ) == pdFALSE ) )
+				{
+					FreeRTOS_printf( ( "Drop IP %lxip\n", FreeRTOS_ntohl( ulDestinationIPAddress ) ) );
+				}
 				return pdFALSE;
 			}
 		}
@@ -1032,11 +1060,6 @@ uint8_t *pucBuffer;
 		{
 			/* See if this packet must be handled. */
 			xAccepted = xMayAcceptPacket( pxCurDescriptor );
-			if( xAccepted != pdFALSE )
-			{
-				pxCurDescriptor->pxInterface = pxMyInterface;
-				pxCurDescriptor->pxEndPoint = FreeRTOS_MatchingEndpoint( pxMyInterface, pxCurDescriptor->pucEthernetBuffer );
-			}
 
 			pxCurDescriptor->xDataLength = xReceivedLength;
 			xRxEvent.pvData = ( void * ) pxCurDescriptor;

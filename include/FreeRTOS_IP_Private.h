@@ -67,22 +67,8 @@ extern "C" {
 
 #include "event_groups.h"
 
-typedef struct xNetworkAddressingParameters
-{
-	uint32_t ulDefaultIPAddress;
-	uint32_t ulNetMask;
-	uint32_t ulGatewayAddress;
-	uint32_t ulDNSServerAddress;
-	uint32_t ulBroadcastAddress;
-} NetworkAddressingParameters_t;
-
 extern BaseType_t xTCPWindowLoggingLevel;
 extern QueueHandle_t xNetworkEventQueue;
-
-#if( ipconfigUSE_TCP == 1 )
-	extern uint32_t ulNextInitialSequenceNumber;
-#endif	/* ipconfigUSE_TCP */
-
 
 /*-----------------------------------------------------------*/
 /* Protocol headers.                                         */
@@ -141,8 +127,8 @@ typedef struct xIP_HEADER IPHeader_t;
 		uint16_t usPayloadLength;               /*  4 +  2 =  6 */
 		uint8_t ucNextHeader;                   /*  6 +  1 =  7 */
 		uint8_t ucHopLimit;                     /*  7 +  1 =  8 */
-		IPv6_Address_t xSourceIPv6Address;      /*  8 + 16 = 24 */
-		IPv6_Address_t xDestinationIPv6Address; /* 24 + 16 = 40 */
+		IPv6_Address_t xSourceAddress;          /*  8 + 16 = 24 */
+		IPv6_Address_t xDestinationAddress;     /* 24 + 16 = 40 */
 	}
 	#include "pack_struct_end.h"
 	typedef struct xIP_HEADER_IPv6 IPHeader_IPv6_t;
@@ -202,6 +188,16 @@ typedef struct xICMP_HEADER ICMPHeader_t;
 	typedef struct xICMPEcho_IPv6 ICMPEcho_IPv6_t;
 #endif /* ipconfigUSE_IPv6 */
 
+#include "pack_struct_start.h"
+	struct xICMPRouterSolicitation_IPv6 {
+		uint8_t ucTypeOfMessage;       /*  0 +  1 =  1 */
+		uint8_t ucTypeOfService;       /*  1 +  1 =  2 */
+		uint16_t usChecksum;           /*  2 +  2 =  4 */
+		uint32_t ulReserved;           /*  4 +  4 =  8 */
+	}
+#include "pack_struct_end.h"
+typedef struct xICMPRouterSolicitation_IPv6 ICMPRouterSolicitation_IPv6_t;
+
 #if( ipconfigUSE_IPv6 != 0 )
 	#include "pack_struct_start.h"
 	struct xICMPRouterAdvertisement_IPv6
@@ -218,6 +214,24 @@ typedef struct xICMP_HEADER ICMPHeader_t;
 	#include "pack_struct_end.h"
 	typedef struct xICMPRouterAdvertisement_IPv6 ICMPRouterAdvertisement_IPv6_t;
 #endif /* ipconfigUSE_IPv6 */
+
+#if( ipconfigUSE_IPv6 != 0 )
+	/* This is an option with the Router Advertisement. */
+	#include "pack_struct_start.h"
+	struct xICMPPrefixOption_IPv6
+	{
+		uint8_t ucType;					/*  0 +  1 =  1 */
+		uint8_t ucLength;				/*  1 +  1 =  2 */
+		uint8_t ucPrefixLength;			/*  2 +  1 =  3 */
+		uint8_t ucFlags;				/*  3 +  1 =  4 */
+		uint32_t ulValidLifeTime;		/*  4 +  4 =  8 */
+		uint32_t ulPreferredLifeTime;	/*  8 +  4 = 12 */
+		uint32_t ulReserved;			/* 12 +  4 = 16 */
+		uint8_t ucPrefix[16];			/* 16 + 16 = 32 */
+	}
+	#include "pack_struct_end.h"
+	typedef struct xICMPPrefixOption_IPv6 ICMPPrefixOption_IPv6_t;
+#endif
 
 #include "pack_struct_start.h"
 struct xUDP_HEADER
@@ -289,7 +303,7 @@ typedef struct xIP_PACKET IPPacket_t;
 	struct xIP_PACKET_IPv6
 	{
 		EthernetHeader_t xEthernetHeader;
-		IPHeader_IPv6_t xIPHeader_IPv6;
+		IPHeader_IPv6_t xIPHeader;
 	}
 	#include "pack_struct_end.h"
 	typedef struct xIP_PACKET_IPv6 IPPacket_IPv6_t;
@@ -403,7 +417,7 @@ typedef enum
 	eNetworkRxEvent,		/* 1: The network interface has queued a received Ethernet frame. */
 	eARPTimerEvent,			/* 2: The ARP timer expired. */
 	eStackTxEvent,			/* 3: The software stack has queued a packet to transmit. */
-	eDHCPEvent,				/* 4: Process the DHCP state machine. */
+	eDHCP_RA_Event,			/* 4: Process the DHCP or RA/SLAAC state machine. */
 	eTCPTimerEvent,			/* 5: See if any TCP socket needs attention. */
 	eTCPAcceptEvent,		/* 6: Client API FreeRTOS_accept() waiting for client connections. */
 	eTCPNetStat,			/* 7: IP-task is asked to produce a netstat listing. */
@@ -494,22 +508,6 @@ defined const for quick reference. */
 extern const MACAddress_t xBroadcastMACAddress; /* all 0xff's */
 extern uint16_t usPacketIdentifier;
 
-/* Define a default UDP packet header (declared in FreeRTOS_UDP_IP.c) */
-typedef union xUDPPacketHeader
-{
-	uint8_t ucBytes[24];
-	uint32_t ulWords[6];
-} UDPPacketHeader_t;
-extern UDPPacketHeader_t xDefaultPartUDPPacketHeader;
-
-/* Structure that stores the netmask, gateway address and DNS server addresses. */
-extern NetworkAddressingParameters_t xNetworkAddressing;
-
-/* Structure that stores the defaults for netmask, gateway address and DNS.
-These values will be copied to 'xNetworkAddressing' in case DHCP is not used,
-and also in case DHCP does not lead to a confirmed request. */
-extern NetworkAddressingParameters_t xDefaultAddressing;
-
 /* True when BufferAllocation_1.c was included, false for BufferAllocation_2.c */
 extern const BaseType_t xBufferAllocFixedSize;
 
@@ -546,14 +544,6 @@ extern struct xNetworkInterface *pxNetworkInterfaces;
 */
 
 #define ipPOINTER_CAST( TYPE, pointer  ) ( ( TYPE ) ( pointer ) )
-
-/* The local IP address is accessed from within xDefaultPartUDPPacketHeader,
-rather than duplicated in its own variable. */
-#define ipLOCAL_IP_ADDRESS_POINTER ( ( uint32_t * ) &( xDefaultPartUDPPacketHeader.ulWords[ 20u / sizeof(uint32_t) ] ) )
-
-/* The local MAC address is accessed from within xDefaultPartUDPPacketHeader,
-rather than duplicated in its own variable. */
-#define ipLOCAL_MAC_ADDRESS ( &xDefaultPartUDPPacketHeader.ucBytes[ 0 ] )
 
 /* ICMP packets are sent using the same function as UDP packets.  The port
 number is used to distinguish between the two, as 0 is an invalid UDP port. */
@@ -632,7 +622,7 @@ eFrameProcessingResult_t eConsiderFrameForProcessing( const uint8_t * const pucE
 /*
  * Return the checksum generated over xDataLengthBytes from pucNextData.
  */
-uint16_t usGenerateChecksum( uint32_t ulSum, const uint8_t * pucNextData, size_t uxDataLengthBytes );
+uint16_t usGenerateChecksum( uint16_t usSum, const uint8_t * pucNextData, size_t uxDataLengthBytes );
 
 /* Socket related private functions. */
 BaseType_t xProcessReceivedUDPPacket( NetworkBufferDescriptor_t *pxNetworkBuffer, uint16_t usPort );
@@ -643,6 +633,11 @@ void vNetworkSocketsInit( void );
  * returns pdFALSE.
  */
 BaseType_t xIPIsNetworkTaskReady( void );
+
+#if( ipconfigSOCKET_HAS_USER_WAKE_CALLBACK == 1 )
+	struct xSOCKET;
+	typedef void (*SocketWakeupCallback_t)( struct xSOCKET * pxSocket );
+#endif
 
 #if( ipconfigUSE_TCP == 1 )
 
@@ -831,6 +826,10 @@ typedef struct xSOCKET
 	#if( ipconfigSOCKET_HAS_USER_SEMAPHORE == 1 )
 		SemaphoreHandle_t pxUserSemaphore;
 	#endif /* ipconfigSOCKET_HAS_USER_SEMAPHORE */
+	#if( ipconfigSOCKET_HAS_USER_WAKE_CALLBACK == 1 )
+		SocketWakeupCallback_t pxUserWakeCallback;
+	#endif /* ipconfigSOCKET_HAS_USER_WAKE_CALLBACK */
+
 	#if( ipconfigSUPPORT_SELECT_FUNCTION == 1 )
 		struct xSOCKET_SET *pxSocketSet;
 		/* User may indicate which bits are interesting for this socket. */
@@ -1086,8 +1085,14 @@ extern void vSocketSelect( SocketSelect_t *pxSocketSet );
 #endif /* ipconfigSUPPORT_SELECT_FUNCTION */
 
 
-void vIPSetDHCPTimerEnableState( struct xNetworkEndPoint *pxEndPoint, BaseType_t xEnableState );
-void vIPReloadDHCPTimer( struct xNetworkEndPoint *pxEndPoint, uint32_t ulLeaseTime );
+#if( ipconfigUSE_DHCP == 1 ) || ( ipconfigUSE_RA == 1 )
+	void vIPSetDHCP_RATimerEnableState( struct xNetworkEndPoint *pxEndPoint, BaseType_t xEnableState );
+#endif	/* ( ipconfigUSE_DHCP == 1 ) || ( ipconfigUSE_RA == 1 ) */
+
+#if( ipconfigUSE_DHCP == 1 ) || ( ipconfigUSE_RA == 1 )
+	void vIPReloadDHCP_RATimer( struct xNetworkEndPoint *pxEndPoint, TickType_t uxClockTicks );
+#endif	/* ( ipconfigUSE_DHCP == 1 ) || ( ipconfigUSE_RA == 1 ) */
+
 #if( ipconfigDNS_USE_CALLBACKS != 0 )
 	void vIPReloadDNSTimer( uint32_t ulCheckTime );
 	void vIPSetDnsTimerEnableState( BaseType_t xEnableState );
