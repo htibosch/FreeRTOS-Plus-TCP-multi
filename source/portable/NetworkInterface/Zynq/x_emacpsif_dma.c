@@ -291,7 +291,7 @@ TickType_t xBlockTimeTicks = pdMS_TO_TICKS( 5000u );
 	}
 
 	/* Data Synchronization Barrier */
-//	dsb();
+	dsb();
 
 	if( iHasSent != pdFALSE )
 	{
@@ -303,7 +303,7 @@ TickType_t xBlockTimeTicks = pdMS_TO_TICKS( 5000u );
 		/* Reading it back is important compiler is optimised. */
 		XEmacPs_ReadReg( ulBaseAddress, XEMACPS_NWCTRL_OFFSET );
 	}
-//	dsb();
+	dsb();
 
 	return 0;
 }
@@ -395,6 +395,7 @@ BaseType_t xEMACIndex = xemacpsif->emacps.Config.DeviceId;
 		{
 			pxBuffer = ( NetworkBufferDescriptor_t * )pxDMA_rx_buffers[ xEMACIndex ][ head ];
 			pxBuffer->pxInterface = pxInterface;
+			pxBuffer->pxEndPoint = FreeRTOS_MatchingEndpoint( pxInterface, pxBuffer->pucEthernetBuffer );
 
 			/* Just avoiding to use or refer to the same buffer again */
 			pxDMA_rx_buffers[ xEMACIndex ][ head ] = pxNewBuffer;

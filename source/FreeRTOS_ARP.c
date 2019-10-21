@@ -111,11 +111,12 @@ NetworkEndPoint_t *pxTargetEndPoint = pxNetworkBuffer->pxEndPoint;
 
 	traceARP_PACKET_RECEIVED();
 
+	/* Some extra logging while still testing. */
 	if( pxARPHeader->usOperation == ( uint16_t ) ipARP_REQUEST )
 	{
 		//if( ulSenderProtocolAddress != ulTargetProtocolAddress )
 		{
-			/*if( pxTargetEndPoint != NULL )*/
+			if( pxTargetEndPoint != NULL )
 			{
 				FreeRTOS_printf( ( "ipARP_REQUEST from %lxip to %lxip end-point %lxip\n",
 								   FreeRTOS_ntohl( ulSenderProtocolAddress ),
@@ -472,8 +473,11 @@ NetworkEndPoint_t *pxEndPoint = NULL;
 	}
 	else
 	{
+		/* It is assumed that devices with the same netmask are on the same
+		LAN and don't need a gateway. */
 		pxEndPoint = FreeRTOS_FindEndPointOnNetMask( ulAddressToLookup, 4 );
 		eReturn = eARPCacheMiss;
+
 		if( pxEndPoint == NULL )	/*lint !e774 Boolean within 'if' always evaluates to True [MISRA 2012 Rule 14.3, required]. */
 		{
 			/* No matching end-point is found, look for a gateway. */
@@ -704,7 +708,25 @@ NetworkInterface_t *pxInterface;
 					}
 				}
 				#endif
-				( void ) pxInterface->pfOutput( pxInterface, pxNetworkBuffer, pdTRUE );
+
+				if( xIsCallingFromIPTask() != 0 )
+				{
+					/* Only the IP-task is allowed to call this function directly. */
+					( void ) pxInterface->pfOutput( pxInterface, pxNetworkBuffer, pdTRUE );
+				}
+				else
+				{
+				IPStackEvent_t xSendEvent;
+
+					/* Send a message to the IP-task to send this ARP packet. */
+					xSendEvent.eEventType = eNetworkTxEvent;
+					xSendEvent.pvData = pxNetworkBuffer;
+					if( xSendEventStructToIPTask( &xSendEvent, ( TickType_t ) portMAX_DELAY ) == pdFAIL )
+					{
+						/* Failed to send the message, so release the network buffer. */
+						vReleaseNetworkBufferAndDescriptor( pxNetworkBuffer );
+					}
+				}
 			}
 		}
 	}

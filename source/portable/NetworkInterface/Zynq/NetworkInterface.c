@@ -240,9 +240,9 @@ BaseType_t xEMACIndex = ( BaseType_t )pxInterface->pvArgument;
 					if( pxEndPoint->bits.bIPv6 != pdFALSE_UNSIGNED )
 					{
 						unsigned char ucMACAddress[ 6 ] = { 0x33, 0x33, 0xff, 0, 0, 0 };
-						ucMACAddress[ 3 ] = pxEndPoint->ulIPAddress_IPv6.ucBytes[ 13 ];
-						ucMACAddress[ 4 ] = pxEndPoint->ulIPAddress_IPv6.ucBytes[ 14 ];
-						ucMACAddress[ 5 ] = pxEndPoint->ulIPAddress_IPv6.ucBytes[ 15 ];
+						ucMACAddress[ 3 ] = pxEndPoint->ipv6_settings.xIPAddress.ucBytes[ 13 ];
+						ucMACAddress[ 4 ] = pxEndPoint->ipv6_settings.xIPAddress.ucBytes[ 14 ];
+						ucMACAddress[ 5 ] = pxEndPoint->ipv6_settings.xIPAddress.ucBytes[ 15 ];
 						XEmacPs_SetHash( pxEMAC_PS, ( void * )ucMACAddress );
 					}
 				}
@@ -270,7 +270,7 @@ BaseType_t xEMACIndex = ( BaseType_t )pxInterface->pvArgument;
 		// MDIO goes via ETH0 only
 		XEmacPs_SetMdioDivisor( pxEMAC_PS, MDC_DIV_224 );
 		ulLinkSpeed = Phy_Setup( pxEMAC_PS );
-//		XEmacPs_SetOperatingSpeed( pxEMAC_PS, ulLinkSpeed); /* Duplicate */
+		XEmacPs_SetOperatingSpeed( pxEMAC_PS, ulLinkSpeed);
 
 		/* Setting the operating speed of the MAC needs a delay. */
 		vTaskDelay( pdMS_TO_TICKS( 25UL ) );

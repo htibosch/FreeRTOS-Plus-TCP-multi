@@ -860,7 +860,7 @@ const uint32_t ulMandatoryOptions = 2; /* DHCP server address, and the correct D
 				FreeRTOS_printf( ( "prvProcessDHCPReplies[%02x-%02x]: For me [%02x %02x %02x %02x %02x %02x]\n",
 					pxEndPoint->xMACAddress.ucBytes[ 4 ],
 					pxEndPoint->xMACAddress.ucBytes[ 5 ],
-					pucByte[ uxIndex     ],
+					pucByte[ uxIndex      ],
 					pucByte[ uxIndex + 1u ],
 					pucByte[ uxIndex + 2u ],
 					pucByte[ uxIndex + 3u ],
@@ -1036,7 +1036,7 @@ static uint8_t *prvCreatePartDHCPMessage( struct freertos_sockaddr *pxAddress, B
 	size_t *pxOptionsArraySize, NetworkEndPoint_t *pxEndPoint )
 {
 DHCPMessage_IPv4_t *pxDHCPMessage;
-size_t xRequiredBufferSize = sizeof( DHCPMessage_IPv4_t ) + *pxOptionsArraySize;
+size_t uxRequiredBufferSize = sizeof( DHCPMessage_IPv4_t ) + *pxOptionsArraySize;
 NetworkBufferDescriptor_t *pxNetworkBuffer;
 uint8_t *pucUDPPayloadBuffer;
 #if( ipconfigUSE_IPv6 != 0 )
@@ -1045,10 +1045,10 @@ uint8_t *pucUDPPayloadBuffer;
 
 #if( ipconfigDHCP_REGISTER_HOSTNAME == 1 )
 	const char *pucHostName = pcApplicationHostnameHook ();
-	size_t xNameLength = strlen( pucHostName );
+	size_t uxNameLength = strlen( pucHostName );
 	uint8_t *pucPtr;
 
-	xRequiredBufferSize += ( 2u + xNameLength );
+	uxRequiredBufferSize += ( 2u + uxNameLength );
 #endif
 
 	/* Get a buffer.  This uses a maximum delay, but the delay will be capped
@@ -1057,7 +1057,7 @@ uint8_t *pucUDPPayloadBuffer;
 	do
 	{
 		/* Obtain a network buffer with the required amount of storage. */
-		pxNetworkBuffer = pxGetNetworkBufferWithDescriptor( sizeof( UDPPacket_t ) + xRequiredBufferSize, portMAX_DELAY );
+		pxNetworkBuffer = pxGetNetworkBufferWithDescriptor( sizeof( UDPPacket_t ) + uxRequiredBufferSize, portMAX_DELAY );
 	} while( pxNetworkBuffer == NULL );
 
 		/* Leave space for the UPD header. */
@@ -1104,11 +1104,11 @@ uint8_t *pucUDPPayloadBuffer;
 
 		/* Point to where the OPTION_END was stored to add data. */
 		pucPtr = &( pucUDPPayloadBuffer[ dhcpFIRST_OPTION_BYTE_OFFSET + ( *pxOptionsArraySize - 1u ) ] );
-		pucPtr[ 0 ] = dhcpIPv4_DNS_HOSTNAME_OPTIONS_CODE;
-		pucPtr[ 1 ] = ( uint8_t ) xNameLength;
-		memcpy( &( pucPtr[ 2 ] ), pucHostName, xNameLength );
-		pucPtr[ 2u + xNameLength ] = ( uint8_t ) dhcpOPTION_END_BYTE;
-		*pxOptionsArraySize += ( size_t ) ( 2u + xNameLength );
+		pucPtr[ 0u ] = dhcpIPv4_DNS_HOSTNAME_OPTIONS_CODE;
+		pucPtr[ 1u ] = ( uint8_t ) uxNameLength;
+		memcpy( &( pucPtr[ 2 ] ), pucHostName, uxNameLength );
+		pucPtr[ 2u + uxNameLength ] = ( uint8_t ) dhcpOPTION_END_BYTE;
+		*pxOptionsArraySize += ( size_t ) ( 2u + uxNameLength );
 	}
 	#endif
 
@@ -1140,9 +1140,9 @@ static const uint8_t ucDHCPRequestOptions[] =
 	dhcpIPv4_SERVER_IP_ADDRESS_OPTION_CODE, 4, 0, 0, 0, 0,				/* The IP address of the DHCP server. */
 	dhcpOPTION_END_BYTE
 };
-size_t xOptionsLength = sizeof( ucDHCPRequestOptions );
+size_t uxOptionsLength = sizeof( ucDHCPRequestOptions );
 
-	pucUDPPayloadBuffer = prvCreatePartDHCPMessage( &xAddress, ( BaseType_t ) dhcpREQUEST_OPCODE, ucDHCPRequestOptions, &xOptionsLength, pxEndPoint );
+	pucUDPPayloadBuffer = prvCreatePartDHCPMessage( &xAddress, ( BaseType_t ) dhcpREQUEST_OPCODE, ucDHCPRequestOptions, &( uxOptionsLength ), pxEndPoint );
 
 	/* Copy in the IP address being requested. */
 	memcpy( &( pucUDPPayloadBuffer[ dhcpFIRST_OPTION_BYTE_OFFSET + dhcpREQUESTED_IP_ADDRESS_OFFSET ] ),
@@ -1158,7 +1158,7 @@ size_t xOptionsLength = sizeof( ucDHCPRequestOptions );
 		FreeRTOS_ntohl( pxEndPoint->xDHCPData.ulOfferedIPAddress ) ) );
 	iptraceSENDING_DHCP_REQUEST();
 
-	if( FreeRTOS_sendto( xDHCPSocket, pucUDPPayloadBuffer, ( sizeof( DHCPMessage_IPv4_t ) + xOptionsLength ), FREERTOS_ZERO_COPY, &xAddress, sizeof( xAddress ) ) == 0 )
+	if( FreeRTOS_sendto( xDHCPSocket, pucUDPPayloadBuffer, ( sizeof( DHCPMessage_IPv4_t ) + uxOptionsLength ), FREERTOS_ZERO_COPY, &xAddress, sizeof( xAddress ) ) == 0 )
 	{
 		/* The packet was not successfully queued for sending and must be
 		returned to the stack. */
@@ -1179,12 +1179,12 @@ static const uint8_t ucDHCPDiscoverOptions[] =
 	dhcpIPv4_PARAMETER_REQUEST_OPTION_CODE, 3, dhcpIPv4_SUBNET_MASK_OPTION_CODE, dhcpIPv4_GATEWAY_OPTION_CODE, dhcpIPv4_DNS_SERVER_OPTIONS_CODE,	/* Parameter request option. */
 	dhcpOPTION_END_BYTE
 };
-size_t xOptionsLength = sizeof( ucDHCPDiscoverOptions );
+size_t uxOptionsLength = sizeof( ucDHCPDiscoverOptions );
 
 	pucUDPPayloadBuffer = prvCreatePartDHCPMessage( &xAddress,
 													( BaseType_t ) dhcpREQUEST_OPCODE,
 													ucDHCPDiscoverOptions,
-													&( xOptionsLength ),
+													&( uxOptionsLength ),
 													pxEndPoint );
 
 	FreeRTOS_printf( ( "vDHCPProcess[%02x-%02x]: discover\n",
@@ -1192,7 +1192,7 @@ size_t xOptionsLength = sizeof( ucDHCPDiscoverOptions );
 		pxEndPoint->xMACAddress.ucBytes[ 5 ] ) );
 	iptraceSENDING_DHCP_DISCOVER();
 
-	if( FreeRTOS_sendto( xDHCPSocket, pucUDPPayloadBuffer, ( sizeof( DHCPMessage_IPv4_t ) + xOptionsLength ), FREERTOS_ZERO_COPY, &xAddress, sizeof( xAddress ) ) == 0 )
+	if( FreeRTOS_sendto( xDHCPSocket, pucUDPPayloadBuffer, ( sizeof( DHCPMessage_IPv4_t ) + uxOptionsLength ), FREERTOS_ZERO_COPY, &xAddress, sizeof( xAddress ) ) == 0 )
 	{
 		/* The packet was not successfully queued for sending and must be
 		returned to the stack. */

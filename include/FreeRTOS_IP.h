@@ -74,7 +74,6 @@ extern "C" {
 	the special unicast address: ff02::1:ffnn:nnnn, where nn:nnnn are
 	the last 3 bytes of the IPv6 address. */
 	BaseType_t xCompareIPv6_Address( const IPv6_Address_t *pxLeft, const IPv6_Address_t *pxRight, size_t uxPrefixLength );
-
 #endif /* ipconfigUSE_IPv6 */
 
 /* Using this function temporarily untill ipconfigRAND32() has been replaced. */
@@ -230,7 +229,7 @@ typedef struct xIP_TIMER
 	/* FreeRTOS_htons / FreeRTOS_htonl: some platforms might have built-in versions
 	using a single instruction so allow these versions to be overridden. */
 	#ifndef FreeRTOS_htons
-		#define FreeRTOS_htons( usIn ) ( (uint16_t) ( ( ( usIn ) << 8U ) | ( ( usIn ) >> 8U ) ) )
+		#define FreeRTOS_htons( usIn ) ( (uint16_t) ( ( ( usIn ) << 8u ) | ( ( usIn ) >> 8u ) ) )
 	#endif
 
 	#ifndef	FreeRTOS_htonl
@@ -265,11 +264,11 @@ typedef struct xIP_TIMER
 	static portINLINE uint32_t FreeRTOS_round_up   (uint32_t a, uint32_t d);
 	static portINLINE uint32_t FreeRTOS_round_down (uint32_t a, uint32_t d);
 	static portINLINE BaseType_t  FreeRTOS_min_BaseType  (BaseType_t  a, BaseType_t  b);
+/*
 	static portINLINE BaseType_t  FreeRTOS_max_BaseType  (BaseType_t  a, BaseType_t  b);
 	static portINLINE UBaseType_t FreeRTOS_max_UBaseType (UBaseType_t a, UBaseType_t b);
 	static portINLINE UBaseType_t FreeRTOS_min_UBaseType (UBaseType_t a, UBaseType_t  b);
-
-
+*/
 	static portINLINE int32_t  FreeRTOS_max_int32  (int32_t  a, int32_t  b) { return ( a >= b ) ? a : b; }
 	static portINLINE uint32_t FreeRTOS_max_uint32 (uint32_t a, uint32_t b) { return ( a >= b ) ? a : b; }
 	static portINLINE int32_t  FreeRTOS_min_int32  (int32_t  a, int32_t  b) { return ( a <= b ) ? a : b; }
@@ -277,10 +276,7 @@ typedef struct xIP_TIMER
 	static portINLINE uint32_t FreeRTOS_round_up   (uint32_t a, uint32_t d) { return d * ( ( a + d - 1u ) / d ); }
 	static portINLINE uint32_t FreeRTOS_round_down (uint32_t a, uint32_t d) { return d * ( a / d ); }
 
-	static portINLINE BaseType_t  FreeRTOS_max_BaseType  (BaseType_t  a, BaseType_t  b) { return a >= b ? a : b; }
-	static portINLINE UBaseType_t FreeRTOS_max_UBaseType (UBaseType_t a, UBaseType_t b) { return a >= b ? a : b; }
-	static portINLINE BaseType_t  	FreeRTOS_min_BaseType  (BaseType_t  a, BaseType_t  b) { return a <= b ? a : b; }
-	static portINLINE UBaseType_t  	FreeRTOS_min_UBaseType (UBaseType_t  a, UBaseType_t  b) { return a <= b ? a : b; }
+	static portINLINE BaseType_t  	FreeRTOS_min_BaseType  (BaseType_t  a, BaseType_t  b) { return ( a <= b ) ? a : b; }
 
 #else
 
@@ -294,10 +290,7 @@ typedef struct xIP_TIMER
 	#define FreeRTOS_round_up(a,d)   ( ( ( uint32_t ) ( d ) ) * ( ( ( ( uint32_t ) ( a ) ) + ( ( uint32_t ) ( d ) ) - 1UL ) / ( ( uint32_t ) ( d ) ) ) )
 	#define FreeRTOS_round_down(a,d) ( ( ( uint32_t ) ( d ) ) * ( ( ( uint32_t ) ( a ) ) / ( ( uint32_t ) ( d ) ) ) )
 
-	#define FreeRTOS_max_BaseType(a, b)  ( ( ( BaseType_t  ) ( a ) ) >= ( ( BaseType_t  ) ( b ) ) ? ( ( BaseType_t  ) ( a ) ) : ( ( BaseType_t  ) ( b ) ) )
-	#define FreeRTOS_max_UBaseType(a, b) ( ( ( UBaseType_t ) ( a ) ) >= ( ( UBaseType_t ) ( b ) ) ? ( ( UBaseType_t ) ( a ) ) : ( ( UBaseType_t ) ( b ) ) )
 	#define FreeRTOS_min_BaseType(a, b)  ( ( ( BaseType_t  ) ( a ) ) <= ( ( BaseType_t  ) ( b ) ) ? ( ( BaseType_t  ) ( a ) ) : ( ( BaseType_t  ) ( b ) ) )
-	#define FreeRTOS_min_UBaseType(a, b) ( ( ( UBaseType_t ) ( a ) ) <= ( ( UBaseType_t ) ( b ) ) ? ( ( UBaseType_t ) ( a ) ) : ( ( UBaseType_t ) ( b ) ) )
 
 #endif /* ipconfigHAS_INLINE_FUNCTIONS */
 
@@ -325,9 +318,9 @@ BaseType_t FreeRTOS_IPStart( void );
 
 #if( ipconfigUSE_IPv6 != 0 )
 	/* The last parameter is either ipTYPE_IPv4 or ipTYPE_IPv6. */
-	void * FreeRTOS_GetUDPPayloadBuffer( size_t xRequestedSizeBytes, TickType_t xBlockTimeTicks, uint8_t ucIPType );
+	void * FreeRTOS_GetUDPPayloadBuffer( size_t uxRequestedSizeBytes, TickType_t uxBlockTimeTicks, uint8_t ucIPType );
 #else
-	void * FreeRTOS_GetUDPPayloadBuffer( size_t xRequestedSizeBytes, TickType_t xBlockTimeTicks );
+	void * FreeRTOS_GetUDPPayloadBuffer( size_t uxRequestedSizeBytes, TickType_t uxBlockTimeTicks );
 #endif
 /*
  * Calculates the starting offset of the UDP payload.
@@ -341,7 +334,7 @@ void FreeRTOS_SetAddressConfiguration( struct xNetworkEndPoint *pxEndPoint,
 									   const uint32_t *pulGatewayAddress,
 									   const uint32_t *pulDNSServerAddress );
 
-BaseType_t FreeRTOS_SendPingRequest( uint32_t ulIPAddress, size_t xNumberOfBytesToSend, TickType_t xBlockTimeTicks );
+BaseType_t FreeRTOS_SendPingRequest( uint32_t ulIPAddress, size_t uxNumberOfBytesToSend, TickType_t uxBlockTimeTicks );
 void FreeRTOS_ReleaseUDPPayloadBuffer( void *pvBuffer );
 /* _HT_ FreeRTOS_GetMACAddress() can not continue to exist with multiple interfaces.*/
 //const uint8_t * FreeRTOS_GetMACAddress( void );
@@ -390,6 +383,7 @@ void FreeRTOS_ClearARP( void );
 	void FreeRTOS_ClearND( void );
 #endif/* ( ipconfigUSE_IPv6 != 0 ) */
 
+/* Return pdTRUE if the IPv4 address is a multicast address. */
 BaseType_t prvIsIPv4Multicast( uint32_t ulIPAddress );
 
 #if( ipconfigUSE_IPv6 != 0 )
