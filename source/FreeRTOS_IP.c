@@ -1,5 +1,5 @@
 /*
- * FreeRTOS+TCP V2.0.10
+ * FreeRTOS+TCP V2.2.1
  * Copyright (C) 2017 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -46,6 +46,12 @@
 #include "FreeRTOS_Routing.h"
 #include "FreeRTOS_ND.h"
 
+#if !defined( ipconfigMULTI_INTERFACE ) || ( ipconfigMULTI_INTERFACE == 0 )
+	#ifndef _lint
+		#error Please define ipconfigMULTI_INTERFACE as 1 to use the multi version
+	#endif
+#endif
+
 /* Used to ensure the structure packing is having the desired effect.  The
 'volatile' is used to prevent compiler warnings about comparing a constant with
 a constant. */
@@ -68,6 +74,10 @@ a constant. */
 	#define ipMULTICAST_MAC_ADDRESS_IPv6_0	0x33u
 	#define ipMULTICAST_MAC_ADDRESS_IPv6_1	0x33u
 #endif
+
+/* IPv4 multi-cast addresses range from 224.0.0.0.0 to 240.0.0.0. */
+#define	ipFIRST_MULTI_CAST_IPv4		0xE0000000uL
+#define	ipLAST_MULTI_CAST_IPv4		0xF0000000uL
 
 /* Time delay between repeated attempts to initialise the network hardware. */
 #ifndef ipINITIALISATION_RETRY_DELAY
@@ -1102,10 +1112,14 @@ NetworkBufferDescriptor_t *pxResult;
 		#endif
 			{
 			BaseType_t xIndex = ( BaseType_t ) ipBUFFER_PADDING;
+			/* Check if the buffer has been release already. */
+			configASSERT( pxResult->pucEthernetBuffer != NULL );
 			uint8_t *pucEthBuffer1 = &( pxResult->pucEthernetBuffer[ 0 - xIndex ] );
 			uint8_t *pucEthBuffer2 = pucBuffer;
 
 				configASSERT( pucEthBuffer1 == pucEthBuffer2 );
+				( void ) pucEthBuffer1;
+				( void ) pucEthBuffer2;
 			}
 		}
 		else
@@ -1155,12 +1169,10 @@ NetworkBufferDescriptor_t *pxBuffer;
 BaseType_t FreeRTOS_IPStart( void )
 {
 BaseType_t xReturn = pdFALSE;
-NetworkInterface_t *pxFirstNetwork;
 NetworkEndPoint_t *pxFirstEndPoint;
 
 	/* There must be at least one interface and one end-point. */
-	pxFirstNetwork = FreeRTOS_FirstNetworkInterface();
-	configASSERT( pxFirstNetwork != NULL );
+	configASSERT( FreeRTOS_FirstNetworkInterface() != NULL );
 
 	for( pxFirstEndPoint = FreeRTOS_FirstEndPoint( NULL );
 		pxFirstEndPoint != NULL;
@@ -1719,14 +1731,12 @@ volatile eFrameProcessingResult_t eReturned; /* Volatile to prevent complier war
 }
 /*-----------------------------------------------------------*/
 
-BaseType_t prvIsIPv4Multicast( uint32_t ulIPAddress )
+BaseType_t xIsIPv4Multicast( uint32_t ulIPAddress )
 {
 BaseType_t xReturn;
 uint32_t ulIP;
 
 	ulIP = FreeRTOS_ntohl( ulIPAddress );
-#define	ipFIRST_MULTI_CAST_IPv4		0xE0000000uL
-#define	ipLAST_MULTI_CAST_IPv4		0xF0000000uL
 	if( ( ulIP >= ipFIRST_MULTI_CAST_IPv4 ) && ( ulIP < ipLAST_MULTI_CAST_IPv4 ) )
 	{
 		xReturn = pdTRUE;
@@ -1740,7 +1750,7 @@ uint32_t ulIP;
 /*-----------------------------------------------------------*/
 
 #if( ipconfigUSE_IPv6 != 0 )
-	BaseType_t prvIsIPv6Multicast( const IPv6_Address_t *pxIPAddress )
+	BaseType_t xIsIPv6Multicast( const IPv6_Address_t *pxIPAddress )
 	{
 	BaseType_t xReturn;
 
@@ -1841,9 +1851,9 @@ uint32_t ulIP;
 				/* Is the packet for this IP address? */
 				if( ( FreeRTOS_FindEndPointOnIP_IPv6( pxDestinationIPAddress ) != NULL ) ||
 					/* Is it the multicast address FF00::/8 ? */
-					( prvIsIPv6Multicast ( pxDestinationIPAddress ) != pdFALSE ) ||
+					( xIsIPv6Multicast ( pxDestinationIPAddress ) != pdFALSE ) ||
 					/* Or (during DHCP negotiation) we have no IP-address yet? */
-					( FreeRTOS_IsNetworkUp( NULL ) == 0 ) )
+					( FreeRTOS_IsNetworkUp() == 0 ) )
 				{
 					/* Packet is not for this node, or the network is still not up,
 					release it */
@@ -1852,7 +1862,7 @@ uint32_t ulIP;
 				else
 				{
 					eReturn = eReleaseBuffer;
-					FreeRTOS_printf( ( "prvAllowIPPacketIPv6: drop %pip\n", pxDestinationIPAddress->ucBytes ) );
+					FreeRTOS_printf( ( "prvAllowIPPacketIPv6: drop %pip (from %pip)\n", pxDestinationIPAddress->ucBytes, pxIPv6Header->xSourceAddress.ucBytes ) );
 				}
 		}
 		#else
@@ -1940,9 +1950,9 @@ eFrameProcessingResult_t eReturn = eProcessBuffer;
 				( FreeRTOS_FindEndPointOnIP_IPv4( ulDestinationIPAddress, 4 ) == NULL ) &&
 				/* Is it an IPv4 broadcast address x.x.x.255 ? */
 				( ( FreeRTOS_ntohl( ulDestinationIPAddress ) & 0xff ) != 0xff ) &&
-				( prvIsIPv4Multicast( ulDestinationIPAddress ) == pdFALSE ) &&
+				( xIsIPv4Multicast( ulDestinationIPAddress ) == pdFALSE ) &&
 				/* Or (during DHCP negotiation) we have no IP-address yet? */
-				( FreeRTOS_IsNetworkUp( NULL ) != pdFALSE ) )
+				( FreeRTOS_IsNetworkUp() != pdFALSE ) )
 			{
 FreeRTOS_printf( ( "prvAllowIPPacketIPv4: drop %lxip => %lxip\n", FreeRTOS_ntohl( pxIPHeader->ulDestinationIPAddress ), FreeRTOS_ntohl( ulDestinationIPAddress ) ) );
 				/* Packet is not for this node, release it */
@@ -2116,26 +2126,51 @@ uint8_t ucProtocol;
 				{
 				/* The IP packet contained a UDP frame. */
 				UDPPacket_t *pxUDPPacket = ipPOINTER_CAST( UDPPacket_t *, pxNetworkBuffer->pucEthernetBuffer );
-				uint16_t usLength = FreeRTOS_ntohs( pxProtocolHeaders->xUDPHeader.usLength );
+
+				size_t uxMinSize = ipSIZE_OF_ETH_HEADER + ( size_t ) xIPHeaderSize( pxNetworkBuffer ) + ipSIZE_OF_UDP_HEADER;
+				size_t uxLength;
+				uint16_t usLength;
+
+					usLength = FreeRTOS_ntohs( pxProtocolHeaders->xUDPHeader.usLength );
+					uxLength = ( size_t ) usLength;
 
 					/* Note the header values required prior to the checksum
 					generation as the checksum pseudo header may clobber some of
 					these values. */
-
-					usLength -= ( uint16_t ) sizeof( UDPHeader_t );
-					pxNetworkBuffer->xDataLength = usLength;
-					pxNetworkBuffer->usPort = pxProtocolHeaders->xUDPHeader.usSourcePort;
-					pxNetworkBuffer->ulIPAddress = pxUDPPacket->xIPHeader.ulSourceIPAddress;
-
-					/* ipconfigDRIVER_INCLUDED_RX_IP_CHECKSUM:
-					In some cases, the upper-layer checksum has been calculated
-					by the NIC driver. */
-
-					/* Pass the packet payload to the UDP sockets
-					implementation. */
-					if( xProcessReceivedUDPPacket( pxNetworkBuffer, pxProtocolHeaders->xUDPHeader.usDestinationPort ) == pdPASS )
+					if ( ( pxNetworkBuffer->xDataLength >= uxMinSize ) &&
+						( uxLength >= sizeof( UDPHeader_t ) ) )
 					{
-						eReturn = eFrameConsumed;
+					size_t uxPayloadSize_1, uxPayloadSize_2;
+						/* Ensure that downstream UDP packet handling has the lesser
+						 * of: the actual network buffer Ethernet frame length, or
+						 * the sender's UDP packet header payload length, minus the
+						 * size of the UDP header.
+						 *
+						 * The size of the UDP packet structure in this implementation
+						 * includes the size of the Ethernet header, the size of
+						 * the IP header, and the size of the UDP header.
+						 */
+
+						uxPayloadSize_1 = pxNetworkBuffer->xDataLength - uxMinSize;
+						uxPayloadSize_2 = uxLength - ipSIZE_OF_UDP_HEADER;
+						if( uxPayloadSize_1 > uxPayloadSize_2 )
+						{
+							pxNetworkBuffer->xDataLength = uxPayloadSize_2 + uxMinSize;
+						}
+
+						pxNetworkBuffer->usPort = pxProtocolHeaders->xUDPHeader.usSourcePort;
+						pxNetworkBuffer->ulIPAddress = pxUDPPacket->xIPHeader.ulSourceIPAddress;
+
+						/* ipconfigDRIVER_INCLUDED_RX_IP_CHECKSUM:
+						In some cases, the upper-layer checksum has been calculated
+						by the NIC driver. */
+
+						/* Pass the packet payload to the UDP sockets
+						implementation. */
+						if( xProcessReceivedUDPPacket( pxNetworkBuffer, pxProtocolHeaders->xUDPHeader.usDestinationPort ) == pdPASS )
+						{
+							eReturn = eFrameConsumed;
+						}
 					}
 				}
 				break;
@@ -2953,7 +2988,12 @@ void FreeRTOS_SetGatewayAddress ( uint32_t ulGatewayAddress )
 #if( ipconfigUSE_DHCP == 1 ) || ( ipconfigUSE_RA == 1 )
 	void vIPReloadDHCP_RATimer( struct xNetworkEndPoint *pxEndPoint, TickType_t uxClockTicks )
 	{
-		prvIPTimerReload( &pxEndPoint->xDHCP_RATimer, uxClockTicks );
+		{
+			int i;
+			FreeRTOS_printf( ( "pxEndPoint(5) = %p\n", pxEndPoint ) );
+			for( i = 0; i < 10; i++ ) { vTaskDelay( 10 ); }
+		}
+		prvIPTimerReload( &( pxEndPoint->xDHCP_RATimer ), uxClockTicks );
 	}
 #endif /* ( ipconfigUSE_DHCP == 1 ) || ( ipconfigUSE_RA == 1 ) */
 /*-----------------------------------------------------------*/
@@ -2987,7 +3027,14 @@ BaseType_t xIPIsNetworkTaskReady( void )
 }
 /*-----------------------------------------------------------*/
 
-BaseType_t FreeRTOS_IsNetworkUp( struct xNetworkEndPoint *pxEndPoint )
+BaseType_t FreeRTOS_IsNetworkUp()
+{
+	/* IsNetworkUp() is kept for backward compatibility. */
+	return FreeRTOS_IsEndPointUp( NULL );
+}
+/*-----------------------------------------------------------*/
+
+BaseType_t FreeRTOS_IsEndPointUp( struct xNetworkEndPoint *pxEndPoint )
 {
 BaseType_t xReturn;
 
@@ -3002,6 +3049,32 @@ BaseType_t xReturn;
 		xReturn = FreeRTOS_AllEndPointsUp( NULL );
 	}
 	return xReturn;
+}
+/*-----------------------------------------------------------*/
+
+/* Return pdTRUE if all end-points of a given interface are up.
+When pxInterface is null, all end-points can be iterated. */
+BaseType_t FreeRTOS_AllEndPointsUp( struct xNetworkInterface *pxInterface )
+{
+BaseType_t xResult = pdTRUE;
+NetworkEndPoint_t *pxEndPoint = pxNetworkEndPoints;
+
+	while( pxEndPoint != NULL )
+	{
+		if( ( pxInterface == NULL ) ||
+			( pxEndPoint->pxNetworkInterface == pxInterface ) )
+
+		{
+			if( pxEndPoint->bits.bEndPointUp == pdFALSE_UNSIGNED )
+			{
+				xResult = pdFALSE;
+				break;
+			}
+		}
+		pxEndPoint = pxEndPoint->pxNext;
+	}
+
+	return xResult;
 }
 /*-----------------------------------------------------------*/
 
