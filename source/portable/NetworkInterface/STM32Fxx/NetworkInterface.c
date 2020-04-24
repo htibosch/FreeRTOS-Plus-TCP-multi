@@ -150,6 +150,8 @@ and the index of the PHY in use ( between 0 and 31 ). */
 	#warning Using MII, make sure if this is correct
 #endif
 
+static void prvMACAddressConfig(ETH_HandleTypeDef *heth, uint32_t ulIndex, uint8_t *Addr);
+
 #if defined(STM32F7xx)
 	#define		NETWORK_BUFFERS_CACHED							1
 	#define		CACHE_LINE_SIZE									32
@@ -1352,7 +1354,7 @@ NetworkInterface_t *pxSTMF40_FillInterfaceDescriptor( BaseType_t xEMACIndex, Net
 		if( uxMinLastSize != uxMinSize )
 		{
 			uxMinLastSize = uxMinSize;
-			FreeRTOS_printf( ( "Heap: current %lu lowest %lu\n", xPortGetFreeHeapSize(), uxMinSize ) );
+			FreeRTOS_printf( ( "Heap: current %u lowest %u\n", ( unsigned ) xPortGetFreeHeapSize(), ( unsigned ) uxMinSize ) );
 		}
 
 		#if ( ipconfigCHECK_IP_QUEUE_SPACE != 0 )
@@ -1377,11 +1379,6 @@ NetworkInterface_t *pxSTMF40_FillInterfaceDescriptor( BaseType_t xEMACIndex, Net
 
 static void prvEMACHandlerTask( void *pvParameters )
 {
-UBaseType_t uxLastMinBufferCount = 0;
-#if( ipconfigCHECK_IP_QUEUE_SPACE != 0 )
-UBaseType_t uxLastMinQueueSpace = 0;
-#endif
-UBaseType_t uxCurrentCount;
 BaseType_t xResult;
 const TickType_t ulMaxBlockTime = pdMS_TO_TICKS( 100UL );
 

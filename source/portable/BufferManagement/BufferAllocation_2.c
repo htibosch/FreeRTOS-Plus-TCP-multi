@@ -392,7 +392,7 @@ NetworkBufferDescriptor_t * pxNetworkBuffer = pxDescriptor;	/* Same reason. */
 			xNewSizeBytes = xOriginalLength;
 		}
 
-		memcpy( pucBuffer - ipBUFFER_PADDING, pxNetworkBuffer->pucEthernetBuffer - ipBUFFER_PADDING, xNewSizeBytes );
+		( void ) memcpy( pucBuffer - ipBUFFER_PADDING, pxNetworkBuffer->pucEthernetBuffer - ipBUFFER_PADDING, xNewSizeBytes );
 		vReleaseNetworkBuffer( pxNetworkBuffer->pucEthernetBuffer );
 		pxNetworkBuffer->pucEthernetBuffer = pucBuffer;
 	}

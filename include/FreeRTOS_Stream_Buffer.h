@@ -52,10 +52,10 @@ static portINLINE void vStreamBufferClear( StreamBuffer_t *pxBuffer );
 static portINLINE void vStreamBufferClear( StreamBuffer_t *pxBuffer )
 {
 	/* Make the circular buffer empty */
-	pxBuffer->uxHead = 0u;
-	pxBuffer->uxTail = 0u;
-	pxBuffer->uxFront = 0u;
-	pxBuffer->uxMid = 0u;
+	pxBuffer->uxHead = 0U;
+	pxBuffer->uxTail = 0U;
+	pxBuffer->uxFront = 0U;
+	pxBuffer->uxMid = 0U;
 }
 /*-----------------------------------------------------------*/
 
@@ -65,7 +65,7 @@ static portINLINE size_t uxStreamBufferSpace( const StreamBuffer_t *pxBuffer, co
 /* Returns the space between uxLower and uxUpper, which equals to the distance minus 1 */
 size_t uxCount;
 
-	uxCount = pxBuffer->LENGTH + uxUpper - uxLower - 1u;
+	uxCount = pxBuffer->LENGTH + uxUpper - uxLower - 1U;
 	if( uxCount >= pxBuffer->LENGTH )
 	{
 		uxCount -= pxBuffer->LENGTH;

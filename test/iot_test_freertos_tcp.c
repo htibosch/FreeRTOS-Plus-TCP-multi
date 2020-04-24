@@ -41,7 +41,6 @@
 #include "unity.h"
 #include "iot_freertos_tcp_test_access_declare.h"
 
-#include "iot_freertos_tcp_test_access_tcp_define.h"
 
 /**
  * @brief Configuration for this test group.

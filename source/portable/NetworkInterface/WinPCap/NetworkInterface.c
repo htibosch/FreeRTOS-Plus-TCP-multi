@@ -58,7 +58,8 @@ considers need processing. */
 #if( ipconfigETHERNET_DRIVER_FILTERS_FRAME_TYPES == 0 )
 	#define ipCONSIDER_FRAME_FOR_PROCESSING( pucEthernetBuffer ) eProcessBuffer
 #else
-	#define ipCONSIDER_FRAME_FOR_PROCESSING( pucEthernetBuffer ) eConsiderFrameForProcessing( ( pucEthernetBuffer ) )
+//	#define ipCONSIDER_FRAME_FOR_PROCESSING( pucEthernetBuffer ) eConsiderFrameForProcessing( ( pucEthernetBuffer ) )
+	#define ipCONSIDER_FRAME_FOR_PROCESSING( pucEthernetBuffer ) eProcessBuffer
 #endif
 
 /* Used to insert test code only. */
@@ -701,6 +702,10 @@ eFrameProcessingResult_t eResult;
 					overflowed the buffer, but there may be more buffers to
 					process. */
 				}
+			}
+			else
+			{
+				FreeRTOS_printf( ( "Dropped a packet\n" ) );
 			}
 		}
 		else

@@ -158,7 +158,7 @@ from the FreeRTOSIPConfig.h configuration header file. */
  * This macro will only be used if FreeRTOS_debug_printf() is defined for logging
  */
 #ifndef ipconfigTCP_MAY_LOG_PORT
-	#define ipconfigTCP_MAY_LOG_PORT(xPort)			( ( xPort ) != 23u )
+	#define ipconfigTCP_MAY_LOG_PORT(xPort)			( ( xPort ) != 23U )
 #endif
 
 
@@ -172,11 +172,11 @@ from the FreeRTOSIPConfig.h configuration header file. */
 
 
 #ifndef	ipconfigDNS_RECEIVE_BLOCK_TIME_TICKS
-	#define	ipconfigDNS_RECEIVE_BLOCK_TIME_TICKS	pdMS_TO_TICKS( 500u )
+	#define	ipconfigDNS_RECEIVE_BLOCK_TIME_TICKS	pdMS_TO_TICKS( 500U )
 #endif
 
 #ifndef	ipconfigDNS_SEND_BLOCK_TIME_TICKS
-	#define	ipconfigDNS_SEND_BLOCK_TIME_TICKS		pdMS_TO_TICKS( 500u )
+	#define	ipconfigDNS_SEND_BLOCK_TIME_TICKS		pdMS_TO_TICKS( 500U )
 #endif
 /*
  * FreeRTOS debug logging routine (proposal)
@@ -263,7 +263,7 @@ from the FreeRTOSIPConfig.h configuration header file. */
 #endif
 
 #ifndef ipconfigUDP_MAX_SEND_BLOCK_TIME_TICKS
-	#define ipconfigUDP_MAX_SEND_BLOCK_TIME_TICKS ( pdMS_TO_TICKS( 20u ) )
+	#define ipconfigUDP_MAX_SEND_BLOCK_TIME_TICKS ( pdMS_TO_TICKS( 20U ) )
 #endif
 
 #ifndef ipconfigARP_CACHE_ENTRIES
@@ -275,11 +275,11 @@ from the FreeRTOSIPConfig.h configuration header file. */
 #endif
 
 #ifndef ipconfigMAX_ARP_RETRANSMISSIONS
-	#define ipconfigMAX_ARP_RETRANSMISSIONS ( 5u )
+	#define ipconfigMAX_ARP_RETRANSMISSIONS ( 5U )
 #endif
 
 #ifndef ipconfigMAX_ARP_AGE
-	#define ipconfigMAX_ARP_AGE			150u
+	#define ipconfigMAX_ARP_AGE			150U
 #endif
 
 #ifndef ipconfigUSE_ARP_REVERSED_LOOKUP
@@ -319,7 +319,7 @@ from the FreeRTOSIPConfig.h configuration header file. */
 	 * for each UDP socket.
 	 * Can be overridden with the socket option FREERTOS_SO_UDP_MAX_RX_PACKETS
 	 */
-	#define ipconfigUDP_MAX_RX_PACKETS		0u
+	#define ipconfigUDP_MAX_RX_PACKETS		0U
 #endif
 
 #ifndef ipconfigUSE_DHCP
@@ -357,11 +357,11 @@ ipconfigRA_IP_TEST_COUNT times, each time with a timeout of ipconfigRA_IP_TEST_T
 Finally the end-point will go in the UP state.
 */
 #ifndef ipconfigRA_SEARCH_COUNT
-	#define ipconfigRA_SEARCH_COUNT				( 3u )
+	#define ipconfigRA_SEARCH_COUNT				( 3U )
 #endif
 
 #ifndef ipconfigRA_SEARCH_TIME_OUT_MSEC
-	#define ipconfigRA_SEARCH_TIME_OUT_MSEC		( 10000u )
+	#define ipconfigRA_SEARCH_TIME_OUT_MSEC		( 10000U )
 #endif
 
 #ifndef ipconfigRA_IP_TEST_COUNT
@@ -369,11 +369,11 @@ Finally the end-point will go in the UP state.
 #endif
 
 #ifndef ipconfigRA_IP_TEST_TIME_OUT_MSEC
-	#define ipconfigRA_IP_TEST_TIME_OUT_MSEC	( 1500u )
+	#define ipconfigRA_IP_TEST_TIME_OUT_MSEC	( 1500U )
 #endif
 
 #ifndef ipconfigNETWORK_MTU
-	#define ipconfigNETWORK_MTU		1500u
+	#define ipconfigNETWORK_MTU		1500U
 #endif
 
 #ifndef ipconfigTCP_MSS
@@ -391,12 +391,12 @@ Finally the end-point will go in the UP state.
  * The defaults for these size are defined here, although
  * they can be overridden at runtime by using the setsockopt() call */
 #ifndef ipconfigTCP_RX_BUFFER_LENGTH
-	#define ipconfigTCP_RX_BUFFER_LENGTH			( 4u * ipconfigTCP_MSS )	/* defaults to 5840 bytes */
+	#define ipconfigTCP_RX_BUFFER_LENGTH			( 4U * ipconfigTCP_MSS )	/* defaults to 5840 bytes */
 #endif
 
 /* Define the size of Tx stream buffer for TCP sockets */
 #ifndef ipconfigTCP_TX_BUFFER_LENGTH
-#	define ipconfigTCP_TX_BUFFER_LENGTH			( 4u * ipconfigTCP_MSS )	/* defaults to 5840 bytes */
+#	define ipconfigTCP_TX_BUFFER_LENGTH			( 4U * ipconfigTCP_MSS )	/* defaults to 5840 bytes */
 #endif
 
 #ifndef ipconfigMAXIMUM_DISCOVER_TX_PERIOD
@@ -606,7 +606,7 @@ connections, hang protection can help reduce the impact of SYN floods. */
 #endif
 
 #ifndef ipconfigPACKET_FILLER_SIZE
-	#define ipconfigPACKET_FILLER_SIZE 2u
+	#define ipconfigPACKET_FILLER_SIZE 2U
 #endif
 
 #ifndef ipconfigMULTI_INTERFACE

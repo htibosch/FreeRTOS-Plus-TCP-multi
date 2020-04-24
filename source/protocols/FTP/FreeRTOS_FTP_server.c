@@ -662,7 +662,7 @@ BaseType_t xResult = 0;
 				pxClient->ulClientIPv4 = ulIPAddress;
 				#if( ipconfigUSE_IPv6 != 0 )
 				{
-					memcpy( pxClient->ulClientIPv6.ucBytes, ucIPAddress, sizeof( pxClient->ulClientIPv6.ucBytes ) );
+					( void ) memcpy( pxClient->ulClientIPv6.ucBytes, ucIPAddress, sizeof( pxClient->ulClientIPv6.ucBytes ) );
 				}
 				#endif
 
@@ -929,7 +929,7 @@ BaseType_t xResult;
 			pxBindAddress->sin_addr = pxEndPoint->ipv4_settings.ulIPAddress;
 			#if( ipconfigUSE_IPv6 != 0 )
 			{
-				memcpy( xBindAddress.sin_addrv6.ucBytes, pxEndPoint->ipv6_settings.xIPAddress.ucBytes, sizeof( xBindAddress.sin_addrv6.ucBytes ) );
+				( void ) memcpy( xBindAddress.sin_addrv6.ucBytes, pxEndPoint->ipv6_settings.xIPAddress.ucBytes, sizeof( xBindAddress.sin_addrv6.ucBytes ) );
 			}
 			#endif /* ipconfigUSE_IPv6 */
 		}
@@ -1017,7 +1017,7 @@ BaseType_t xResult;
 		if( pxClient->ulClientIPv4 == 0ul )
 		{
 			xAddress.sin_family = FREERTOS_AF_INET6;
-			memcpy( xAddress.sin_addrv6.ucBytes, pxClient->ulClientIPv6.ucBytes, sizeof xAddress.sin_addrv6.ucBytes );
+			( void ) memcpy( xAddress.sin_addrv6.ucBytes, pxClient->ulClientIPv6.ucBytes, sizeof xAddress.sin_addrv6.ucBytes );
 		}
 		else
 		#endif
@@ -2347,7 +2347,7 @@ BaseType_t xIsDotDir = 0;
 	}
 	else
 	{
-		memcpy( pxClient->pcCurrentDir, pcNEW_DIR, sizeof( pxClient->pcCurrentDir ) );
+		( void ) memcpy( pxClient->pcCurrentDir, pcNEW_DIR, sizeof( pxClient->pcCurrentDir ) );
 
 		xLength = snprintf( pcCOMMAND_BUFFER, sizeof( pcCOMMAND_BUFFER ), "250 Changed to %s\r\n", pcNEW_DIR );
 		prvSendReply( pxClient->xSocket, pcCOMMAND_BUFFER, xLength );

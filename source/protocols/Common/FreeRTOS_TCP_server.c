@@ -278,7 +278,7 @@ char *pxBuffer;
 	pxBuffer = ( char * ) pvPortMalloc( xLength );
 	if( pxBuffer != NULL )
 	{
-		memcpy( pxBuffer, pcString, xLength );
+		( void ) memcpy( pxBuffer, pcString, xLength );
 	}
 
 	return pxBuffer;

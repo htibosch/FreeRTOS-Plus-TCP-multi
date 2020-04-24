@@ -12,25 +12,25 @@
 	#define	dumpMAX_DUMP_ENTRIES	16
 #endif
 
-#define flag_ICMP4            0x00000001uL
-#define flag_ICMP6            0x00000002uL
-#define flag_UDP              0x00000004uL
-#define flag_TCP              0x00000008uL
-#define flag_DNS              0x00000010uL
-#define flag_REPLY            0x00000020uL
-#define flag_REQUEST          0x00000040uL
-#define flag_SYN              0x00000080uL
-#define flag_FIN              0x00000100uL
-#define flag_RST              0x00000200uL
-#define flag_ACK              0x00000400uL
-#define flag_IN               0x00000800uL
-#define flag_OUT              0x00001000uL
-#define flag_FRAME_ARP        0x00002000uL
-#define flag_ARP              0x00004000uL
-#define flag_UNKNOWN          0x00008000uL
-#define flag_FRAME_4          0x00010000uL
-#define flag_FRAME_6          0x00020000uL
-#define flag_Unknown_FRAME    0x00040000uL
+#define flag_ICMP4            0x00000001UL
+#define flag_ICMP6            0x00000002UL
+#define flag_UDP              0x00000004UL
+#define flag_TCP              0x00000008UL
+#define flag_DNS              0x00000010UL
+#define flag_REPLY            0x00000020UL
+#define flag_REQUEST          0x00000040UL
+#define flag_SYN              0x00000080UL
+#define flag_FIN              0x00000100UL
+#define flag_RST              0x00000200UL
+#define flag_ACK              0x00000400UL
+#define flag_IN               0x00000800UL
+#define flag_OUT              0x00001000UL
+#define flag_FRAME_ARP        0x00002000UL
+#define flag_ARP              0x00004000UL
+#define flag_UNKNOWN          0x00008000UL
+#define flag_FRAME_4          0x00010000UL
+#define flag_FRAME_6          0x00020000UL
+#define flag_Unknown_FRAME    0x00040000UL
 
 typedef struct xDumpEntry
 {

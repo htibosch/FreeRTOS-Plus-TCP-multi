@@ -48,8 +48,8 @@
 #endif /* ipconfigUSE_LLMNR */
 #include "NetworkBufferManagement.h"
 
-#define ndICMPv6_FLAG_SOLICITED					0x40000000uL
-#define ndICMPv6_FLAG_UPDATE					0x20000000uL
+#define ndICMPv6_FLAG_SOLICITED					0x40000000UL
+#define ndICMPv6_FLAG_UPDATE					0x20000000UL
 
 /* Options that can be send after the ICMPv6 header. */
 #define	ndICMP_SOURCE_LINK_LAYER_ADDRESS		1
@@ -60,9 +60,9 @@
 
 /* Possible values of ucFlags in a neighbour advertisement. */
 #ifndef _lint
-	#define ndFlags_IsRouter		0x8000u
-	#define ndFlags_Solicited		0x4000u
-	#define ndFlags_Override		0x2000u
+	#define ndFlags_IsRouter		0x8000U
+	#define ndFlags_Solicited		0x4000U
+	#define ndFlags_Override		0x2000U
 #endif
 
 /* A block time of 0 simply means "don't block". */
@@ -96,7 +96,7 @@ NetworkEndPoint_t *pxEndPoint;
 /* For testing now, fill in Hein's laptop: 9c 5c 8e 38 06 6c */
 //static const unsigned char testMAC[] = { 0x9C, 0x5C, 0x8E, 0x38, 0x06, 0x6C };
 //
-//	memcpy( pxMACAddress->ucBytes, testMAC, sizeof testMAC );
+//	( void ) memcpy( pxMACAddress->ucBytes, testMAC, sizeof testMAC );
 
 	eReturn = prvCacheLookup( pxIPAddress, pxMACAddress, ppxEndPoint );
 	if( eReturn == eARPCacheMiss )
@@ -113,7 +113,7 @@ NetworkEndPoint_t *pxEndPoint;
 			{
 			NetworkEndPoint_t *pxKeep;
 				pxKeep = pxEndPoint;
-				memcpy( pxIPAddress->ucBytes, pxEndPoint->ipv6_settings.xGatewayAddress.ucBytes, ipSIZE_OF_IPv6_ADDRESS );
+				( void ) memcpy( pxIPAddress->ucBytes, pxEndPoint->ipv6_settings.xGatewayAddress.ucBytes, ipSIZE_OF_IPv6_ADDRESS );
 				FreeRTOS_printf( ( "eNDGetCacheEntry: Using gw %pip", pxIPAddress->ucBytes ) );	/* access to 'ipv6_settings' is checked. */
 				eReturn = prvCacheLookup( pxIPAddress, pxMACAddress, ppxEndPoint );
 				if( *( ppxEndPoint ) == NULL )
@@ -159,9 +159,9 @@ BaseType_t xFreeEntry = -1, xEntryFound = -1;
 	if( xEntryFound >= 0 )
 	{
 		/* Copy the IP-address. */
-		memcpy( xNDCache[ xEntryFound ].xIPAddress.ucBytes, pxIPAddress->ucBytes, ipSIZE_OF_IPv6_ADDRESS );
+		( void ) memcpy( xNDCache[ xEntryFound ].xIPAddress.ucBytes, pxIPAddress->ucBytes, ipSIZE_OF_IPv6_ADDRESS );
 		/* Copy the MAC-address. */
-		memcpy( xNDCache[ xEntryFound ].xMACAddress.ucBytes, pxMACAddress->ucBytes, sizeof( MACAddress_t ) );
+		( void ) memcpy( xNDCache[ xEntryFound ].xMACAddress.ucBytes, pxMACAddress->ucBytes, sizeof( MACAddress_t ) );
 		xNDCache[ xEntryFound ].pxEndPoint = pxEndPoint;
 		xNDCache[ xEntryFound ].ucAge = ( uint8_t ) ipconfigMAX_ARP_AGE;
 		xNDCache[ xEntryFound ].ucValid = ( uint8_t ) pdTRUE;
@@ -182,7 +182,7 @@ BaseType_t xFreeEntry = -1, xEntryFound = -1;
 
 void FreeRTOS_ClearND( void )
 {
-	memset( xNDCache, 0, sizeof( xNDCache ) );
+	( void ) memset( xNDCache, 0, sizeof( xNDCache ) );
 }
 /*-----------------------------------------------------------*/
 
@@ -198,7 +198,7 @@ eARPLookupResult_t eReturn = eARPCacheMiss;
 		}
 		else if( memcmp( xNDCache[ x ].xIPAddress.ucBytes, pxAddressToLookup->ucBytes, ipSIZE_OF_IPv6_ADDRESS ) == 0 )
 		{
-			memcpy( pxMACAddress->ucBytes, xNDCache[ x ].xMACAddress.ucBytes, sizeof( MACAddress_t ) );
+			( void ) memcpy( pxMACAddress->ucBytes, xNDCache[ x ].xMACAddress.ucBytes, sizeof( MACAddress_t ) );
 			eReturn = eARPCacheHit;
 			*ppxEndPoint = xNDCache[ x ].pxEndPoint;
 			FreeRTOS_printf( ( "prvCacheLookup6[ %d ] %pip with %02x:%02x:%02x:%02x:%02x:%02x\n",
@@ -235,7 +235,7 @@ eARPLookupResult_t eReturn = eARPCacheMiss;
 		/* Loop through each entry in the ARP cache. */
 		for( x = 0; x < ipconfigARP_CACHE_ENTRIES; x++ )
 		{
-			if( xNDCache[ x ].ucValid != ( uint8_t ) 0u )
+			if( xNDCache[ x ].ucValid != ( uint8_t ) 0U )
 			{
 				/* See if the MAC-address also matches, and we're all happy */
 				FreeRTOS_printf( ( "ND %2ld: %3u - %pip : %02x:%02x:%02x : %02x:%02x:%02x\n",
@@ -267,8 +267,8 @@ ICMPHeader_IPv6_t *pxICMPHeader_IPv6 = ( ICMPHeader_IPv6_t * )&( pxICMPPacket->x
 	configASSERT( pxEndPoint != NULL );
 	configASSERT( pxEndPoint->bits.bIPv6 != pdFALSE_UNSIGNED );
 	
-	memcpy( pxICMPPacket->xIPHeader.xDestinationAddress.ucBytes, pxICMPPacket->xIPHeader.xSourceAddress.ucBytes, ipSIZE_OF_IPv6_ADDRESS );
-	memcpy( pxICMPPacket->xIPHeader.xSourceAddress.ucBytes, pxEndPoint->ipv6_settings.xIPAddress.ucBytes, ipSIZE_OF_IPv6_ADDRESS );
+	( void ) memcpy( pxICMPPacket->xIPHeader.xDestinationAddress.ucBytes, pxICMPPacket->xIPHeader.xSourceAddress.ucBytes, ipSIZE_OF_IPv6_ADDRESS );
+	( void ) memcpy( pxICMPPacket->xIPHeader.xSourceAddress.ucBytes, pxEndPoint->ipv6_settings.xIPAddress.ucBytes, ipSIZE_OF_IPv6_ADDRESS );
 	pxICMPPacket->xIPHeader.usPayloadLength = FreeRTOS_htons( uxICMPSize );
 
 	/* Important: tell NIC driver how many bytes must be sent */
@@ -324,26 +324,26 @@ NetworkBufferDescriptor_t *pxDescriptor = pxNetworkBuffer;
 	xMultiCastMacAddress.ucBytes[ 5 ] = pxIPAddress->ucBytes[ 15 ];
 
 	/* Set Ethernet header. Source and Destination will be swapped. */
-	memcpy( pxICMPPacket->xEthernetHeader.xSourceAddress.ucBytes, xMultiCastMacAddress.ucBytes, ipMAC_ADDRESS_LENGTH_BYTES );
-	memcpy( pxICMPPacket->xEthernetHeader.xDestinationAddress.ucBytes, pxEndPoint->xMACAddress.ucBytes, ipMAC_ADDRESS_LENGTH_BYTES );
+	( void ) memcpy( pxICMPPacket->xEthernetHeader.xSourceAddress.ucBytes, xMultiCastMacAddress.ucBytes, ipMAC_ADDRESS_LENGTH_BYTES );
+	( void ) memcpy( pxICMPPacket->xEthernetHeader.xDestinationAddress.ucBytes, pxEndPoint->xMACAddress.ucBytes, ipMAC_ADDRESS_LENGTH_BYTES );
 	pxICMPPacket->xEthernetHeader.usFrameType = ipIPv6_FRAME_TYPE;
 
 	/* Set IP-header. */
 	pxICMPPacket->xIPHeader.ucVersionTrafficClass = 0x60;
 	pxICMPPacket->xIPHeader.ucTrafficClassFlow = 0;
 	pxICMPPacket->xIPHeader.usFlowLabel = 0;
-	pxICMPPacket->xIPHeader.usPayloadLength = FreeRTOS_htons( 32u );/*lint !e845: (Info -- The right argument to operator '|' is certain to be 0. */
+	pxICMPPacket->xIPHeader.usPayloadLength = FreeRTOS_htons( 32U );/*lint !e845: (Info -- The right argument to operator '|' is certain to be 0. */
 	pxICMPPacket->xIPHeader.ucNextHeader = ipPROTOCOL_ICMP_IPv6;
 	pxICMPPacket->xIPHeader.ucHopLimit = 255;
 
 	/* Source address "fe80::1" */
-	memset( pxICMPPacket->xIPHeader.xSourceAddress.ucBytes, 0, sizeof pxICMPPacket->xIPHeader.xSourceAddress.ucBytes );
-	pxICMPPacket->xIPHeader.xSourceAddress.ucBytes[  0 ] = 0xfeu;
-	pxICMPPacket->xIPHeader.xSourceAddress.ucBytes[  1 ] = 0x80u;
-	pxICMPPacket->xIPHeader.xSourceAddress.ucBytes[ 15 ] = 0x01u;
+	( void ) memset( pxICMPPacket->xIPHeader.xSourceAddress.ucBytes, 0, sizeof pxICMPPacket->xIPHeader.xSourceAddress.ucBytes );
+	pxICMPPacket->xIPHeader.xSourceAddress.ucBytes[  0 ] = 0xfeU;
+	pxICMPPacket->xIPHeader.xSourceAddress.ucBytes[  1 ] = 0x80U;
+	pxICMPPacket->xIPHeader.xSourceAddress.ucBytes[ 15 ] = 0x01U;
 
 	//ff02::1:ff5a:afe7
-	memset( xTargetIPAddress.ucBytes, 0, sizeof( xTargetIPAddress.ucBytes ) );
+	( void ) memset( xTargetIPAddress.ucBytes, 0, sizeof( xTargetIPAddress.ucBytes ) );
 	xTargetIPAddress.ucBytes[  0 ] = 0xff;
 	xTargetIPAddress.ucBytes[  1 ] = 0x02;
 	xTargetIPAddress.ucBytes[ 11 ] = 0x01;
@@ -351,15 +351,15 @@ NetworkBufferDescriptor_t *pxDescriptor = pxNetworkBuffer;
 	xTargetIPAddress.ucBytes[ 13 ] = pxIPAddress->ucBytes[ 13 ];
 	xTargetIPAddress.ucBytes[ 14 ] = pxIPAddress->ucBytes[ 14 ];
 	xTargetIPAddress.ucBytes[ 15 ] = pxIPAddress->ucBytes[ 15 ];
-	memcpy( pxICMPPacket->xIPHeader.xDestinationAddress.ucBytes, xTargetIPAddress.ucBytes, 16 );
+	( void ) memcpy( pxICMPPacket->xIPHeader.xDestinationAddress.ucBytes, xTargetIPAddress.ucBytes, 16 );
 
 	/* Set ICMP header. */
-	memset( xICMPHeader_IPv6, 0, sizeof( *xICMPHeader_IPv6 ) );
+	( void ) memset( xICMPHeader_IPv6, 0, sizeof( *xICMPHeader_IPv6 ) );
 	xICMPHeader_IPv6->ucTypeOfMessage = ipICMP_NEIGHBOR_SOLICITATION_IPv6;
-	memcpy( xICMPHeader_IPv6->xIPv6_Address.ucBytes, pxIPAddress->ucBytes, ipSIZE_OF_IPv6_ADDRESS );
+	( void ) memcpy( xICMPHeader_IPv6->xIPv6_Address.ucBytes, pxIPAddress->ucBytes, ipSIZE_OF_IPv6_ADDRESS );
 	xICMPHeader_IPv6->ucOptionType = ndICMP_SOURCE_LINK_LAYER_ADDRESS;
 	xICMPHeader_IPv6->ucOptionLength = 1;	/* times 8 bytes. */
-	memcpy( xICMPHeader_IPv6->ucOptionBytes, pxEndPoint->xMACAddress.ucBytes, ipMAC_ADDRESS_LENGTH_BYTES );
+	( void ) memcpy( xICMPHeader_IPv6->ucOptionBytes, pxEndPoint->xMACAddress.ucBytes, ipMAC_ADDRESS_LENGTH_BYTES );
 
 	/* Checmsums. */
 	xICMPHeader_IPv6->usChecksum = 0;
@@ -404,8 +404,8 @@ NetworkBufferDescriptor_t *pxDescriptor = pxNetworkBuffer;
 		xMultiCastMacAddress.ucBytes[ 5 ] = 0x02;
 
 		/* Set Ethernet header. Will be swapped. */
-		memcpy( pxICMPPacket->xEthernetHeader.xSourceAddress.ucBytes, xMultiCastMacAddress.ucBytes, ipMAC_ADDRESS_LENGTH_BYTES );
-		memcpy( pxICMPPacket->xEthernetHeader.xDestinationAddress.ucBytes, pxEndPoint->xMACAddress.ucBytes, ipMAC_ADDRESS_LENGTH_BYTES );
+		( void ) memcpy( pxICMPPacket->xEthernetHeader.xSourceAddress.ucBytes, xMultiCastMacAddress.ucBytes, ipMAC_ADDRESS_LENGTH_BYTES );
+		( void ) memcpy( pxICMPPacket->xEthernetHeader.xDestinationAddress.ucBytes, pxEndPoint->xMACAddress.ucBytes, ipMAC_ADDRESS_LENGTH_BYTES );
 		pxICMPPacket->xEthernetHeader.usFrameType = ipIPv6_FRAME_TYPE;
 
 		/* Set IP-header. */
@@ -418,18 +418,18 @@ NetworkBufferDescriptor_t *pxDescriptor = pxNetworkBuffer;
 
 		configASSERT( pxEndPoint != NULL );
 		configASSERT( pxEndPoint->bits.bIPv6 != pdFALSE_UNSIGNED );
-		memcpy( pxICMPPacket->xIPHeader.xSourceAddress.ucBytes, pxEndPoint->ipv6_settings.xIPAddress.ucBytes, 16 );
+		( void ) memcpy( pxICMPPacket->xIPHeader.xSourceAddress.ucBytes, pxEndPoint->ipv6_settings.xIPAddress.ucBytes, 16 );
 
-		memcpy( pxICMPPacket->xIPHeader.xDestinationAddress.ucBytes, pxIPAddress->ucBytes, 16 );
+		( void ) memcpy( pxICMPPacket->xIPHeader.xDestinationAddress.ucBytes, pxIPAddress->ucBytes, 16 );
 
 		/* Set ICMP header. */
-		memset( xRASolicitationRequest, 0, sizeof( *xRASolicitationRequest ) );
+		( void ) memset( xRASolicitationRequest, 0, sizeof( *xRASolicitationRequest ) );
 		xRASolicitationRequest->ucTypeOfMessage = ipICMP_ROUTER_SOLICITATION_IPv6;
 
 	/*
 		xRASolicitationRequest->ucOptionType = ndICMP_SOURCE_LINK_LAYER_ADDRESS;
 		xRASolicitationRequest->ucOptionLength = 1;
-		memcpy( xRASolicitationRequest->ucOptionBytes, pxEndPoint->xMACAddress.ucBytes, ipMAC_ADDRESS_LENGTH_BYTES );
+		( void ) memcpy( xRASolicitationRequest->ucOptionBytes, pxEndPoint->xMACAddress.ucBytes, ipMAC_ADDRESS_LENGTH_BYTES );
 	*/
 		/* Checmsums. */
 		xRASolicitationRequest->usChecksum = 0;
@@ -474,10 +474,10 @@ NetworkBufferDescriptor_t *pxDescriptor = pxNetworkBuffer;
 		/* uxLast points to the first byte after the buffer. */
 		uxLast = pxNetworkBuffer->xDataLength - uxNeededSize;
 		pucBytes = &( pxNetworkBuffer->pucEthernetBuffer[ uxNeededSize ] );
-		while( ( uxIndex + 1u ) < uxLast )
+		while( ( uxIndex + 1U ) < uxLast )
 		{
 			uint8_t ucType = pucBytes[ uxIndex ];
-			size_t uxLength = ( size_t ) pucBytes[ uxIndex + 1u ] * 8u;
+			size_t uxLength = ( size_t ) pucBytes[ uxIndex + 1U ] * 8U;
 			if( uxLast < ( uxIndex + uxLength ) )
 			{
 				FreeRTOS_printf( ( "RA: Not enough bytes ( %u > %u )\n", ( unsigned ) uxIndex + uxLength, ( unsigned ) uxLast ) );
@@ -488,12 +488,12 @@ NetworkBufferDescriptor_t *pxDescriptor = pxNetworkBuffer;
 				case ndICMP_SOURCE_LINK_LAYER_ADDRESS:	/* 1 */
 					{
 						FreeRTOS_printf( ( "RA: Source = %02x-%02x-%02x-%02x-%02x-%02x\n",
-							pucBytes[ uxIndex + 2u ],
-							pucBytes[ uxIndex + 3u ],
-							pucBytes[ uxIndex + 4u ],
-							pucBytes[ uxIndex + 5u ],
-							pucBytes[ uxIndex + 6u ],
-							pucBytes[ uxIndex + 7u ] ) );
+							pucBytes[ uxIndex + 2U ],
+							pucBytes[ uxIndex + 3U ],
+							pucBytes[ uxIndex + 4U ],
+							pucBytes[ uxIndex + 5U ],
+							pucBytes[ uxIndex + 6U ],
+							pucBytes[ uxIndex + 7U ] ) );
 					}
 					break;
 				case ndICMP_TARGET_LINK_LAYER_ADDRESS:	/* 2 */
@@ -545,11 +545,11 @@ NetworkBufferDescriptor_t *pxDescriptor = pxNetworkBuffer;
 				if( ( pxEndPoint->bits.bWantRA != pdFALSE_UNSIGNED ) && ( pxEndPoint->xRAData.eRAState == eRAStateWait ) )
 				{
 					pxEndPoint->ipv6_settings.uxPrefixLength = pxPrefixOption->ucPrefixLength;
-					memcpy( pxEndPoint->ipv6_settings.xPrefix.ucBytes, pxPrefixOption->ucPrefix, ipSIZE_OF_IPv6_ADDRESS );
-					memcpy( pxEndPoint->ipv6_settings.xGatewayAddress.ucBytes, pxICMPPacket->xIPHeader.xSourceAddress.ucBytes, ipSIZE_OF_IPv6_ADDRESS );
+					( void ) memcpy( pxEndPoint->ipv6_settings.xPrefix.ucBytes, pxPrefixOption->ucPrefix, ipSIZE_OF_IPv6_ADDRESS );
+					( void ) memcpy( pxEndPoint->ipv6_settings.xGatewayAddress.ucBytes, pxICMPPacket->xIPHeader.xSourceAddress.ucBytes, ipSIZE_OF_IPv6_ADDRESS );
 
 					pxEndPoint->xRAData.bits.bRouterReplied = pdTRUE_UNSIGNED;
-					pxEndPoint->xRAData.uxRetryCount = 0uL;
+					pxEndPoint->xRAData.uxRetryCount = 0UL;
 					pxEndPoint->xRAData.ulPreferredLifeTime = FreeRTOS_ntohl( pxPrefixOption->ulPreferredLifeTime );
 					/* Force taking a new random IP-address. */
 					pxEndPoint->xRAData.bits.bIPAddressInUse = pdTRUE_UNSIGNED;
@@ -615,7 +615,7 @@ BaseType_t xResult;
 		else
 		{
 		eRAState_t eRAState = pxEndPoint->xRAData.eRAState;
-		TickType_t uxReloadTime = pdMS_TO_TICKS( 5000uL );
+		TickType_t uxReloadTime = pdMS_TO_TICKS( 5000UL );
 		BaseType_t xSkipLease = pdFALSE;
 
 			if( xDoReset != pdFALSE )
@@ -636,10 +636,10 @@ BaseType_t xResult;
 						else
 						{
 							FreeRTOS_printf( ( "RA: Giving up waiting for a Router.\n" ) );
-							memcpy( &( pxEndPoint->ipv6_settings ), &( pxEndPoint->ipv6_defaults ), sizeof( pxEndPoint->ipv6_settings ) );
+							( void ) memcpy( &( pxEndPoint->ipv6_settings ), &( pxEndPoint->ipv6_defaults ), sizeof( pxEndPoint->ipv6_settings ) );
 
 							pxEndPoint->xRAData.bits.bRouterReplied = pdFALSE_UNSIGNED;
-							pxEndPoint->xRAData.uxRetryCount = 0uL;
+							pxEndPoint->xRAData.uxRetryCount = 0UL;
 							/* Force taking a new random IP-address. */
 							pxEndPoint->xRAData.bits.bIPAddressInUse = pdTRUE_UNSIGNED;
 							pxEndPoint->xRAData.eRAState = eRAStateIPTest;
@@ -653,7 +653,7 @@ BaseType_t xResult;
 						if( pxEndPoint->xRAData.bits.bIPAddressInUse != pdFALSE_UNSIGNED )
 						{
 							/* Another device has responded with the same IPv4 address. */
-							pxEndPoint->xRAData.uxRetryCount = 0uL;
+							pxEndPoint->xRAData.uxRetryCount = 0UL;
 							pxEndPoint->xRAData.eRAState = eRAStateIPTest;
 							uxReloadTime = pdMS_TO_TICKS( ipconfigRA_IP_TEST_TIME_OUT_MSEC );
 						}
@@ -670,7 +670,7 @@ BaseType_t xResult;
 							if( pxEndPoint->xRAData.bits.bRouterReplied != pdFALSE_UNSIGNED )
 							{
 								/* Obtained configuration from a router. */
-								uxReloadTime = pdMS_TO_TICKS( 1000uL * pxEndPoint->xRAData.ulPreferredLifeTime );
+								uxReloadTime = pdMS_TO_TICKS( 1000UL * pxEndPoint->xRAData.ulPreferredLifeTime );
 								pxEndPoint->xRAData.eRAState = eRAStateLease;
 								xSkipLease = pdTRUE;
 								iptraceRA_SUCCEDEED( &( pxEndPoint->ipv6_settings.xIPAddress ) );
@@ -685,7 +685,7 @@ BaseType_t xResult;
 
 								FreeRTOS_printf( ( "RA: failed, using default parameters and IP address %pip\n", pxEndPoint->ipv6_settings.xIPAddress.ucBytes ) );
 								/* Disable the timer. */
-								uxReloadTime = 0uL;
+								uxReloadTime = 0UL;
 							}
 							/* Now call vIPNetworkUpCalls() to send the network-up event and
 							start the ARP timer. */
@@ -712,7 +712,7 @@ BaseType_t xResult;
 					NetworkBufferDescriptor_t *pxNetworkBuffer;
 
 						/* Send a Router Solicitation to ff:02::2 */
-						memset( xIPAddress.ucBytes, 0, sizeof xIPAddress.ucBytes );
+						( void ) memset( xIPAddress.ucBytes, 0, sizeof xIPAddress.ucBytes );
 						xIPAddress.ucBytes[  0 ] = 0xff;
 						xIPAddress.ucBytes[  1 ] = 0x02;
 						xIPAddress.ucBytes[ 15 ] = 0x02;
@@ -724,7 +724,7 @@ BaseType_t xResult;
 							vNDSendRouterSolicitation( pxNetworkBuffer, &( xIPAddress ) );
 						}
 						FreeRTOS_printf( ( "vRAProcess: Router Solicitation, attempt %lu/%u\n",
-										   pxEndPoint->xRAData.uxRetryCount + 1u,
+										   pxEndPoint->xRAData.uxRetryCount + 1U,
 										   ipconfigRA_SEARCH_COUNT ) );
 						/* Wait a configurable time for a router advertisement. */
 						uxReloadTime = pdMS_TO_TICKS( ipconfigRA_SEARCH_TIME_OUT_MSEC );
@@ -743,7 +743,7 @@ BaseType_t xResult;
 					NetworkBufferDescriptor_t *pxNetworkBuffer;
 
 						/* Get an IP-address, using the network prefix and a random host address. */
-						if( pxEndPoint->xRAData.bits.bIPAddressInUse != 0u )
+						if( pxEndPoint->xRAData.bits.bIPAddressInUse != 0U )
 						{
 						static BaseType_t xUseIndex = 0;
 
@@ -769,7 +769,7 @@ BaseType_t xResult;
 							vNDSendNeighbourSolicitation( pxNetworkBuffer, &( pxEndPoint->ipv6_settings.xIPAddress ) );
 						}
 
-						uxReloadTime = pdMS_TO_TICKS( 1000uL );
+						uxReloadTime = pdMS_TO_TICKS( 1000UL );
 						pxEndPoint->xRAData.eRAState = eRAStateIPWait;
 					}
 					break;
@@ -784,7 +784,7 @@ BaseType_t xResult;
 						if( xSkipLease == pdFALSE )
 						{
 							vRAProcessInit( pxEndPoint );
-							uxReloadTime = pdMS_TO_TICKS( 1000uL );
+							uxReloadTime = pdMS_TO_TICKS( 1000UL );
 						}
 					}
 					break;
@@ -803,7 +803,7 @@ BaseType_t xResult;
 							   pxEndPoint->xRAData.bits.bIPAddressInUse,
 							   eRAState,
 							   pxEndPoint->xRAData.eRAState ) );
-			if( uxReloadTime != 0uL )
+			if( uxReloadTime != 0UL )
 			{
 				vIPReloadDHCP_RATimer( pxEndPoint, uxReloadTime );
 			}
@@ -852,7 +852,7 @@ BaseType_t xResult;
 		BaseType_t xEnoughSpace;
 
 			/* Probably not necessary to clear the buffer. */
-			memset( pxNetworkBuffer->pucEthernetBuffer, 0, pxNetworkBuffer->xDataLength);
+			( void ) memset( pxNetworkBuffer->pucEthernetBuffer, 0, pxNetworkBuffer->xDataLength);
 
 			pxNetworkBuffer->pxEndPoint = ipPOINTER_CAST( struct xNetworkEndPoint *, pxEndPoint );
 			pxICMPPacket = ipPOINTER_CAST( ICMPPacket_IPv6_t *, pxNetworkBuffer->pucEthernetBuffer );
@@ -864,7 +864,7 @@ BaseType_t xResult;
 			{
 				xEnoughSpace = pdFALSE;
 			}
-			if( ( uxGetNumberOfFreeNetworkBuffers() >= 3u ) && ( uxNumberOfBytesToSend >= 1u ) && ( xEnoughSpace != pdFALSE ) )
+			if( ( uxGetNumberOfFreeNetworkBuffers() >= 3U ) && ( uxNumberOfBytesToSend >= 1U ) && ( xEnoughSpace != pdFALSE ) )
 			{
 				pxICMPHeader = ipPOINTER_CAST( ICMPEcho_IPv6_t *, &( pxICMPPacket->xICMPHeader_IPv6 ) );
 				usSequenceNumber++;
@@ -875,8 +875,8 @@ BaseType_t xResult;
 				configASSERT( pxEndPoint->bits.bIPv6 != pdFALSE_UNSIGNED );
 
 				pxICMPPacket->xIPHeader.usPayloadLength = FreeRTOS_htons( sizeof( ICMPEcho_IPv6_t ) + uxNumberOfBytesToSend );
-				memcpy( pxICMPPacket->xIPHeader.xDestinationAddress.ucBytes, pxIPAddress->ucBytes, ipSIZE_OF_IPv6_ADDRESS );
-				memcpy( pxICMPPacket->xIPHeader.xSourceAddress.ucBytes, pxEndPoint->ipv6_settings.xIPAddress.ucBytes, ipSIZE_OF_IPv6_ADDRESS );
+				( void ) memcpy( pxICMPPacket->xIPHeader.xDestinationAddress.ucBytes, pxIPAddress->ucBytes, ipSIZE_OF_IPv6_ADDRESS );
+				( void ) memcpy( pxICMPPacket->xIPHeader.xSourceAddress.ucBytes, pxEndPoint->ipv6_settings.xIPAddress.ucBytes, ipSIZE_OF_IPv6_ADDRESS );
 				pxICMPPacket->xIPHeader.ucVersionTrafficClass = 0x60;
 				pxICMPPacket->xIPHeader.ucNextHeader = ipPROTOCOL_ICMP_IPv6;
 				pxICMPPacket->xIPHeader.ucHopLimit = 128;
@@ -892,13 +892,13 @@ BaseType_t xResult;
 				pucChar = &( pucChar[ sizeof( ICMPEcho_IPv6_t ) ] );
 
 				/* Just memset the data to a fixed value. */
-				memset( pucChar, ( int ) ndECHO_DATA_FILL_BYTE, uxNumberOfBytesToSend );
+				( void ) memset( pucChar, ( int ) ndECHO_DATA_FILL_BYTE, uxNumberOfBytesToSend );
 
 				/* The message is complete, IP and checksum's are handled by
 				vProcessGeneratedUDPPacket */
 				pxNetworkBuffer->pucEthernetBuffer[ ipSOCKET_OPTIONS_OFFSET ] = FREERTOS_SO_UDPCKSUM_OUT;
-				pxNetworkBuffer->ulIPAddress = 0uL;
-				memcpy( pxNetworkBuffer->xIPv6_Address.ucBytes, pxIPAddress->ucBytes, ipSIZE_OF_IPv6_ADDRESS );
+				pxNetworkBuffer->ulIPAddress = 0UL;
+				( void ) memcpy( pxNetworkBuffer->xIPv6_Address.ucBytes, pxIPAddress->ucBytes, ipSIZE_OF_IPv6_ADDRESS );
 				/* Let vProcessGeneratedUDPPacket() know that this is an ICMP packet. */
 				pxNetworkBuffer->usPort = ipPACKET_CONTAINS_ICMP_DATA;
 				pxNetworkBuffer->xDataLength = uxPacketLength;
@@ -1051,9 +1051,9 @@ size_t uxNeededSize;
 					xICMPHeader_IPv6->ucOptionType = ndICMP_TARGET_LINK_LAYER_ADDRESS;
 					/* Length of option in units of 8 bytes. */
 					xICMPHeader_IPv6->ucOptionLength = 1;
-					memcpy( xICMPHeader_IPv6->ucOptionBytes, pxEndPoint->xMACAddress.ucBytes, sizeof( MACAddress_t ) );
+					( void ) memcpy( xICMPHeader_IPv6->ucOptionBytes, pxEndPoint->xMACAddress.ucBytes, sizeof( MACAddress_t ) );
 					pxICMPPacket->xIPHeader.ucHopLimit = 255;
-					memcpy( xICMPHeader_IPv6->xIPv6_Address.ucBytes, pxEndPoint->ipv6_settings.xIPAddress.ucBytes, sizeof( xICMPHeader_IPv6->xIPv6_Address.ucBytes ) );
+					( void ) memcpy( xICMPHeader_IPv6->xIPv6_Address.ucBytes, pxEndPoint->ipv6_settings.xIPAddress.ucBytes, sizeof( xICMPHeader_IPv6->xIPv6_Address.ucBytes ) );
 
 					prvReturnICMP_IPv6( pxNetworkBuffer, uxICMPSize );
 				}
@@ -1079,7 +1079,7 @@ size_t uxNeededSize;
 								if( memcmp( pxPoint->ipv6_settings.xIPAddress.ucBytes, &( xICMPHeader_IPv6->xIPv6_Address ), ipSIZE_OF_IPv6_ADDRESS ) == 0 )
 								{
 									pxPoint->xRAData.bits.bIPAddressInUse = pdTRUE_UNSIGNED;
-									vIPReloadDHCP_RATimer( pxPoint, 100uL );
+									vIPReloadDHCP_RATimer( pxPoint, 100UL );
 								}
 							}
 						}
@@ -1133,8 +1133,8 @@ size_t xPacketSize;
 		pxICMPPacket = ipPOINTER_CAST( ICMPPacket_IPv6_t *, pxNetworkBuffer->pucEthernetBuffer );
 		pxICMPHeader_IPv6 = ipPOINTER_CAST( ICMPHeader_IPv6_t *, &( pxICMPPacket->xICMPHeader_IPv6 ) );
 
-		memcpy( pxICMPPacket->xEthernetHeader.xDestinationAddress.ucBytes, pcLOCAL_NETWORK_MULTICAST_MAC, ipMAC_ADDRESS_LENGTH_BYTES );
-		memcpy( pxICMPPacket->xEthernetHeader.xSourceAddress.ucBytes, pxEndPoint->xMACAddress.ucBytes, ipMAC_ADDRESS_LENGTH_BYTES );
+		( void ) memcpy( pxICMPPacket->xEthernetHeader.xDestinationAddress.ucBytes, pcLOCAL_NETWORK_MULTICAST_MAC, ipMAC_ADDRESS_LENGTH_BYTES );
+		( void ) memcpy( pxICMPPacket->xEthernetHeader.xSourceAddress.ucBytes, pxEndPoint->xMACAddress.ucBytes, ipMAC_ADDRESS_LENGTH_BYTES );
 		pxICMPPacket->xEthernetHeader.usFrameType = ipIPv6_FRAME_TYPE;              /* 12 + 2 = 14 */
 
 		pxICMPPacket->xIPHeader.ucVersionTrafficClass = 0x60;
@@ -1144,8 +1144,8 @@ size_t xPacketSize;
 		pxICMPPacket->xIPHeader.usPayloadLength = FreeRTOS_htons( sizeof( ICMPHeader_IPv6_t ) );/*lint !e845: (Info -- The right argument to operator '|' is certain to be 0. */
 		pxICMPPacket->xIPHeader.ucNextHeader = ipPROTOCOL_ICMP_IPv6;
 		pxICMPPacket->xIPHeader.ucHopLimit = 255;
-		memcpy( pxICMPPacket->xIPHeader.xSourceAddress.ucBytes, pxEndPoint->ipv6_settings.xIPAddress.ucBytes, 16 );
-		memcpy( pxICMPPacket->xIPHeader.xDestinationAddress.ucBytes, pcLOCAL_NETWORK_MULTICAST_IP, 16 );
+		( void ) memcpy( pxICMPPacket->xIPHeader.xSourceAddress.ucBytes, pxEndPoint->ipv6_settings.xIPAddress.ucBytes, 16 );
+		( void ) memcpy( pxICMPPacket->xIPHeader.xDestinationAddress.ucBytes, pcLOCAL_NETWORK_MULTICAST_IP, 16 );
 
 		uxICMPSize = sizeof( ICMPHeader_IPv6_t );
 		pxICMPHeader_IPv6->ucTypeOfMessage = ipICMP_NEIGHBOR_ADVERTISEMENT_IPv6;
@@ -1157,9 +1157,9 @@ size_t xPacketSize;
 		pxICMPHeader_IPv6->ucOptionType = ndICMP_TARGET_LINK_LAYER_ADDRESS;
 		/* Length of option in units of 8 bytes. */
 		pxICMPHeader_IPv6->ucOptionLength = 1;
-		memcpy( pxICMPHeader_IPv6->ucOptionBytes, pxEndPoint->xMACAddress.ucBytes, sizeof( MACAddress_t ) );
+		( void ) memcpy( pxICMPHeader_IPv6->ucOptionBytes, pxEndPoint->xMACAddress.ucBytes, sizeof( MACAddress_t ) );
 		pxICMPPacket->xIPHeader.ucHopLimit = 255;
-		memcpy( pxICMPHeader_IPv6->xIPv6_Address.ucBytes, pxEndPoint->ipv6_settings.xIPAddress.ucBytes, sizeof( pxICMPHeader_IPv6->xIPv6_Address.ucBytes ) );
+		( void ) memcpy( pxICMPHeader_IPv6->xIPv6_Address.ucBytes, pxEndPoint->ipv6_settings.xIPAddress.ucBytes, sizeof( pxICMPHeader_IPv6->xIPv6_Address.ucBytes ) );
 
 		/* Important: tell NIC driver how many bytes must be sent */
 		pxNetworkBuffer->xDataLength = ( size_t ) ( ipSIZE_OF_ETH_HEADER + ipSIZE_OF_IPv6_HEADER + uxICMPSize );
@@ -1194,19 +1194,19 @@ BaseType_t xIndex, xResult = pdPASS;
 	}
 	else
 	{
-		memset( pulRandom, 0, sizeof pulRandom );
+		( void ) memset( pulRandom, 0, sizeof pulRandom );
 	}
 	if( xResult == pdPASS )
 	{
-		configASSERT( ( uxPrefixLength > 0u ) && ( uxPrefixLength < ( 8u * ipSIZE_OF_IPv6_ADDRESS ) ) );
-		memcpy( pxIPAddress->ucBytes, pxPrefix->ucBytes, ( uxPrefixLength + 7u ) / 8u );
+		configASSERT( ( uxPrefixLength > 0U ) && ( uxPrefixLength < ( 8U * ipSIZE_OF_IPv6_ADDRESS ) ) );
+		( void ) memcpy( pxIPAddress->ucBytes, pxPrefix->ucBytes, ( uxPrefixLength + 7U ) / 8U );
 		pucSource = ipPOINTER_CAST( uint8_t *, pulRandom );
-		size_t uxIndex = uxPrefixLength / 8u;
-		if( ( uxPrefixLength % 8u ) != 0u )
+		size_t uxIndex = uxPrefixLength / 8U;
+		if( ( uxPrefixLength % 8U ) != 0U )
 		{
 		/* uxHostLen is between 1 and 7 bits long. */
-		size_t uxHostLen = 8u - ( uxPrefixLength % 8u );
-		uint32_t uxHostMask = ( ( ( uint32_t ) 1u ) << uxHostLen ) - 1u;
+		size_t uxHostLen = 8U - ( uxPrefixLength % 8U );
+		uint32_t uxHostMask = ( ( ( uint32_t ) 1U ) << uxHostLen ) - 1U;
 		uint8_t ucNetMask = ( uint8_t ) ~( uxHostMask );
 
 			pxIPAddress->ucBytes[ uxIndex ] &= ucNetMask;
@@ -1216,7 +1216,7 @@ BaseType_t xIndex, xResult = pdPASS;
 		}
 		if( uxIndex < ipSIZE_OF_IPv6_ADDRESS )
 		{
-			memcpy( &( pxIPAddress->ucBytes[ uxIndex ] ), pucSource, ipSIZE_OF_IPv6_ADDRESS - uxIndex );
+			( void ) memcpy( &( pxIPAddress->ucBytes[ uxIndex ] ), pucSource, ipSIZE_OF_IPv6_ADDRESS - uxIndex );
 		}
 	}
 	return xResult;

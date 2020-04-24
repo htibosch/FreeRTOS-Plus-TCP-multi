@@ -164,6 +164,14 @@ void vStartNTPTask( uint16_t usTaskStackSize, UBaseType_t uxTaskPriority )
 }
 /*-----------------------------------------------------------*/
 
+#if( ipconfigUSE_IPv6 != 0 )
+static void vDNS_callback( const char *pcName, void *pvSearchID, struct freertos_sockaddr6 *pxAddress )
+{
+	xStatus = EStatusAsking;
+
+	vSignalTask();
+}
+#else
 static void vDNS_callback( const char *pcName, void *pvSearchID, uint32_t ulIPAddress )
 {
 char pcBuf[16];
@@ -186,6 +194,7 @@ char pcBuf[16];
 
 	vSignalTask();
 }
+#endif
 /*-----------------------------------------------------------*/
 
 static void prvSwapFields( struct SNtpPacket *pxPacket)

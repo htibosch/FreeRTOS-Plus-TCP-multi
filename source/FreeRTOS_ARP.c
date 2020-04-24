@@ -99,7 +99,7 @@ NetworkEndPoint_t *pxTargetEndPoint = pxNetworkBuffer->pxEndPoint;
 #endif
 
 	/* The field ulSenderProtocolAddress is badly aligned, copy byte-by-byte. */
-	memcpy( &( ulSenderProtocolAddress ), pxARPHeader->ucSenderProtocolAddress, sizeof( ulSenderProtocolAddress ) );
+	( void ) memcpy( &( ulSenderProtocolAddress ), pxARPHeader->ucSenderProtocolAddress, sizeof( ulSenderProtocolAddress ) );
 	/* The field ulTargetProtocolAddress is well-aligned, a 32-bits copy. */
 	ulTargetProtocolAddress = pxARPHeader->ulTargetProtocolAddress;
 
@@ -121,7 +121,7 @@ NetworkEndPoint_t *pxTargetEndPoint = pxNetworkBuffer->pxEndPoint;
 				FreeRTOS_printf( ( "ipARP_REQUEST from %lxip to %lxip end-point %lxip\n",
 								   FreeRTOS_ntohl( ulSenderProtocolAddress ),
 								   FreeRTOS_ntohl( ulTargetProtocolAddress ),
-								   FreeRTOS_ntohl( ( pxTargetEndPoint != NULL ) ? pxTargetEndPoint->ipv4_settings.ulIPAddress : 0uL ) ) );
+								   FreeRTOS_ntohl( ( pxTargetEndPoint != NULL ) ? pxTargetEndPoint->ipv4_settings.ulIPAddress : 0UL ) ) );
 			}
 		}
 	}
@@ -130,7 +130,7 @@ NetworkEndPoint_t *pxTargetEndPoint = pxNetworkBuffer->pxEndPoint;
 			FreeRTOS_printf( ( "ipARP_REPLY from %lxip to %lxip end-point %lxip\n",
 							   FreeRTOS_ntohl( ulSenderProtocolAddress ),
 							   FreeRTOS_ntohl( ulTargetProtocolAddress ),
-							   FreeRTOS_ntohl( ( pxTargetEndPoint != NULL ) ? pxTargetEndPoint->ipv4_settings.ulIPAddress : 0uL ) ) );
+							   FreeRTOS_ntohl( ( pxTargetEndPoint != NULL ) ? pxTargetEndPoint->ipv4_settings.ulIPAddress : 0UL ) ) );
 	}
 	else
 	{
@@ -159,17 +159,17 @@ NetworkEndPoint_t *pxTargetEndPoint = pxNetworkBuffer->pxEndPoint;
 						/* The same IP address!  Give the sources MAC address 
 						the value of the broadcast address, will be swapped 
 						later. *//*_RB_ What is this path? */
-						memcpy( pxARPFrame->xEthernetHeader.xSourceAddress.ucBytes, xBroadcastMACAddress.ucBytes, sizeof( xBroadcastMACAddress ) );
-						memset( pxARPHeader->xTargetHardwareAddress.ucBytes, 0, sizeof( MACAddress_t ) );
+						( void ) memcpy( pxARPFrame->xEthernetHeader.xSourceAddress.ucBytes, xBroadcastMACAddress.ucBytes, sizeof( xBroadcastMACAddress ) );
+						( void ) memset( pxARPHeader->xTargetHardwareAddress.ucBytes, 0, sizeof( MACAddress_t ) );
 						pxARPHeader->ulTargetProtocolAddress = 0UL;
 					}
 					else
 					{
-						memcpy( pxARPHeader->xTargetHardwareAddress.ucBytes, pxARPHeader->xSenderHardwareAddress.ucBytes, sizeof( MACAddress_t ) );
+						( void ) memcpy( pxARPHeader->xTargetHardwareAddress.ucBytes, pxARPHeader->xSenderHardwareAddress.ucBytes, sizeof( MACAddress_t ) );
 						pxARPHeader->ulTargetProtocolAddress = ulSenderProtocolAddress;
 					}
-					memcpy( pxARPHeader->xSenderHardwareAddress.ucBytes, pxTargetEndPoint->xMACAddress.ucBytes, sizeof( MACAddress_t ) );
-					memcpy( pxARPHeader->ucSenderProtocolAddress, &pxTargetEndPoint->ipv4_settings.ulIPAddress, sizeof( pxARPHeader->ucSenderProtocolAddress ) );
+					( void ) memcpy( pxARPHeader->xSenderHardwareAddress.ucBytes, pxTargetEndPoint->xMACAddress.ucBytes, sizeof( MACAddress_t ) );
+					( void ) memcpy( pxARPHeader->ucSenderProtocolAddress, &( pxTargetEndPoint->ipv4_settings.ulIPAddress ), sizeof( pxARPHeader->ucSenderProtocolAddress ) );
 
 					eReturn = eReturnEthernetFrame;
 				}
@@ -185,7 +185,7 @@ NetworkEndPoint_t *pxTargetEndPoint = pxNetworkBuffer->pxEndPoint;
 					{
 						xARPHadIPClash = pdTRUE;
 						/* Remember the MAC-address of the other device which has the same IP-address. */
-						memcpy( xARPClashMacAddress.ucBytes, pxARPHeader->xSenderHardwareAddress.ucBytes, sizeof( xARPClashMacAddress.ucBytes ) );
+						( void ) memcpy( xARPClashMacAddress.ucBytes, pxARPHeader->xSenderHardwareAddress.ucBytes, sizeof( xARPClashMacAddress.ucBytes ) );
 					}
 				}
 				#endif /* ipconfigARP_USE_CLASH_DETECTION */
@@ -214,7 +214,7 @@ NetworkEndPoint_t *pxTargetEndPoint = pxNetworkBuffer->pxEndPoint;
 			if( ( memcmp( xARPCache[ x ].xMACAddress.ucBytes, pxMACAddress->ucBytes, sizeof( pxMACAddress->ucBytes ) ) == 0 ) )
 			{
 				lResult = xARPCache[ x ].ulIPAddress;
-				memset( &xARPCache[ x ], 0, sizeof( xARPCache[ x ] ) );
+				( void ) memset( &xARPCache[ x ], 0, sizeof( xARPCache[ x ] ) );
 				break;
 			}
 		}
@@ -248,7 +248,6 @@ uint8_t ucMinAgeFound = 0U;
 	reply sent.  This option is useful for systems with multiple gateways,
 	the reply will surely arrive.  If ipconfigARP_STORES_REMOTE_ADDRESSES is
 	zero the the gateway address is the only option. */
-
 
 	/* 506: (Warning -- Constant value Boolean [MISRA 2012 Rule 2.1, required]) */
 	/* 774: (Info -- Boolean within 'if' always evaluates to True [MISRA 2012 Rule 14.3, required]) */
@@ -366,7 +365,7 @@ uint8_t ucMinAgeFound = 0U;
 				/* Both the MAC address as well as the IP address were found in
 				different locations: clear the entry which matches the
 				IP-address */
-				memset( &( xARPCache[ xIpEntry ] ), 0, sizeof( ARPCacheRow_t ) );
+				( void ) memset( &( xARPCache[ xIpEntry ] ), 0, sizeof( ARPCacheRow_t ) );
 			}
 		}
 		else if( xIpEntry >= 0 )
@@ -384,7 +383,7 @@ uint8_t ucMinAgeFound = 0U;
 
 		if( pxMACAddress != NULL )
 		{
-			memcpy( xARPCache[ xUseEntry ].xMACAddress.ucBytes, pxMACAddress->ucBytes, sizeof( pxMACAddress->ucBytes ) );
+			( void ) memcpy( xARPCache[ xUseEntry ].xMACAddress.ucBytes, pxMACAddress->ucBytes, sizeof( pxMACAddress->ucBytes ) );
 
 			iptraceARP_TABLE_ENTRY_CREATED( ulIPAddress, (*pxMACAddress) );
 			/* And this entry does not need immediate attention */
@@ -446,7 +445,7 @@ NetworkEndPoint_t *pxEndPoint = NULL;
 	if( ulAddressToLookup == ipLLMNR_IP_ADDR )	/* Is in network byte order. */
 	{
 		/* The LLMNR IP-address has a fixed virtual MAC address. */
-		memcpy( pxMACAddress->ucBytes, xLLMNR_MacAdress.ucBytes, sizeof( MACAddress_t ) );
+		( void ) memcpy( pxMACAddress->ucBytes, xLLMNR_MacAdress.ucBytes, sizeof( MACAddress_t ) );
 		eReturn = eARPCacheHit;
 	}
 	else
@@ -456,14 +455,14 @@ NetworkEndPoint_t *pxEndPoint = NULL;
 		/* Targeted at this device? Make sure that xNetworkInterfaceOutput()
 		in NetworkInterface.c calls xCheckLoopback(). */
 		*( ppxEndPoint ) = pxEndPoint;
-		memcpy( pxMACAddress->ucBytes, pxEndPoint->xMACAddress.ucBytes, ipMAC_ADDRESS_LENGTH_BYTES );
+		( void ) memcpy( pxMACAddress->ucBytes, pxEndPoint->xMACAddress.ucBytes, ipMAC_ADDRESS_LENGTH_BYTES );
 		eReturn = eARPCacheHit;
 	}
 	else
 	if( ( FreeRTOS_ntohl( ulAddressToLookup ) & 0xffuL ) == 0xffuL )
 	{
-		/* This is a broadcast (x.x.x.255) so uses the broadcast MAC address. */
-		memcpy( pxMACAddress->ucBytes, xBroadcastMACAddress.ucBytes, sizeof( MACAddress_t ) );
+		/* This is a broadcast so it uses the broadcast MAC address. */
+		( void ) memcpy( pxMACAddress->ucBytes, xBroadcastMACAddress.ucBytes, sizeof( MACAddress_t ) );
 		pxEndPoint = FreeRTOS_FindEndPointOnNetMask( ulAddressToLookup, 4 );
 		if( pxEndPoint != NULL )
 		{
@@ -486,10 +485,9 @@ NetworkEndPoint_t *pxEndPoint = NULL;
 
 			if( eReturn == eARPCacheHit )
 			{
-				/* The stack is configured to store 'remote IP addresses', 
-				i.e. addresses belonging to a different the netmask.  
-				prvCacheLookup() returned a hit, so the MAC address is 
-				known. */
+				/* The stack is configured to store 'remote IP addresses', i.e. addresses
+				belonging to a different the netmask.  prvCacheLookup() returned a hit, so
+				the MAC address is known. */
 			}
 			else
 #endif
@@ -506,7 +504,7 @@ NetworkEndPoint_t *pxEndPoint = NULL;
 				{
 					ulAddressToLookup = *pulIPAddress;
 				}
-				configPRINTF( ( "Using gateway %lxip\n", FreeRTOS_ntohl( ulAddressToLookup ) ) );
+				FreeRTOS_printf( ( "Using gateway %lxip\n", FreeRTOS_ntohl( ulAddressToLookup ) ) );
 			}
 		}
 		else
@@ -530,7 +528,7 @@ NetworkEndPoint_t *pxEndPoint = NULL;
 			{
 				eReturn = prvCacheLookup( ulAddressToLookup, pxMACAddress, ppxEndPoint );
 
-				configPRINTF( ( "ARP %s using %lxip\n", ( eReturn == eARPCacheHit ) ? "hit" : "miss", FreeRTOS_ntohl( ulAddressToLookup ) ) );
+				FreeRTOS_printf( ( "ARP %s using %lxip\n", ( eReturn == eARPCacheHit ) ? "hit" : "miss", FreeRTOS_ntohl( ulAddressToLookup ) ) );
 				/* It might be that the ARP has to go to the gateway. */
 				*pulIPAddress = ulAddressToLookup;
 			}
@@ -563,7 +561,7 @@ eARPLookupResult_t eReturn = eARPCacheMiss;
 			else
 			{
 				/* A valid entry was found. */
-				memcpy( pxMACAddress->ucBytes, xARPCache[ x ].xMACAddress.ucBytes, sizeof( MACAddress_t ) );
+				( void ) memcpy( pxMACAddress->ucBytes, xARPCache[ x ].xMACAddress.ucBytes, sizeof( MACAddress_t ) );
 				/* ppxEndPoint != NULL was tested in the only caller eARPGetCacheEntry(). */
 				*( ppxEndPoint ) = xARPCache[ x ].pxEndPoint;
 				eReturn = eARPCacheHit;
@@ -609,7 +607,7 @@ TickType_t xTimeNow;
 				/* The age has just ticked down, with nothing to do. */
 			}
 
-			if( xARPCache[ x ].ucAge == 0u )
+			if( xARPCache[ x ].ucAge == 0U )
 			{
 				/* The entry is no longer valid.  Wipe it out. */
 				iptraceARP_TABLE_ENTRY_EXPIRED( xARPCache[ x ].ulIPAddress );
@@ -626,7 +624,7 @@ TickType_t xTimeNow;
 
 		while( pxEndPoint != NULL )
 		{
-			if( ( pxEndPoint->bits.bEndPointUp != pdFALSE_UNSIGNED ) && ( pxEndPoint->ipv4_settings.ulIPAddress != 0uL ) )
+			if( ( pxEndPoint->bits.bEndPointUp != pdFALSE_UNSIGNED ) && ( pxEndPoint->ipv4_settings.ulIPAddress != 0UL ) )
 			{
 			#if( ipconfigUSE_IPv6 != 0 )
 				if( pxEndPoint->bits.bIPv6 != pdFALSE_UNSIGNED )
@@ -634,7 +632,7 @@ TickType_t xTimeNow;
 					FreeRTOS_OutputAdvertiseIPv6( pxEndPoint );
 				}
 			#endif
-				if( pxEndPoint->ipv4_settings.ulIPAddress != 0uL )
+				if( pxEndPoint->ipv4_settings.ulIPAddress != 0UL )
 				{
 					FreeRTOS_OutputARPRequest( pxEndPoint->ipv4_settings.ulIPAddress );
 				}
@@ -676,7 +674,7 @@ NetworkInterface_t *pxInterface;
 		{
 			FreeRTOS_printf( ( "OutputARPRequest: remote IP = %lxip end-point = %lxip\n",
 				FreeRTOS_ntohl( ulIPAddress ),
-				FreeRTOS_ntohl( pxEndPoint != 0 ? pxEndPoint->ipv4_settings.ulIPAddress : 0x0ul ) ) );
+				FreeRTOS_ntohl( pxEndPoint != 0 ? pxEndPoint->ipv4_settings.ulIPAddress : 0x0UL ) ) );
 		}
 */
 		if( pxEndPoint != NULL )
@@ -684,7 +682,7 @@ NetworkInterface_t *pxInterface;
 
 			/* This is called from the context of the IP event task, so a block time
 			must not be used. */
-			pxNetworkBuffer = pxGetNetworkBufferWithDescriptor( sizeof( ARPPacket_t ), 0 );
+			pxNetworkBuffer = pxGetNetworkBufferWithDescriptor( sizeof( ARPPacket_t ), ( TickType_t ) 0U );
 
 			if( pxNetworkBuffer != NULL )
 			{
@@ -702,7 +700,7 @@ NetworkInterface_t *pxInterface;
 	//						pxNetworkBuffer->xDataLength, ipconfigETHERNET_MINIMUM_PACKET_BYTES ) );
 						for( xIndex = ( BaseType_t ) pxNetworkBuffer->xDataLength; xIndex < ( BaseType_t ) ipconfigETHERNET_MINIMUM_PACKET_BYTES; xIndex++ )
 						{
-							pxNetworkBuffer->pucEthernetBuffer[ xIndex ] = 0u;
+							pxNetworkBuffer->pucEthernetBuffer[ xIndex ] = 0U;
 						}
 						pxNetworkBuffer->xDataLength = ( size_t ) ipconfigETHERNET_MINIMUM_PACKET_BYTES;
 					}
@@ -754,6 +752,12 @@ static const uint8_t xDefaultPartARPPacketHeader[] =
 
 ARPPacket_t *pxARPPacket;
 
+	/* Buffer allocation ensures that buffers always have space
+	for an ARP packet. See buffer allocation implementations 1
+	and 2 under portable/BufferManagement. */
+	configASSERT( pxNetworkBuffer );
+	configASSERT( pxNetworkBuffer->xDataLength >= sizeof(ARPPacket_t) );
+
 	pxARPPacket = ipPOINTER_CAST( ARPPacket_t *, pxNetworkBuffer->pucEthernetBuffer );
 
 	/* memcpy the const part of the header information into the correct
@@ -769,10 +773,10 @@ ARPPacket_t *pxARPPacket;
 	*/
 	configASSERT( pxNetworkBuffer->pxEndPoint != NULL );
 
-	memcpy( pxNetworkBuffer->pucEthernetBuffer, xDefaultPartARPPacketHeader, sizeof( xDefaultPartARPPacketHeader ) );
-	memcpy( pxARPPacket->xEthernetHeader.xSourceAddress.ucBytes , pxNetworkBuffer->pxEndPoint->xMACAddress.ucBytes, ( size_t ) ipMAC_ADDRESS_LENGTH_BYTES );
-	memcpy( pxARPPacket->xARPHeader.xSenderHardwareAddress.ucBytes, pxNetworkBuffer->pxEndPoint->xMACAddress.ucBytes, ( size_t ) ipMAC_ADDRESS_LENGTH_BYTES );
-	memcpy( pxARPPacket->xARPHeader.ucSenderProtocolAddress, &( pxNetworkBuffer->pxEndPoint->ipv4_settings.ulIPAddress ), sizeof( pxARPPacket->xARPHeader.ucSenderProtocolAddress ) );
+	( void ) memcpy( pxNetworkBuffer->pucEthernetBuffer, xDefaultPartARPPacketHeader, sizeof( xDefaultPartARPPacketHeader ) );
+	( void ) memcpy( pxARPPacket->xEthernetHeader.xSourceAddress.ucBytes , pxNetworkBuffer->pxEndPoint->xMACAddress.ucBytes, ( size_t ) ipMAC_ADDRESS_LENGTH_BYTES );
+	( void ) memcpy( pxARPPacket->xARPHeader.xSenderHardwareAddress.ucBytes, pxNetworkBuffer->pxEndPoint->xMACAddress.ucBytes, ( size_t ) ipMAC_ADDRESS_LENGTH_BYTES );
+	( void ) memcpy( pxARPPacket->xARPHeader.ucSenderProtocolAddress, &( pxNetworkBuffer->pxEndPoint->ipv4_settings.ulIPAddress ), sizeof( pxARPPacket->xARPHeader.ucSenderProtocolAddress ) );
 
 	pxARPPacket->xARPHeader.ulTargetProtocolAddress = pxNetworkBuffer->ulIPAddress;
 
@@ -782,16 +786,32 @@ ARPPacket_t *pxARPPacket;
 }
 /*-----------------------------------------------------------*/
 
-void FreeRTOS_ClearARP( void )
+void FreeRTOS_ClearARP( const struct xNetworkEndPoint *pxEndPoint )
 {
-	memset( xARPCache, 0, sizeof( xARPCache ) );
+	if( pxEndPoint != NULL )
+	{
+	BaseType_t x;
+
+		for( x = 0; x < ipconfigARP_CACHE_ENTRIES; x++ )
+		{
+			if( xARPCache[ x ].pxEndPoint == pxEndPoint )
+			{
+				( void ) memset( &( xARPCache[ x ] ), 0, sizeof ( ARPCacheRow_t ) );
+			}
+		}
+	}
+	else
+	{
+		( void ) memset( xARPCache, 0, sizeof( xARPCache ) );
+	}
 }
 /*-----------------------------------------------------------*/
 
-BaseType_t xCheckLoopback( NetworkBufferDescriptor_t * pxDescriptor, BaseType_t bReleaseAfterSend )
+BaseType_t xCheckLoopback( NetworkBufferDescriptor_t * const pxDescriptor, BaseType_t bReleaseAfterSend )
 {
-BaseType_t xResult = 0;
-IPPacket_t *pxIPPacket = ipPOINTER_CAST( IPPacket_t *, pxDescriptor->pucEthernetBuffer );
+BaseType_t xResult = pdFALSE;
+NetworkBufferDescriptor_t * pxUseDescriptor = pxDescriptor;
+IPPacket_t *pxIPPacket = ipPOINTER_CAST( IPPacket_t *, pxUseDescriptor->pucEthernetBuffer );
 
 	/* This function will check if the target IP-address belongs to this device.
 	 * If so, the packet will be passed to the IP-stack, who will answer it.
@@ -811,21 +831,21 @@ IPPacket_t *pxIPPacket = ipPOINTER_CAST( IPPacket_t *, pxDescriptor->pucEthernet
 				/* Driver is not allowed to transfer the ownership
 				of descriptor,  so make a copy of it */
 				NetworkBufferDescriptor_t *pxNewDescriptor =
-					pxDuplicateNetworkBufferWithDescriptor( pxDescriptor, pxDescriptor->xDataLength );
-				*( ( NetworkBufferDescriptor_t ** ) &pxDescriptor ) = pxNewDescriptor;
+					pxDuplicateNetworkBufferWithDescriptor( pxUseDescriptor, pxUseDescriptor->xDataLength );
+				*( ( NetworkBufferDescriptor_t ** ) &pxUseDescriptor ) = pxNewDescriptor;
 			}
-			if( pxDescriptor != NULL )
+			if( pxUseDescriptor != NULL )
 			{
 			IPStackEvent_t xRxEvent;
 
-				pxDescriptor->pxInterface = pxEndPoint->pxNetworkInterface;
-				pxDescriptor->pxEndPoint = pxEndPoint;
+				pxUseDescriptor->pxInterface = pxEndPoint->pxNetworkInterface;
+				pxUseDescriptor->pxEndPoint = pxEndPoint;
 
 				xRxEvent.eEventType = eNetworkRxEvent;
-				xRxEvent.pvData = pxDescriptor;
-				if( xSendEventStructToIPTask( &xRxEvent, 0u ) != pdTRUE )
+				xRxEvent.pvData = pxUseDescriptor;
+				if( xSendEventStructToIPTask( &xRxEvent, 0U ) != pdTRUE )
 				{
-					vReleaseNetworkBufferAndDescriptor( pxDescriptor );
+					vReleaseNetworkBufferAndDescriptor( pxUseDescriptor );
 					iptraceETHERNET_RX_EVENT_LOST();
 					FreeRTOS_printf( ( "prvEMACRxPoll: Can not queue return packet!\n" ) );
 				}
@@ -846,7 +866,7 @@ IPPacket_t *pxIPPacket = ipPOINTER_CAST( IPPacket_t *, pxDescriptor->pucEthernet
 		/* Loop through each entry in the ARP cache. */
 		for( x = 0; x < ipconfigARP_CACHE_ENTRIES; x++ )
 		{
-			if( ( xARPCache[ x ].ulIPAddress != 0uL ) && ( xARPCache[ x ].ucAge > ( uint8_t ) 0U ) )
+			if( ( xARPCache[ x ].ulIPAddress != 0UL ) && ( xARPCache[ x ].ucAge > ( uint8_t ) 0U ) )
 			{
 				/* See if the MAC-address also matches, and we're all happy */
 				FreeRTOS_printf( ( "Arp %2ld: %3u - %16lxip : %02x:%02x:%02x : %02x:%02x:%02x\n",

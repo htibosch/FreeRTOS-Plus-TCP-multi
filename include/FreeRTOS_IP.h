@@ -35,23 +35,24 @@ extern "C" {
 #include "FreeRTOSIPConfigDefaults.h"
 #include "IPTraceMacroDefaults.h"
 
-/* Some constants defining the sizes of several parts of a packet */
-#define ipSIZE_OF_ETH_HEADER			14u
-#define ipSIZE_OF_IPv4_HEADER			20u
-#define ipSIZE_OF_IPv6_HEADER			40u
-#define ipSIZE_OF_IGMP_HEADER			8u
-#define ipSIZE_OF_ICMPv4_HEADER			8u
-#define ipSIZE_OF_ICMPv6_HEADER			24u
-#define ipSIZE_OF_UDP_HEADER			8u
-#define ipSIZE_OF_TCP_HEADER			20u
+/* Some constants defining the sizes of several parts of a packet.
+These defines come before inlucding the configuration header files. */
+#define ipSIZE_OF_ETH_HEADER			14U
+#define ipSIZE_OF_IPv4_HEADER			20U
+#define ipSIZE_OF_IPv6_HEADER			40U
+#define ipSIZE_OF_IGMP_HEADER			8U
+#define ipSIZE_OF_ICMPv4_HEADER			8U
+#define ipSIZE_OF_ICMPv6_HEADER			24U
+#define ipSIZE_OF_UDP_HEADER			8U
+#define ipSIZE_OF_TCP_HEADER			20U
 
 /* Application level configuration options. */
 #include "FreeRTOSIPConfig.h"
 #include "FreeRTOSIPConfigDefaults.h"
 #include "IPTraceMacroDefaults.h"
 
-#define ipSIZE_OF_IPv4_ADDRESS	4u
-#define ipSIZE_OF_IPv6_ADDRESS	16u
+#define ipSIZE_OF_IPv4_ADDRESS	4U
+#define ipSIZE_OF_IPv6_ADDRESS	16U
 
 #if( ipconfigUSE_IPv6 != 0 )
 
@@ -66,6 +67,8 @@ extern "C" {
 		extern const struct xIPv6_Address in6addr_any;
 		extern const struct xIPv6_Address in6addr_loopback;
 	#else
+		/* Microsoft visual C already has these objects defined.
+		Name them slightly different. */
 		extern const struct xIPv6_Address FreeRTOS_in6addr_any;
 		extern const struct xIPv6_Address FreeRTOS_in6addr_loopback;
 		#define in6addr_any			FreeRTOS_in6addr_any
@@ -93,28 +96,28 @@ extern uint32_t ulApplicationGetNextSequenceNumber( uint32_t ulSourceAddress,
 #define ipIP_ADDRESS_LENGTH_BYTES ( 4 )
 
 /* IP protocol definitions. */
-#define ipPROTOCOL_EXT_HEADER	( 0 )	/* Exists in IPv6 */
-#define ipPROTOCOL_ICMP			( 1 )
-#define ipPROTOCOL_IGMP         ( 2 )
-#define ipPROTOCOL_TCP			( 6 )
-#define ipPROTOCOL_UDP			( 17 )
+#define ipPROTOCOL_EXT_HEADER	( 0U )	/* Extension header, IPv6 only. */
+#define ipPROTOCOL_ICMP			( 1U )
+#define ipPROTOCOL_IGMP         ( 2U )
+#define ipPROTOCOL_TCP			( 6U )
+#define ipPROTOCOL_UDP			( 17U )
 
-#define ipPROTOCOL_ICMP_IPv6	( 58u )
+#define ipPROTOCOL_ICMP_IPv6	( 58U )
 
-#define ipTYPE_IPv4				( 0x40u )
-#define ipTYPE_IPv6				( 0x60u )
+#define ipTYPE_IPv4				( 0x40U )
+#define ipTYPE_IPv6				( 0x60U )
 
 /* Some IPv6 ICMP requests. */
-#define ipICMP_DEST_UNREACHABLE_IPv6		( ( uint8_t )   1 )
-#define ipICMP_PACKET_TOO_BIG_IPv6			( ( uint8_t )   2 )
-#define ipICMP_TIME_EXEEDED_IPv6			( ( uint8_t )   3 )
-#define ipICMP_PARAMETER_PROBLEM_IPv6		( ( uint8_t )   4 )
-#define ipICMP_PING_REQUEST_IPv6			( ( uint8_t ) 128 )
-#define ipICMP_PING_REPLY_IPv6				( ( uint8_t ) 129 )
-#define ipICMP_ROUTER_SOLICITATION_IPv6		( ( uint8_t ) 133 )
-#define ipICMP_ROUTER_ADVERTISEMENT_IPv6	( ( uint8_t ) 134 )
-#define ipICMP_NEIGHBOR_SOLICITATION_IPv6	( ( uint8_t ) 135 )
-#define ipICMP_NEIGHBOR_ADVERTISEMENT_IPv6	( ( uint8_t ) 136 )
+#define ipICMP_DEST_UNREACHABLE_IPv6		( ( uint8_t )   1U )
+#define ipICMP_PACKET_TOO_BIG_IPv6			( ( uint8_t )   2U )
+#define ipICMP_TIME_EXEEDED_IPv6			( ( uint8_t )   3U )
+#define ipICMP_PARAMETER_PROBLEM_IPv6		( ( uint8_t )   4U )
+#define ipICMP_PING_REQUEST_IPv6			( ( uint8_t ) 128U )
+#define ipICMP_PING_REPLY_IPv6				( ( uint8_t ) 129U )
+#define ipICMP_ROUTER_SOLICITATION_IPv6		( ( uint8_t ) 133U )
+#define ipICMP_ROUTER_ADVERTISEMENT_IPv6	( ( uint8_t ) 134U )
+#define ipICMP_NEIGHBOR_SOLICITATION_IPv6	( ( uint8_t ) 135U )
+#define ipICMP_NEIGHBOR_ADVERTISEMENT_IPv6	( ( uint8_t ) 136U )
 
 /* The character used to fill ICMP echo requests, and therefore also the
 character expected to fill ICMP echo replies. */
@@ -147,7 +150,7 @@ buffer will have the following contents:
 #if( ipconfigBUFFER_PADDING != 0 )
     #define ipBUFFER_PADDING    ipconfigBUFFER_PADDING
 #else
-    #define ipBUFFER_PADDING    ( 8u + ipconfigPACKET_FILLER_SIZE )
+    #define ipBUFFER_PADDING    ( 8U + ipconfigPACKET_FILLER_SIZE )
 #endif
 
 /* A forward declaration of 'struct xNetworkEndPoint' and 'xNetworkInterface'.
@@ -155,9 +158,6 @@ The actual declaration can be found in FreeRTOS_Routing.h which is included
 as the last +TCP header file. */
 struct xNetworkEndPoint;
 struct xNetworkInterface;
-
-#define ipBUFFER_LENGTH_CHECK				( 1 )
-
 
 /* The structure used to store buffers and pass them around the network stack.
 Buffers can be in use by the stack, in use by the network interface hardware
@@ -218,7 +218,7 @@ typedef struct xIP_TIMER
 	/* FreeRTOS_htons / FreeRTOS_htonl: some platforms might have built-in versions
 	using a single instruction so allow these versions to be overridden. */
 	#ifndef FreeRTOS_htons
-		#define FreeRTOS_htons( usIn ) ( (uint16_t) ( ( ( usIn ) << 8u ) | ( ( usIn ) >> 8u ) ) )
+		#define FreeRTOS_htons( usIn ) ( (uint16_t) ( ( ( usIn ) << 8U ) | ( ( usIn ) >> 8U ) ) )
 	#endif
 
 	#ifndef	FreeRTOS_htonl
@@ -253,16 +253,12 @@ typedef struct xIP_TIMER
 	static portINLINE uint32_t FreeRTOS_round_up   (uint32_t a, uint32_t d);
 	static portINLINE uint32_t FreeRTOS_round_down (uint32_t a, uint32_t d);
 	static portINLINE BaseType_t  FreeRTOS_min_BaseType  (BaseType_t  a, BaseType_t  b);
-/*
-	static portINLINE BaseType_t  FreeRTOS_max_BaseType  (BaseType_t  a, BaseType_t  b);
-	static portINLINE UBaseType_t FreeRTOS_max_UBaseType (UBaseType_t a, UBaseType_t b);
-	static portINLINE UBaseType_t FreeRTOS_min_UBaseType (UBaseType_t a, UBaseType_t  b);
-*/
+
 	static portINLINE int32_t  FreeRTOS_max_int32  (int32_t  a, int32_t  b) { return ( a >= b ) ? a : b; }
 	static portINLINE uint32_t FreeRTOS_max_uint32 (uint32_t a, uint32_t b) { return ( a >= b ) ? a : b; }
 	static portINLINE int32_t  FreeRTOS_min_int32  (int32_t  a, int32_t  b) { return ( a <= b ) ? a : b; }
 	static portINLINE uint32_t FreeRTOS_min_uint32 (uint32_t a, uint32_t b) { return ( a <= b ) ? a : b; }
-	static portINLINE uint32_t FreeRTOS_round_up   (uint32_t a, uint32_t d) { return d * ( ( a + d - 1u ) / d ); }
+	static portINLINE uint32_t FreeRTOS_round_up   (uint32_t a, uint32_t d) { return d * ( ( a + d - 1U ) / d ); }
 	static portINLINE uint32_t FreeRTOS_round_down (uint32_t a, uint32_t d) { return d * ( a / d ); }
 
 	static portINLINE BaseType_t  	FreeRTOS_min_BaseType  (BaseType_t  a, BaseType_t  b) { return ( a <= b ) ? a : b; }
@@ -283,15 +279,19 @@ typedef struct xIP_TIMER
 
 #endif /* ipconfigHAS_INLINE_FUNCTIONS */
 
-/*_RB_ Macro prefix is incorrect. */
-#define pdMS_TO_MIN_TICKS( xTimeInMs ) ( ( pdMS_TO_TICKS( ( xTimeInMs ) ) < ( ( TickType_t ) 1 ) ) ? ( ( TickType_t ) 1 ) : pdMS_TO_TICKS( ( xTimeInMs ) ) )
+#define ipMS_TO_MIN_TICKS( xTimeInMs ) ( ( pdMS_TO_TICKS( ( xTimeInMs ) ) < ( ( TickType_t ) 1U ) ) ? ( ( TickType_t ) 1U ) : pdMS_TO_TICKS( ( xTimeInMs ) ) )
+
+/* For backward compatibility. */
+#define pdMS_TO_MIN_TICKS( xTimeInMs )	ipMS_TO_MIN_TICKS( xTimeInMs )
 
 #ifndef pdTRUE_SIGNED
 	/* Temporary solution: eventually the defines below will appear in 'Source\include\projdefs.h' */
 	#define pdTRUE_SIGNED		pdTRUE
 	#define pdFALSE_SIGNED		pdFALSE
-	#define pdTRUE_UNSIGNED		( 1u )
-	#define pdFALSE_UNSIGNED	( 0u )
+	#define pdTRUE_UNSIGNED		( 1U )
+	#define pdFALSE_UNSIGNED	( 0U )
+	#define ipTRUE_BOOL			( 1 == 1 )
+	#define ipFALSE_BOOL		( 1 == 2 )
 #endif
 
 /*
@@ -317,11 +317,22 @@ BaseType_t FreeRTOS_IPStart( void );
  */
 uint8_t *pcNetworkBuffer_to_UDPPayloadBuffer( NetworkBufferDescriptor_t *pxNetworkBuffer );
 
-void FreeRTOS_SetAddressConfiguration( struct xNetworkEndPoint *pxEndPoint,
-									   const uint32_t *pulIPAddress,
+/*
+ * Returns the addresses stored in an end-point structure.
+ * This function already existed in the release with the single-interface.
+ * Only the first parameters is new: an end-point
+ */
+void FreeRTOS_GetAddressConfiguration( uint32_t *pulIPAddress,
+									   uint32_t *pulNetMask,
+									   uint32_t *pulGatewayAddress,
+									   uint32_t *pulDNSServerAddress,
+									   struct xNetworkEndPoint *pxEndPoint );
+
+void FreeRTOS_SetAddressConfiguration( const uint32_t *pulIPAddress,
 									   const uint32_t *pulNetMask,
 									   const uint32_t *pulGatewayAddress,
-									   const uint32_t *pulDNSServerAddress );
+									   const uint32_t *pulDNSServerAddress,
+									   struct xNetworkEndPoint *pxEndPoint );
 
 BaseType_t FreeRTOS_SendPingRequest( uint32_t ulIPAddress, size_t uxNumberOfBytesToSend, TickType_t uxBlockTimeTicks );
 void FreeRTOS_ReleaseUDPPayloadBuffer( void *pvBuffer );
@@ -344,13 +355,13 @@ uint32_t FreeRTOS_GetIPAddress( void );
 void FreeRTOS_OutputARPRequest( uint32_t ulIPAddress );
 
 /* Return true if a given end-point is up and running.
-When FreeRTOS_OutputARPRequest() is called with NULL as a parameter,
+When FreeRTOS_IsNetworkUp() is called with NULL as a parameter,
 it will return pdTRUE when all end-points are up. */
-BaseType_t FreeRTOS_IsEndPointUp( struct xNetworkEndPoint *pxEndPoint );
+BaseType_t FreeRTOS_IsEndPointUp( const struct xNetworkEndPoint *pxEndPoint );
 
 /* Return pdTRUE if all end-points are up.
 When pxInterface is null, all end-points will be checked. */
-BaseType_t FreeRTOS_AllEndPointsUp( struct xNetworkInterface *pxInterface );
+BaseType_t FreeRTOS_AllEndPointsUp( const struct xNetworkInterface *pxInterface );
 
 /* For backward compatibility: FreeRTOS_IsNetworkUp() returns true
 as soon as all end-points are up. */
@@ -371,7 +382,6 @@ const char *FreeRTOS_GetTCPStateName( UBaseType_t ulState);
 /* _HT_ Temporary: show all valid ARP entries
  */
 void FreeRTOS_PrintARPCache( void );
-void FreeRTOS_ClearARP( void );
 #if( ipconfigUSE_IPv6 != 0 )
 	void FreeRTOS_ClearND( void );
 #endif/* ( ipconfigUSE_IPv6 != 0 ) */

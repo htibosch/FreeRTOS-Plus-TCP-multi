@@ -63,7 +63,8 @@ typedef struct xNetworkInterface
 	struct
 	{
 		uint32_t
-			bInterfaceUp : 1;
+			bInterfaceUp : 1,
+			bCallDownEvent : 1;
 	} bits;
 
 	struct xNetworkEndPoint *pxEndPoint;
@@ -176,11 +177,11 @@ typedef struct xNetworkEndPoint
 
 
 #if( ipconfigUSE_IPv6 != 0 )
-	#define END_POINT_USES_DHCP( pxEndPoint )	( ( ( pxEndPoint )->bits.bIPv6 == pdFALSE_UNSIGNED ) && ( ( pxEndPoint )->bits.bWantDHCP != pdFALSE_UNSIGNED ) )
-	#define END_POINT_USES_RA( pxEndPoint )		( ( ( pxEndPoint )->bits.bIPv6 != pdFALSE_UNSIGNED ) && ( ( pxEndPoint )->bits.bWantRA != pdFALSE_UNSIGNED ) )
+	#define END_POINT_USES_DHCP( pxEndPoint )	( ( ( pxEndPoint ) != NULL ) && ( ( pxEndPoint )->bits.bIPv6 == pdFALSE_UNSIGNED ) && ( ( pxEndPoint )->bits.bWantDHCP != pdFALSE_UNSIGNED ) )
+	#define END_POINT_USES_RA( pxEndPoint )		( ( ( pxEndPoint ) != NULL ) && ( ( pxEndPoint )->bits.bIPv6 != pdFALSE_UNSIGNED ) && ( ( pxEndPoint )->bits.bWantRA != pdFALSE_UNSIGNED ) )
 
-	#define ENDPOINT_IS_IPv4( pxEndPoint ) ( ( pxEndPoint )->bits.bIPv6 == 0u )
-	#define ENDPOINT_IS_IPv6( pxEndPoint ) ( ( pxEndPoint )->bits.bIPv6 != 0u )
+	#define ENDPOINT_IS_IPv4( pxEndPoint ) ( ( ( pxEndPoint ) != NULL ) && ( ( pxEndPoint )->bits.bIPv6 == 0U ) )
+	#define ENDPOINT_IS_IPv6( pxEndPoint ) ( ( ( pxEndPoint ) != NULL ) && ( ( pxEndPoint )->bits.bIPv6 != 0U ) )
 
 	static __inline void CONFIRM_EP_v4( const NetworkEndPoint_t * pxEndPoint )
 	{
@@ -203,6 +204,7 @@ typedef struct xNetworkEndPoint
 
 	static __inline void CONFIRM_EP_v4( const NetworkEndPoint_t * pxEndPoint )
 	{
+		( void ) pxEndPoint;
 		configASSERT( pxEndPoint != NULL );
 	}
 	static __inline void CONFIRM_EP_v6( const NetworkEndPoint_t * pxEndPoint )
@@ -256,13 +258,6 @@ NetworkEndPoint_t *FreeRTOS_FindEndPointOnIP_IPv4( uint32_t ulIPAddress, uint32_
  * The search can be limited by supplying a particular interface.
  */
 NetworkEndPoint_t *FreeRTOS_FindEndPointOnMAC( const MACAddress_t *pxMACAddress, NetworkInterface_t *pxInterface );
-
-/*
- * Returns the addresses stored in an end-point structure.
- * This function already existed in the release with the single-interface.
- * Only the first parameters is new: an end-point
- */
-void FreeRTOS_GetAddressConfiguration( NetworkEndPoint_t *pxEndPoint, uint32_t *pulIPAddress, uint32_t *pulNetMask, uint32_t *pulGatewayAddress, uint32_t *pulDNSServerAddress );
 
 /*
  * Find the best fitting end-point to reach a given IP-address.

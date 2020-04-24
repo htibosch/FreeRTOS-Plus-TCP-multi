@@ -143,10 +143,10 @@ in NetworkInterface.c as follows:
 	}
 	/ * Send the packet as usual. * /
 */
-BaseType_t xCheckLoopback( NetworkBufferDescriptor_t * pxDescriptor, BaseType_t bReleaseAfterSend );
+BaseType_t xCheckLoopback( NetworkBufferDescriptor_t * const pxDescriptor, BaseType_t bReleaseAfterSend );
 
 /* Clear all entries in the ARp cache. */
-void FreeRTOS_ClearARP( void );
+void FreeRTOS_ClearARP( const struct xNetworkEndPoint *pxEndPoint );
 
 #ifdef __cplusplus
 } // extern "C"

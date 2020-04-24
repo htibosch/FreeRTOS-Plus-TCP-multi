@@ -249,49 +249,18 @@ NetworkEndPoint_t *pxEndPoint = pxNetworkEndPoints;
 	}
 	while( pxEndPoint != NULL )
 	{
-		if( ( ENDPOINT_IS_IPv4( pxEndPoint ) ) && ( pxEndPoint->ipv4_settings.ulIPAddress == ulIPAddress ) )/*lint !e506 !e774 */
+		if( ENDPOINT_IS_IPv4( pxEndPoint ) )
 		{
-			break;
+			if( ( ulIPAddress == 0UL ) || ( pxEndPoint->ipv4_settings.ulIPAddress == ulIPAddress ) )/*lint !e506 !e774 */
+			{
+				break;
+			}
 		}
 
 		pxEndPoint = pxEndPoint->pxNext;
 	}
 
 	return pxEndPoint;
-}
-/*-----------------------------------------------------------*/
-
-/*_RB_ Is it best, from the end user's perspective, to pass in an end point here, or for data hiding purposes, is it best to pass in a interface number (0, 1, etc.)? */
-void FreeRTOS_GetAddressConfiguration( NetworkEndPoint_t *pxEndPoint, uint32_t *pulIPAddress, uint32_t *pulNetMask, uint32_t *pulGatewayAddress, uint32_t *pulDNSServerAddress )
-{
-	configASSERT( pxEndPoint );
-
-#ifndef _lint
-	/* Lint would complain about this test. It is there in case configASSERT it not defined. */
-	if( pxEndPoint != NULL )
-#endif
-	{
-		CONFIRM_EP_v4( pxEndPoint );
-		if( pulIPAddress != NULL )
-		{
-			*pulIPAddress = pxEndPoint->ipv4_settings.ulIPAddress;
-		}
-
-		if( pulNetMask != NULL )
-		{
-			*pulNetMask = pxEndPoint->ipv4_settings.ulNetMask;
-		}
-
-		if( pulGatewayAddress != NULL )
-		{
-			*pulGatewayAddress = pxEndPoint->ipv4_settings.ulGatewayAddress;
-		}
-
-		if( pulDNSServerAddress != NULL )
-		{
-			*pulDNSServerAddress = pxEndPoint->ipv4_settings.ulDNSServerAddresses[ 0 ]; /*_RB_ Only returning the address of the first DNS server. */
-		}
-	}
 }
 /*-----------------------------------------------------------*/
 
@@ -383,7 +352,7 @@ NetworkEndPoint_t *pxEndPoint = pxNetworkEndPoints;
 		pxEndPoint = pxEndPoint->pxNext;
 	}
 
-	if( ( pxEndPoint == NULL ) && ( ulWhere != 1uL ) && ( ulWhere != 2uL ) )
+	if( ( pxEndPoint == NULL ) && ( ulWhere != 1UL ) && ( ulWhere != 2UL ) )
 	{
 		FreeRTOS_printf( ( "FreeRTOS_FindEndPointOnNetMask[%ld]: No match for %lxip\n",
 			ulWhere, FreeRTOS_ntohl( ulIPAddress ) ) );
@@ -408,7 +377,7 @@ uint32_t ulIPAddress;
 	/* Fill in and add an end-point to a network interface.
 	The user must make sure that the object pointed to by 'pxEndPoint'
 	will remain to exist. */
-	memset( pxEndPoint, 0, sizeof( *pxEndPoint ) );
+	( void ) memset( pxEndPoint, 0, sizeof( *pxEndPoint ) );
 
 	/* All is cleared, also the IPv6 flag. */
 	/* pxEndPoint->bits.bIPv6 = pdFALSE; */
@@ -420,7 +389,7 @@ uint32_t ulIPAddress;
 	pxEndPoint->ipv4_settings.ulBroadcastAddress        = ulIPAddress | ~( pxEndPoint->ipv4_settings.ulNetMask );
 
 	/* Copy the current values to the default values. */
-	memcpy( &( pxEndPoint->ipv4_defaults ), &( pxEndPoint->ipv4_settings ), sizeof( pxEndPoint->ipv4_defaults ) );
+	( void ) memcpy( &( pxEndPoint->ipv4_defaults ), &( pxEndPoint->ipv4_settings ), sizeof( pxEndPoint->ipv4_defaults ) );
 
 	/* The default IP-address will be used in case DHCP is not used, or also if DHCP has failed, or
 	when the user chooses to use the default IP-address. */
@@ -428,7 +397,7 @@ uint32_t ulIPAddress;
 	
 	/* The field 'ipv4_settings.ulIPAddress' will be set later on. */
 
-	memcpy( pxEndPoint->xMACAddress.ucBytes, ucMACAddress, sizeof( pxEndPoint->xMACAddress ) );
+	( void ) memcpy( pxEndPoint->xMACAddress.ucBytes, ucMACAddress, sizeof( pxEndPoint->xMACAddress ) );
 	( void ) FreeRTOS_AddEndPoint( pxNetworkInterface, pxEndPoint );
 }
 /*-----------------------------------------------------------*/
@@ -447,7 +416,7 @@ uint32_t ulIPAddress;
 		/* Fill in and add an end-point to a network interface.
 		Make sure that the object pointed to by 'pxEndPoint'
 		will remain to exist. */
-		memset( pxEndPoint, 0, sizeof( *pxEndPoint ) );
+		( void ) memset( pxEndPoint, 0, sizeof( *pxEndPoint ) );
 
 		configASSERT( pxIPAddress != NULL );
 		configASSERT( ucMACAddress != NULL );
@@ -458,23 +427,23 @@ uint32_t ulIPAddress;
 
 		if( pxGatewayAddress != NULL )
 		{
-			memcpy( pxEndPoint->ipv6_settings.xGatewayAddress.ucBytes, pxGatewayAddress->ucBytes, ipSIZE_OF_IPv6_ADDRESS );
+			( void ) memcpy( pxEndPoint->ipv6_settings.xGatewayAddress.ucBytes, pxGatewayAddress->ucBytes, ipSIZE_OF_IPv6_ADDRESS );
 		}
 		if( pxDNSServerAddress != NULL )
 		{
-			memcpy( pxEndPoint->ipv6_settings.xDNSServerAddresses[ 0 ].ucBytes, pxDNSServerAddress->ucBytes, ipSIZE_OF_IPv6_ADDRESS );
+			( void ) memcpy( pxEndPoint->ipv6_settings.xDNSServerAddresses[ 0 ].ucBytes, pxDNSServerAddress->ucBytes, ipSIZE_OF_IPv6_ADDRESS );
 		}
 		if( pxNetPrefix != NULL )
 		{
-			memcpy( pxEndPoint->ipv6_settings.xPrefix.ucBytes, pxNetPrefix->ucBytes, ipSIZE_OF_IPv6_ADDRESS );
+			( void ) memcpy( pxEndPoint->ipv6_settings.xPrefix.ucBytes, pxNetPrefix->ucBytes, ipSIZE_OF_IPv6_ADDRESS );
 		}
 
 		/* Copy the current values to the default values. */
-		memcpy( &( pxEndPoint->ipv6_defaults ), &( pxEndPoint->ipv6_settings ), sizeof( pxEndPoint->ipv6_defaults ) );
+		( void ) memcpy( &( pxEndPoint->ipv6_defaults ), &( pxEndPoint->ipv6_settings ), sizeof( pxEndPoint->ipv6_defaults ) );
 
-		memcpy( pxEndPoint->ipv6_defaults.xIPAddress.ucBytes, pxIPAddress->ucBytes, ipSIZE_OF_IPv6_ADDRESS );
+		( void ) memcpy( pxEndPoint->ipv6_defaults.xIPAddress.ucBytes, pxIPAddress->ucBytes, ipSIZE_OF_IPv6_ADDRESS );
 
-		memcpy( pxEndPoint->xMACAddress.ucBytes, ucMACAddress, ipMAC_ADDRESS_LENGTH_BYTES );
+		( void ) memcpy( pxEndPoint->xMACAddress.ucBytes, ucMACAddress, ipMAC_ADDRESS_LENGTH_BYTES );
 		( void ) FreeRTOS_AddEndPoint( pxNetworkInterface, pxEndPoint );
 	}
 #endif
@@ -508,7 +477,7 @@ uint32_t ulIPAddress;
 /*-----------------------------------------------------------*/
 
 /*lint -e9003*/
-uint32_t xDoLog = 0uL;/*lint !e9075 (Note -- external symbol 'xDoLog' defined without a prior declaration [MISRA 2012 Rule 8.4, required]. */
+uint32_t xDoLog = 0UL;/*lint !e9075 (Note -- external symbol 'xDoLog' defined without a prior declaration [MISRA 2012 Rule 8.4, required]. */
 
 NetworkEndPoint_t *FreeRTOS_MatchingEndpoint( NetworkInterface_t *pxNetworkInterface, uint8_t *pucEthernetBuffer )
 {
@@ -521,8 +490,8 @@ ProtocolPacket_t *pxPacket = ipPOINTER_CAST( ProtocolPacket_t *, pucEthernetBuff
 	#ifndef _lint
 	{
 		uint32_t ulAddress = ( uint32_t ) pucEthernetBuffer;
-		ulAddress += 2uL;
-		configASSERT( ( ulAddress % 4uL ) == 0uL );
+		ulAddress += 2UL;
+		configASSERT( ( ulAddress % 4UL ) == 0UL );
 	}
 	#endif
 
@@ -564,7 +533,7 @@ ProtocolPacket_t *pxPacket = ipPOINTER_CAST( ProtocolPacket_t *, pucEthernetBuff
 			{
 				if( pxEndPoint == NULL )
 				{
-					if( xCompareIPv6_Address( &( ipLLMNR_IP_ADDR_IPv6 ), &( pxIPPacket_IPv6->xIPHeader.xDestinationAddress ), ( size_t ) 8u * ipSIZE_OF_IPv6_ADDRESS ) == 0 )/*lint !e9029: (Note -- Mismatched essential type categories for binary operator [MISRA 2012 Rule 10.4, required] */
+					if( xCompareIPv6_Address( &( ipLLMNR_IP_ADDR_IPv6 ), &( pxIPPacket_IPv6->xIPHeader.xDestinationAddress ), ( size_t ) 8U * ipSIZE_OF_IPv6_ADDRESS ) == 0 )/*lint !e9029: (Note -- Mismatched essential type categories for binary operator [MISRA 2012 Rule 10.4, required] */
 					{
 						pxEndPoint = FreeRTOS_FirstEndPoint_IPv6( pxNetworkInterface );
 					}
@@ -576,7 +545,7 @@ ProtocolPacket_t *pxPacket = ipPOINTER_CAST( ProtocolPacket_t *, pucEthernetBuff
 #endif /* ipconfigUSE_IPv6 */
 	case ipARP_FRAME_TYPE:
 		{
-			pxEndPoint = FreeRTOS_FindEndPointOnIP_IPv4( pxPacket->xARPPacket.xARPHeader.ulTargetProtocolAddress, 3uL );
+			pxEndPoint = FreeRTOS_FindEndPointOnIP_IPv4( pxPacket->xARPPacket.xARPHeader.ulTargetProtocolAddress, 3UL );
 			name = "ARP";
 		}
 		break;
@@ -606,7 +575,7 @@ ProtocolPacket_t *pxPacket = ipPOINTER_CAST( ProtocolPacket_t *, pucEthernetBuff
 			{
 				name = "TCP";
 			}
-			if( ulIPTargetAddress == ~0uL )
+			if( ulIPTargetAddress == ~0UL )
 			{
 				ulMatchAddress = ulIPSourceAddress;
 			}
@@ -632,7 +601,7 @@ ProtocolPacket_t *pxPacket = ipPOINTER_CAST( ProtocolPacket_t *, pucEthernetBuff
 				}
 				else
 				if( ( xIPBroadcast != pdFALSE ) &&
-					( ( ( pxEndPoint->ipv4_settings.ulIPAddress ^ ulMatchAddress ) & pxEndPoint->ipv4_settings.ulNetMask ) == 0uL ) )
+					( ( ( pxEndPoint->ipv4_settings.ulIPAddress ^ ulMatchAddress ) & pxEndPoint->ipv4_settings.ulNetMask ) == 0UL ) )
 				{
 					xDone = pdTRUE;
 				}
@@ -655,16 +624,16 @@ ProtocolPacket_t *pxPacket = ipPOINTER_CAST( ProtocolPacket_t *, pucEthernetBuff
 			{
 				pxEndPoint = FreeRTOS_FirstEndPoint( pxNetworkInterface );
 			}
-			if( ( xIsIPv4Multicast( ulIPTargetAddress ) == pdFALSE ) && ( xDoLog != 0uL ) )
+			if( ( xIsIPv4Multicast( ulIPTargetAddress ) == pdFALSE ) && ( xDoLog != 0UL ) )
 			{
 				xDoLog--;
 				FreeRTOS_printf( ( "Compare[%s] %d mine %-16lxip (%02x-%02x) from %-16lxip to %-16lxip (%02x-%02x)\n",
 					name,
 				//	( unsigned ) xMACBroadcast,
 					( unsigned ) xIPBroadcast,
-					( pxEndPoint != NULL ) ? FreeRTOS_ntohl( pxEndPoint->ipv4_settings.ulIPAddress ) : 0uL,
-					( pxEndPoint != NULL ) ? pxEndPoint->xMACAddress.ucBytes[0] : 0u,
-					( pxEndPoint != NULL ) ? pxEndPoint->xMACAddress.ucBytes[1] : 0u,
+					( pxEndPoint != NULL ) ? FreeRTOS_ntohl( pxEndPoint->ipv4_settings.ulIPAddress ) : 0UL,
+					( pxEndPoint != NULL ) ? pxEndPoint->xMACAddress.ucBytes[0] : 0U,
+					( pxEndPoint != NULL ) ? pxEndPoint->xMACAddress.ucBytes[1] : 0U,
 					FreeRTOS_ntohl( ulIPSourceAddress ),
 					FreeRTOS_ntohl( ulIPTargetAddress ),
 					pxPacket->xUDPPacket.xEthernetHeader.xDestinationAddress.ucBytes[0],
@@ -685,7 +654,7 @@ ProtocolPacket_t *pxPacket = ipPOINTER_CAST( ProtocolPacket_t *, pucEthernetBuff
 /*
 	if( ( xDoLog != pdFALSE ) && ( pxEndPoint != NULL ) )
 	{
-		configPRINTF( ( "Compare[%s] returning %lxip\n", name, ( pxEndPoint != NULL ) ? FreeRTOS_ntohl( pxEndPoint->ulIPAddress ) : 0uL ) );
+		configPRINTF( ( "Compare[%s] returning %lxip\n", name, ( pxEndPoint != NULL ) ? FreeRTOS_ntohl( pxEndPoint->ulIPAddress ) : 0UL ) );
 	}
 */
 
@@ -704,7 +673,7 @@ NetworkEndPoint_t *FreeRTOS_FindGateWay( BaseType_t xIPType )
 	{
 	#if( ipconfigUSE_IPv6 == 0 )
 		( void ) xIPType;
-		if( pxEndPoint->ipv4_settings.ulGatewayAddress != 0uL )	/* access to ipv4_settings is checked. */
+		if( pxEndPoint->ipv4_settings.ulGatewayAddress != 0UL )	/* access to ipv4_settings is checked. */
 		{
 			break;
 		}
@@ -720,7 +689,7 @@ NetworkEndPoint_t *FreeRTOS_FindGateWay( BaseType_t xIPType )
 		else
 		if( ( xIPType == ( BaseType_t ) ipTYPE_IPv4 ) && ( pxEndPoint->bits.bIPv6 == pdFALSE_UNSIGNED ) )
 		{
-			if( pxEndPoint->ipv4_settings.ulGatewayAddress != 0uL )	/* access to ipv4_settings is checked. */
+			if( pxEndPoint->ipv4_settings.ulGatewayAddress != 0UL )	/* access to ipv4_settings is checked. */
 			{
 				break;	/*lint !e9011 more than one 'break' terminates loop [MISRA 2012 Rule 15.4, advisory] */
 			}

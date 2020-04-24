@@ -41,7 +41,18 @@ uint32_t TEST_FreeRTOS_TCP_prvParseDNSReply( uint8_t * pucUDPPayloadBuffer,
                                              size_t xBufferLength,
                                              TickType_t xIdentifier )
 {
-    return prvParseDNSReply( pucUDPPayloadBuffer, xBufferLength, xIdentifier, pdFALSE );
+    uint32_t ulIPAddress;
+    struct freertos_sockaddr xAddress;
+    if( prvParseDNSReply( pucUDPPayloadBuffer, xBufferLength, &( xAddress ), pdFALSE ) != 0 )
+    {
+        ulIPAddress = xAddress.sin_addr;
+    }
+    else
+    {
+        ulIPAddress = 0uL;
+    }
+
+    return ulIPAddress;
 }
 /*-----------------------------------------------------------*/
 

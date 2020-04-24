@@ -36,7 +36,7 @@ typedef enum eTCP_STATE {
 	/* Comments about the TCP states are borrowed from the very useful
 	 * Wiki page:
 	 * http://en.wikipedia.org/wiki/Transmission_Control_Protocol */
-	eCLOSED = 0u,	/* 0 (server + client) no connection state at all. */
+	eCLOSED = 0U,	/* 0 (server + client) no connection state at all. */
 	eTCP_LISTEN,	/* 1 (server) waiting for a connection request
 						 from any remote TCP and port. */
 	eCONNECT_SYN,	/* 2 (client) internal state: socket wants to send

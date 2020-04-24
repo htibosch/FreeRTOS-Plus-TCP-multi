@@ -47,7 +47,7 @@
 #include "tcp_mem_stats.h"
 
 #ifndef ipconfigTCP_MEM_STATS_MAX_ALLOCATION
-	#define ipconfigTCP_MEM_STATS_MAX_ALLOCATION     256u
+	#define ipconfigTCP_MEM_STATS_MAX_ALLOCATION     128u
 	#pragma warning "ipconfigTCP_MEM_STATS_MAX_ALLOCATION undefined?"
 #endif
 
@@ -57,6 +57,15 @@
 
 #define STREAM_BUFFER_ROUNDUP_BYTES		4
 
+#define STATS_PRINTF( MSG ) \
+	xCurrentLine++; \
+	configPRINTF( MSG )
+
+#define ETH_MAX_PACKET_SIZE		( ( ipconfigNETWORK_MTU + ipSIZE_OF_ETH_HEADER + ipBUFFER_PADDING + 31 ) & ~0x1FuL )
+/*-----------------------------------------------------------*/
+
+/* Objects are allocated and deleted. This structure stores the type
+and the size of the object. */
 typedef struct xTCP_ALLOCATION
 {
 	TCP_MEMORY_t xMemType;
@@ -65,6 +74,7 @@ typedef struct xTCP_ALLOCATION
 	size_t uxSize;
 } TCP_ALLOCATION_t;
 /*-----------------------------------------------------------*/
+
 
 static void vWriteHeader( void );
 
@@ -123,7 +133,7 @@ TCP_ALLOCATION_t *pxReturn;
 			if( xAllocations[ uxSource ].pxObject == pxObject )
 			{
 				/* This is entry will be removed. */
-				memcpy( &( xAllocation ), &( xAllocations[ uxSource ] ), sizeof xAllocation );
+				( void ) memcpy( &( xAllocation ), &( xAllocations[ uxSource ] ), sizeof xAllocation );
 				xFound = pdTRUE;
 			}
 			else
@@ -163,12 +173,6 @@ static const char *pcTypeName( TCP_MEMORY_t xMemType )
 }
 /*-----------------------------------------------------------*/
 
-#define STATS_PRINTF( MSG ) \
-	xCurrentLine++; \
-	configPRINTF( MSG )
-
-#define ETH_MAX_PACKET_SIZE		( ( ipconfigNETWORK_MTU + ipSIZE_OF_ETH_HEADER + ipBUFFER_PADDING + 31 ) & ~0x1FuL )
-	
 static void vWriteHeader()
 {
 size_t uxPacketSize;
@@ -358,7 +362,7 @@ void vTCPMemStatCreate( TCP_MEMORY_t xMemType, void *pxObject, size_t uxSize )
 }
 /*-----------------------------------------------------------*/
 
-void vTCPMemStatRemove( void *pxObject )
+void vTCPMemStatDelete( void *pxObject )
 {
 	if( xLoggingStopped == pdFALSE )
 	{
@@ -400,7 +404,7 @@ void vTCPMemStatClose()
 	if( xLoggingStopped == pdFALSE )
 	{
 	// name;object;size;Heap;Ppointer;HeapMin;HeapDur;Comment
-	BaseType_t xLastLineNr = xCurrentLine - 1;
+	BaseType_t xLastLineNr = xCurrentLine;
 
 		xLoggingStopped = pdTRUE;
 

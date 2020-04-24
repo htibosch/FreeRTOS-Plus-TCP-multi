@@ -64,6 +64,7 @@ static BaseType_t prvLoopback_Initialise( NetworkInterface_t *pxInterface )
 {
 	/* When returning non-zero, the stack will become active and
     start DHCP (in configured) */
+	( void ) pxInterface;
 	return pdTRUE;
 }
 /*-----------------------------------------------------------*/
@@ -91,12 +92,14 @@ is declared static or global, and that it will remain to exist. */
 static BaseType_t prvLoopback_GetPhyLinkStatus( NetworkInterface_t *pxInterface )
 {
 	/* This function returns true if the Link Status in the PHY is high. */
+	( void ) pxInterface;
 	return pdTRUE;
 }
 /*-----------------------------------------------------------*/
 
 static BaseType_t prvLoopback_Output( NetworkInterface_t *pxInterface, NetworkBufferDescriptor_t * const pxDescriptor, BaseType_t bReleaseAfterSend )
 {
+	( void ) pxInterface;
 	if( bReleaseAfterSend == pdFALSE )
 	{
 		NetworkBufferDescriptor_t *pxNewDescriptor =

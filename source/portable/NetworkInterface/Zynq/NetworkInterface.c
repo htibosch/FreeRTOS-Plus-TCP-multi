@@ -1,6 +1,6 @@
 /*
- * FreeRTOS+TCP V2.2.1
- * Copyright (C) 2017 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * FreeRTOS V202002.00
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -208,9 +208,7 @@ const TickType_t xWaitLinkDelay = pdMS_TO_TICKS( 7000UL ), xWaitRelinkDelay = pd
 NetworkEndPoint_t *pxEndPoint;
 BaseType_t xEMACIndex = ( BaseType_t )pxInterface->pvArgument;
 
-	/* This function will be called by the IP-task repeatedly
-	until it returns pdTRUE.
-	So check if the task has already been created. */
+	/* Guard against the init function being called more than once. */
 	if( xEMACTaskHandles[ xEMACIndex ] == NULL )
 	{
 	const char *pcTaskName;
@@ -331,7 +329,24 @@ static BaseType_t xZynqNetworkInterfaceOutput( NetworkInterface_t *pxInterface, 
 {
 BaseType_t xEMACIndex = ( BaseType_t ) pxInterface->pvArgument;
 
-	if( ( ulPHYLinkStates[ xEMACIndex ] & niBMSR_LINK_STATUS ) != 0 )
+	#if( ipconfigDRIVER_INCLUDED_TX_IP_CHECKSUM != 0 )
+	{
+	ProtocolPacket_t *pxPacket;
+
+		/* If the peripheral must calculate the checksum, it wants
+		the protocol checksum to have a value of zero. */
+		pxPacket = ( ProtocolPacket_t * ) ( pxBuffer->pucEthernetBuffer );
+		if( ( pxPacket->xICMPPacket.xIPHeader.ucProtocol != ipPROTOCOL_UDP ) &&
+			( pxPacket->xICMPPacket.xIPHeader.ucProtocol != ipPROTOCOL_TCP ) )
+		{
+			/* The EMAC will calculate the checksum of the IP-header.
+			It can only calculate protocol checksums of UDP and TCP,
+			so for ICMP and other protocols it must be done manually. */
+			usGenerateProtocolChecksum( (uint8_t*)&( pxPacket->xUDPPacket ), pxBuffer->xDataLength, pdTRUE );
+		}
+	}
+	#endif /* ipconfigDRIVER_INCLUDED_TX_IP_CHECKSUM */
+	if( ( ulPHYLinkStates[ xEMACIndex ] & niBMSR_LINK_STATUS ) != 0UL )
 	{
 		iptraceNETWORK_INTERFACE_TRANSMIT();
 		/* emacps_send_message() will delete the network buffer if necessary. */

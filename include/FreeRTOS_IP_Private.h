@@ -429,7 +429,7 @@ as it is past the location into which the destination address will get placed. *
 /* The offset from the UDP payload whre the IP type will be stored.
 For IPv4 packets, this it located 6 bytes before pucEthernetBuffer.
 For IPv6 packets, this it located in the usual 'ucVersionTrafficClass'. */
-#define ipIP_TYPE_OFFSET				( 6u )
+#define ipIP_TYPE_OFFSET				( 6U )
 /* The value of 'ipUDP_PAYLOAD_IP_TYPE_OFFSET' is 42 + 6 = 48 bytes. */
 #define ipUDP_PAYLOAD_IP_TYPE_OFFSET	( sizeof( UDPPacket_t ) + ipIP_TYPE_OFFSET )
 
@@ -754,7 +754,6 @@ BaseType_t xIPIsNetworkTaskReady( void );
 			FOnConnected_t pxHandleConnected;	/* Actually type: typedef void (* FOnConnected_t) (Socket_t xSocket, BaseType_t ulConnected ); */
 		#endif /* ipconfigUSE_CALLBACKS */
 		uint32_t ulWindowSize;		/* Current Window size advertised by peer */
-		uint32_t ulRxCurWinSize;	/* Constantly changing: this is the current size available for data reception */
 		size_t uxRxWinSize;	/* Fixed value: size of the TCP reception window */
 		size_t uxTxWinSize;	/* Fixed value: size of the TCP transmit window */
 
@@ -948,7 +947,7 @@ BaseType_t xSendEventToIPTask( eIPEvent_t eEvent );
  * 		eIPEvent_t eEventType;
  *		void *pvData;
  */
-BaseType_t xSendEventStructToIPTask( const IPStackEvent_t *pxEvent, TickType_t xTimeout );
+BaseType_t xSendEventStructToIPTask( const IPStackEvent_t *pxEvent, TickType_t uxTimeout );
 
 /*
  * Returns a pointer to the original NetworkBuffer from a pointer to a UDP
@@ -959,7 +958,7 @@ NetworkBufferDescriptor_t *pxUDPPayloadBuffer_to_NetworkBuffer( void *pvBuffer )
 /* Get the size of the IP-header.
 'usFrameType' must be filled in if IPv6is to be recognised. */
 #if( ipconfigUSE_IPv6 != 0 )
-	static portINLINE BaseType_t xIPHeaderSize( NetworkBufferDescriptor_t *pxNetworkBuffer )
+	static portINLINE size_t xIPHeaderSize( NetworkBufferDescriptor_t *pxNetworkBuffer )
 	{
 	BaseType_t xResult;
 
