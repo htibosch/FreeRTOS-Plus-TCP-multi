@@ -60,8 +60,8 @@
 
 /* Timer parameters */
 #ifndef dhcpINITIAL_DHCP_TX_PERIOD
-	#define dhcpINITIAL_TIMER_PERIOD			( pdMS_TO_TICKS( 250 ) )
-	#define dhcpINITIAL_DHCP_TX_PERIOD			( pdMS_TO_TICKS( 5000 ) )
+	#define dhcpINITIAL_TIMER_PERIOD			( pdMS_TO_TICKS( 250U ) )
+	#define dhcpINITIAL_DHCP_TX_PERIOD			( pdMS_TO_TICKS( 5000U ) )
 #endif
 
 /* Codes of interest found in the DHCP options field. */
@@ -141,7 +141,7 @@ DHCPv6 uses UDP port number 546 for clients and port number 547 for servers.
 #include "pack_struct_start.h"	/*lint !e537 !e451 !e9019*/
 struct xDHCPMessage_IPv4
 {
- 	uint8_t ucOpcode;
+	uint8_t ucOpcode;
 	uint8_t ucAddressType;
 	uint8_t ucAddressLength;
 	uint8_t ucHops;

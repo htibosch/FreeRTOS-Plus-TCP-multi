@@ -71,19 +71,17 @@ the defined MTU size can contain at least a complete TCP packet. */
 /*
  * The meaning of the TCP flags:
  */
-#define tcpTCP_FLAG_FIN				0x0001U /* No more data from sender */
-#define tcpTCP_FLAG_SYN				0x0002U /* Synchronize sequence numbers */
-#define tcpTCP_FLAG_RST				0x0004U /* Reset the connection */
-#define tcpTCP_FLAG_PSH				0x0008U /* Push function: please push buffered data to the recv application */
-#define tcpTCP_FLAG_ACK				0x0010U /* Acknowledgment field is significant */
-#define tcpTCP_FLAG_URG				0x0020U /* Urgent pointer field is significant */
-#define tcpTCP_FLAG_ECN				0x0040U /* ECN-Echo */
-#define tcpTCP_FLAG_CWR				0x0080U /* Congestion Window Reduced */
-#define tcpTCP_FLAG_NS				0x0100U /* ECN-nonce concealment protection */
-#define tcpTCP_FLAG_RSV				0x0E00U /* Reserved, keep 0 */
+#define tcpTCP_FLAG_FIN				( ( uint8_t ) 0x01U ) /* No more data from sender */
+#define tcpTCP_FLAG_SYN				( ( uint8_t ) 0x02U ) /* Synchronize sequence numbers */
+#define tcpTCP_FLAG_RST				( ( uint8_t ) 0x04U ) /* Reset the connection */
+#define tcpTCP_FLAG_PSH				( ( uint8_t ) 0x08U ) /* Push function: please push buffered data to the recv application */
+#define tcpTCP_FLAG_ACK				( ( uint8_t ) 0x10U ) /* Acknowledgment field is significant */
+#define tcpTCP_FLAG_URG				( ( uint8_t ) 0x20U ) /* Urgent pointer field is significant */
+#define tcpTCP_FLAG_ECN				( ( uint8_t ) 0x40U ) /* ECN-Echo */
+#define tcpTCP_FLAG_CWR				( ( uint8_t ) 0x80U ) /* Congestion Window Reduced */
 
 /* A mask to filter all protocol flags. */
-#define tcpTCP_FLAG_CTRL			0x001FU
+#define tcpTCP_FLAG_CTRL			( ( uint8_t ) 0x001FU )
 
 /*
  * A few values of the TCP options:
@@ -1414,8 +1412,7 @@ ProtocolHeaders_t *pxProtocolHeaders;
 			( ( xFlags & tcpTCP_FLAG_ACK ) != 0U )  ? 'A' : '.',	/* 0x0010: Acknowledgment field is significant */
 			( ( xFlags & tcpTCP_FLAG_URG ) != 0U )  ? 'U' : '.',	/* 0x0020: Urgent pointer field is significant */
 			( ( xFlags & tcpTCP_FLAG_ECN ) != 0U )  ? 'E' : '.',	/* 0x0040: ECN-Echo */
-			( ( xFlags & tcpTCP_FLAG_CWR ) != 0U )  ? 'C' : '.',	/* 0x0080: Congestion Window Reduced */
-			( ( xFlags & tcpTCP_FLAG_NS )  != 0U )  ? 'N' : '.');	/* 0x0100: ECN-nonce concealment protection */
+			( ( xFlags & tcpTCP_FLAG_CWR ) != 0U )  ? 'C' : '.');	/* 0x0080: Congestion Window Reduced */
 		return retString;
 	}
 	/*-----------------------------------------------------------*/
