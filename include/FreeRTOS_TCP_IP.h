@@ -1,5 +1,5 @@
 /*
- * FreeRTOS+TCP V2.2.1
+ * FreeRTOS+TCP V3.0.0
  * Copyright (C) 2017 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -30,7 +30,7 @@
 extern "C" {
 #endif
 
-BaseType_t xProcessReceivedTCPPacket( NetworkBufferDescriptor_t *pxNetworkBuffer );
+BaseType_t xProcessReceivedTCPPacket( NetworkBufferDescriptor_t *pxDescriptor );
 
 typedef enum eTCP_STATE {
 	/* Comments about the TCP states are borrowed from the very useful

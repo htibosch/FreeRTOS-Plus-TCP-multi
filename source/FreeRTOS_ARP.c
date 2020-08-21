@@ -54,7 +54,7 @@ entry is still valid and can therefore be refreshed. */
 
 /* The time between gratuitous ARPs. */
 #ifndef arpGRATUITOUS_ARP_PERIOD
-	#define arpGRATUITOUS_ARP_PERIOD					( pdMS_TO_TICKS( 20000 ) )
+	#define arpGRATUITOUS_ARP_PERIOD					( pdMS_TO_TICKS( 20000U ) )
 #endif
 
 /*-----------------------------------------------------------*/

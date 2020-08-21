@@ -328,8 +328,8 @@ spi_enable_interrupt(KSZ8851SNL_SPI, SPI_IER_RXBUFF | SPI_IER_OVRES);
  * \brief Write internal fifo buffer.
  *
  * \param buf the buffer to send to the fifo buffer.
- * \param ulActualLength the actual amount of data to write.
- * \param ulFIFOLength the number of bytes passed through the FIFO
+ * \param ulActualLength the total amount of data to write.
+ * \param ulFIFOLength the size of the first pbuf to write from the pbuf chain.
  */
 void ksz8851_fifo_write(uint8_t *buf, uint32_t ulActualLength, uint32_t ulFIFOLength)
 {

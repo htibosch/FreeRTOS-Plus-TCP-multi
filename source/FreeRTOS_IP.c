@@ -1065,7 +1065,7 @@ NetworkBufferDescriptor_t * pxNewBuffer;
 #endif /* ipconfigZERO_COPY_TX_DRIVER != 0 */
 /*-----------------------------------------------------------*/
 
-NetworkBufferDescriptor_t *pxUDPPayloadBuffer_to_NetworkBuffer( void *pvBuffer )
+NetworkBufferDescriptor_t *pxUDPPayloadBuffer_to_NetworkBuffer( const void *pvBuffer )
 {
 uint8_t *pucBuffer;
 NetworkBufferDescriptor_t *pxResult;
@@ -2127,36 +2127,38 @@ uint8_t ucProtocol;
 			#endif /* ipconfigUSE_IPv6 */
 			( uxHeaderLength > ipSIZE_OF_IPv4_HEADER ) )
 		{
-			/* All structs of headers expect an IP header size of 20 bytes.  IP
-			header options were included, ignore them and cut them out.
-			Note: IP options are mostly use in Multi-cast protocols. */
-			const size_t optlen = ( ( size_t ) uxHeaderLength ) - ipSIZE_OF_IPv4_HEADER;
+			#if( ipconfigIP_PASS_PACKETS_WITH_IP_OPTIONS != 0 )
+			{
+				/* All structs of headers expect a IP header size of 20 bytes
+				 * IP header options were included, we'll ignore them and cut them out
+				 * Note: IP options are mostly use in Multi-cast protocols */
+				const size_t optlen = ( ( size_t ) uxHeaderLength ) - ipSIZE_OF_IPv4_HEADER;
+				/* From: the previous start of UDP/ICMP/TCP data */
+				const uint8_t *pucSource = ( const uint8_t * ) &( pxNetworkBuffer->pucEthernetBuffer[ sizeof( EthernetHeader_t ) + uxHeaderLength ] );
+				/* To: the usual start of UDP/ICMP/TCP data at offset 20 from IP header */
+				uint8_t *pucTarget = ( uint8_t * ) &( pxNetworkBuffer->pucEthernetBuffer[ sizeof( EthernetHeader_t ) + ipSIZE_OF_IPv4_HEADER ] );
+				/* How many: total length minus the options and the lower headers */
+				const size_t  xMoveLen = pxNetworkBuffer->xDataLength - ( optlen + ipSIZE_OF_IPv4_HEADER + ipSIZE_OF_ETH_HEADER );
 
-			/* From: the previous start of UDP/ICMP/TCP data. */
-			uint8_t *pucSource = ( uint8_t * ) pxIPHeader;
-			pucSource = &( pucSource[ uxHeaderLength ] );	/*lint !e662*/
+				( void ) memmove( pucTarget, pucSource, xMoveLen );
+				pxNetworkBuffer->xDataLength -= optlen;
 
-			/* To: the usual start of UDP/ICMP/TCP data at offset 20 from the IP
-			header. */
-//			uint8_t *pucTarget = ( ( uint8_t * ) pxIPHeader ) + ipSIZE_OF_IPv4_HEADER;
-			uint8_t *pucTarget = ( uint8_t * ) pxIPHeader;
-			pucTarget = &( pucTarget[ ipSIZE_OF_IPv4_HEADER ] );
-
-			/* How many: total length minus the options and the lower headers. */
-			const size_t uxMoveLen = pxNetworkBuffer->xDataLength - ( optlen + ipSIZE_OF_IPv4_HEADER + ipSIZE_OF_ETH_HEADER );
-
-			memmove( pucTarget, pucSource, uxMoveLen );	/*lint !e826 Suspicious pointer-to-pointer conversion (area too small). */
-			pxNetworkBuffer->xDataLength -= optlen;
+				/* Fix-up new version/header length field in IP packet. */
+				pxIPHeader->ucVersionHeaderLength = ( pxIPHeader->ucVersionHeaderLength & 0xF0U ) | /* High nibble is the version. */
+													( ( ipSIZE_OF_IPv4_HEADER >> 2 ) & 0x0FU );
+			}
+			#else
+			{
+				/* 'ipconfigIP_PASS_PACKETS_WITH_IP_OPTIONS' is set, so packets carrying
+				IP-options will be dropped. */
+				return eReleaseBuffer;
+			}
+			#endif
 		}
 
-//		FreeRTOS_printf( ( "Protocol: %s\n",
-//			( ucProtocol == ( uint8_t ) ipPROTOCOL_UDP ) ? "UDP" :
-//			( ucProtocol == ( uint8_t ) ipPROTOCOL_TCP ) ? "TCP" :
-//			( ucProtocol == ( uint8_t ) ipPROTOCOL_ICMP ) ? "ICMP" :
-//			"Unknown" ) );
-
-		/* Add the IP and MAC addresses to the ARP table if they are not already
-		there - otherwise refresh the age of the existing entry. */
+		/* Add the IP and MAC addresses to the ARP table if they are not
+		already there - otherwise refresh the age of the existing
+		entry. */
 		if( ucProtocol != ( uint8_t ) ipPROTOCOL_UDP )
 		{
 			/* Refresh the ARP cache with the IP/MAC-address of the received
@@ -2203,7 +2205,7 @@ uint8_t ucProtocol;
 				/* The IP packet contained a UDP frame. */
 				UDPPacket_t *pxUDPPacket = ipPOINTER_CAST( UDPPacket_t *, pxNetworkBuffer->pucEthernetBuffer );
 
-				size_t uxMinSize = ipSIZE_OF_ETH_HEADER + ( size_t ) xIPHeaderSize( pxNetworkBuffer ) + ipSIZE_OF_UDP_HEADER;
+				size_t uxMinSize = ipSIZE_OF_ETH_HEADER + ( size_t ) uxIPHeaderSizePacket( pxNetworkBuffer ) + ipSIZE_OF_UDP_HEADER;
 				size_t uxLength;
 				uint16_t usLength;
 
@@ -2785,12 +2787,14 @@ eror_exit:
 }
 /*-----------------------------------------------------------*/
 
+int do_swap = 1;
 uint16_t usGenerateChecksum( uint16_t usSum, const uint8_t * pucNextData, size_t uxDataLengthBytes )
 {
-xUnion32 xSum2, xSum, xTerm;	/*lint !e9018*/	
-xUnionPtr xSource;				/*lint !e9018*/	/* Points to first byte */
-xUnionPtr xLastSource;			/*lint !e9018*/	/* Points to last byte plus one */
-uint32_t ulAlignBits, ulCarry = 0UL;
+xUnion32 xSum2, xSum, xTerm;
+xUnionPtr xSource;
+xUnionPtr xLastSource;
+intptr_t uxAlignBits;
+uint32_t ulCarry = 0UL;
 uint16_t usTemp;
 
 	/* Small MCUs often spend up to 30% of the time doing checksum calculations
@@ -2803,10 +2807,24 @@ uint16_t usTemp;
 	xTerm.u32 = 0UL;
 
 	xSource.u8ptr = ipPOINTER_CAST( uint8_t *, pucNextData );
-	ulAlignBits = ( ( ( uint32_t ) pucNextData ) & 0x03U ); /*lint !e9078 !e923*/	/* gives 0, 1, 2, or 3 */
+	uxAlignBits = ( ( ( intptr_t ) pucNextData ) & 0x03U ); /*lint !e9078 !e923*/	/* gives 0, 1, 2, or 3 */
+if( uxAlignBits )
+{
+	FreeRTOS_printf( ( "uxAlignBits = %u\n", uxAlignBits ) );
+}
+	/*
+	 * If pucNextData is non-aligned then the checksum is starting at an
+	 * odd position and we need to make sure the usSum value now in xSum is
+	 * as if it had been "aligned" in the same way.
+	 */
+	if( ( uxAlignBits & 1UL) != 0U )
+	{
+		if(do_swap)
+		xSum.u32 = ( ( xSum.u32 & 0xffU ) << 8 ) | ( ( xSum.u32 & 0xff00U ) >> 8 );
+	}
 
 	/* If byte (8-bit) aligned... */
-	if( ( ( ulAlignBits & 1UL ) != 0UL ) && ( uxDataLengthBytes >= ( size_t ) 1 ) )
+	if( ( ( uxAlignBits & 1UL ) != 0UL ) && ( uxDataLengthBytes >= ( size_t ) 1 ) )
 	{
 		xTerm.u8[ 1 ] = *( xSource.u8ptr );
 		xSource.u8ptr++;
@@ -2815,7 +2833,7 @@ uint16_t usTemp;
 	}
 
 	/* If half-word (16-bit) aligned... */
-	if( ( ( ulAlignBits == 1U ) || ( ulAlignBits == 2U ) ) && ( uxDataLengthBytes >= 2U ) )
+	if( ( ( uxAlignBits == 1U ) || ( uxAlignBits == 2U ) ) && ( uxDataLengthBytes >= 2U ) )
 	{
 		xSum.u32 += *(xSource.u16ptr);
 		xSource.u16ptr++;
@@ -2824,12 +2842,12 @@ uint16_t usTemp;
 	}
 
 	/* Word (32-bit) aligned, do the most part. */
-	xLastSource.u32ptr = ( xSource.u32ptr + ( uxDataLengthBytes / 4U ) ) - 3U;/*lint !e9016 */
+	xLastSource.u32ptr = ( xSource.u32ptr + ( uxDataLengthBytes / 4U ) ) - 3U;
 
 	/* In this loop, four 32-bit additions will be done, in total 16 bytes.
 	Indexing with constants (0,1,2,3) gives faster code than using
 	post-increments. */
-	while( xSource.u32ptr < xLastSource.u32ptr )	/*lint !e946*/
+	while( xSource.u32ptr < xLastSource.u32ptr )
 	{
 		/* Use a secondary Sum2, just to see if the addition produced an
 		overflow. */
@@ -2862,17 +2880,18 @@ uint16_t usTemp;
 		}
 
 		/* And finally advance the pointer 4 * 4 = 16 bytes. */
-		xSource.u32ptr += 4;/*lint !e9016 */
+		xSource.u32ptr = &( xSource.u32ptr[ 4 ] );
 	}
 
 	/* Now add all carries. */
 	xSum.u32 = ( uint32_t )xSum.u16[ 0 ] + xSum.u16[ 1 ] + ulCarry;
 
 	uxDataLengthBytes %= 16U;
-	xLastSource.u8ptr = ( uint8_t * ) ( xSource.u8ptr + ( uxDataLengthBytes & ~( ( size_t ) 1 ) ) );/*lint !e9016 */
+	xLastSource.u8ptr = ( uint8_t * ) ( xSource.u8ptr + ( uxDataLengthBytes & ~( ( size_t ) 1 ) ) );
 
 	/* Half-word aligned. */
-	while( xSource.u16ptr < xLastSource.u16ptr )/*lint !e946 */
+	/* The operator "<" is being applied to the pointers "xSource.u16ptr" and "xLastSource.u16ptr", which do not point into the same object. */
+	while( xSource.u16ptr < xLastSource.u16ptr )
 	{
 		/* At least one more short. */
 		xSum.u32 += xSource.u16ptr[ 0 ];
@@ -2886,12 +2905,14 @@ uint16_t usTemp;
 	xSum.u32 += xTerm.u32;
 
 	/* Now add all carries again. */
+	/* Assigning value from "xTerm.u32" to "xSum.u32" here, but that stored value is overwritten before it can be used.
+	Coverity doesn't understand about union variables. */
 	xSum.u32 = ( uint32_t ) xSum.u16[ 0 ] + xSum.u16[ 1 ];
 
-	/* The previous summation might have given a 16-bit carry. */
+	/* coverity[value_overwrite] */
 	xSum.u32 = ( uint32_t ) xSum.u16[ 0 ] + xSum.u16[ 1 ];
 
-	if( ( ulAlignBits & 1U ) != 0U )
+	if( ( uxAlignBits & 1U ) != 0U )
 	{
 		/* Quite unlikely, but pucNextData might be non-aligned, which would
 		 mean that a checksum is calculated starting at an odd position. */
@@ -2971,6 +2992,86 @@ IPPacket_t *pxIPPacket;
 		}
 	}
 }
+/*-----------------------------------------------------------*/
+
+#if ( ipconfigHAS_PRINTF != 0 )
+	
+	#ifndef ipMONITOR_MAX_HEAP
+		/* As long as the heap has more space than e.g. 1 MB, there
+		will be no messages. */
+		#define	ipMONITOR_MAX_HEAP			( 1024U * 1024U )
+	#endif	/* ipMONITOR_MAX_HEAP */
+
+	#ifndef ipMONITOR_PERCENTAGE_90
+		/* Make this number lower to get less logging messages. */
+		#define ipMONITOR_PERCENTAGE_90		( 90U )
+	#endif
+
+	#define ipMONITOR_PERCENTAGE_100		( 100U )
+
+	void vPrintResourceStats( void )
+	{
+	static UBaseType_t uxLastMinBufferCount = ipconfigNUM_NETWORK_BUFFER_DESCRIPTORS;
+	static size_t uxMinLastSize = 0u;
+	UBaseType_t uxCurrentBufferCount;
+	size_t uxMinSize;
+
+		/* When setting up and testing a project with FreeRTOS+TCP, it is
+		can be helpful to monitor a few resources: the number of network
+		buffers and the amount of available heap.
+		This function will issue some logging when a minimum value has
+		changed. */
+		uxCurrentBufferCount = uxGetMinimumFreeNetworkBuffers();
+
+		if( uxLastMinBufferCount > uxCurrentBufferCount )
+		{
+			/* The logging produced below may be helpful
+			 * while tuning +TCP: see how many buffers are in use. */
+			uxLastMinBufferCount = uxCurrentBufferCount;
+			FreeRTOS_printf( ( "Network buffers: %lu lowest %lu\n",
+							   uxGetNumberOfFreeNetworkBuffers(),
+							   uxCurrentBufferCount ) );
+		}
+
+		uxMinSize = xPortGetMinimumEverFreeHeapSize();
+		if( uxMinLastSize == 0U )
+		{
+			/* Probably the first time this function is called. */
+			uxMinLastSize = uxMinSize;
+		}
+		else if( uxMinSize >= ipMONITOR_MAX_HEAP )
+		{
+			/* There is more than enough heap space. No need for logging. */
+		}
+		/* Write logging if there is a 10% decrease since the last time logging was written. */
+		else if( ( uxMinLastSize * ipMONITOR_PERCENTAGE_90 ) > ( uxMinSize * ipMONITOR_PERCENTAGE_100 ) )
+		{
+			uxMinLastSize = uxMinSize;
+			FreeRTOS_printf( ( "Heap: current %lu lowest %lu\n", xPortGetFreeHeapSize(), uxMinSize ) );
+		}
+		else
+		{
+			/* Nothing to log. */
+		}
+
+		#if ( ipconfigCHECK_IP_QUEUE_SPACE != 0 )
+		{
+			static UBaseType_t uxLastMinQueueSpace = 0;
+			UBaseType_t uxCurrentCount = 0u;
+
+			uxCurrentCount = uxGetMinimumIPQueueSpace();
+
+			if( uxLastMinQueueSpace != uxCurrentCount )
+			{
+				/* The logging produced below may be helpful
+				 * while tuning +TCP: see how many buffers are in use. */
+				uxLastMinQueueSpace = uxCurrentCount;
+				FreeRTOS_printf( ( "Queue space: lowest %lu\n", uxCurrentCount ) );
+			}
+		}
+		#endif /* ipconfigCHECK_IP_QUEUE_SPACE */
+	}
+#endif /* ( ipconfigHAS_PRINTF != 0 ) */
 /*-----------------------------------------------------------*/
 
 uint32_t FreeRTOS_GetIPAddress( void )

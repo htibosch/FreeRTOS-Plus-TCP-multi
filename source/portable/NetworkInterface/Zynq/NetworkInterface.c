@@ -112,10 +112,6 @@ static BaseType_t prvGMACWaitLS( BaseType_t xEMACIndex, TickType_t xMaxTime );
  */
 static void prvEMACHandlerTask( void *pvParameters );
 
-#if ( ipconfigHAS_PRINTF != 0 )
-    static void prvMonitorResources( void );
-#endif
-
 /* FreeRTOS+TCP/multi :
 Each network device has 3 access functions:
 - initialise the device
@@ -437,53 +433,6 @@ BaseType_t xEMACIndex = ( BaseType_t )pxInterface->pvArgument;
 }
 /*-----------------------------------------------------------*/
 
-#if ( ipconfigHAS_PRINTF != 0 )
-    static void prvMonitorResources()
-    {
-        static UBaseType_t uxLastMinBufferCount = 0u;
-        static UBaseType_t uxCurrentBufferCount = 0u;
-        static size_t uxMinLastSize = 0uL;
-        size_t uxMinSize;
-
-        uxCurrentBufferCount = uxGetMinimumFreeNetworkBuffers();
-
-        if( uxLastMinBufferCount != uxCurrentBufferCount )
-        {
-            /* The logging produced below may be helpful
-             * while tuning +TCP: see how many buffers are in use. */
-            uxLastMinBufferCount = uxCurrentBufferCount;
-            FreeRTOS_printf( ( "Network buffers: %lu lowest %lu\n",
-                               uxGetNumberOfFreeNetworkBuffers(), uxCurrentBufferCount ) );
-        }
-
-        uxMinSize = xPortGetMinimumEverFreeHeapSize();
-
-		if( uxMinLastSize != uxMinSize )
-		{
-			uxMinLastSize = uxMinSize;
-			FreeRTOS_printf( ( "Heap: current %lu lowest %lu\n", xPortGetFreeHeapSize(), uxMinSize ) );
-		}
-
-        #if ( ipconfigCHECK_IP_QUEUE_SPACE != 0 )
-            {
-                static UBaseType_t uxLastMinQueueSpace = 0;
-                UBaseType_t uxCurrentCount = 0u;
-
-                uxCurrentCount = uxGetMinimumIPQueueSpace();
-
-                if( uxLastMinQueueSpace != uxCurrentCount )
-                {
-                    /* The logging produced below may be helpful
-                     * while tuning +TCP: see how many buffers are in use. */
-                    uxLastMinQueueSpace = uxCurrentCount;
-                    FreeRTOS_printf( ( "Queue space: lowest %lu\n", uxCurrentCount ) );
-                }
-            }
-        #endif /* ipconfigCHECK_IP_QUEUE_SPACE */
-    }
-#endif /* ( ipconfigHAS_PRINTF != 0 ) */
-/*-----------------------------------------------------------*/
-
 
 /* pxZynq_FillInterfaceDescriptor() goes into the NetworkInterface.c of the Zynq driver. */
 
@@ -531,11 +480,14 @@ BaseType_t xEMACIndex = ( BaseType_t )pvParameters;
 
 	for( ;; )
 	{
-        #if ( ipconfigHAS_PRINTF != 0 )
-            {
-                prvMonitorResources();
-            }
-        #endif /* ipconfigHAS_PRINTF != 0 ) */
+		#if( ipconfigHAS_PRINTF != 0 )
+		{
+			/* Call a function that monitors resources: the amount of free network
+			buffers and the amount of free space on the heap.  See FreeRTOS_IP.c
+			for more detailed comments. */
+			vPrintResourceStats();
+		}
+		#endif /* ( ipconfigHAS_PRINTF != 0 ) */
 
 		if( ( xEMACpsifs[ xEMACIndex ].isr_events & EMAC_IF_ALL_EVENT ) == 0 )
 		{

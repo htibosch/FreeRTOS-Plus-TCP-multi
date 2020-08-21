@@ -105,7 +105,7 @@ extern void vListInsertGeneric( List_t * const pxList, ListItem_t * const pxNewL
  * segments: 'pxWindow->xRxSegments'.
  */
 #if( ipconfigUSE_TCP_WIN == 1 )
-	static TCPSegment_t *xTCPWindowRxFind( TCPWindow_t *pxWindow, uint32_t ulSequenceNumber );
+	static TCPSegment_t *xTCPWindowRxFind( const TCPWindow_t *pxWindow, uint32_t ulSequenceNumber );
 #endif /* ipconfigUSE_TCP_WIN == 1 */
 
 /*
@@ -121,14 +121,14 @@ extern void vListInsertGeneric( List_t * const pxList, ListItem_t * const pxNewL
  * Detaches and returns the head of a queue
  */
 #if( ipconfigUSE_TCP_WIN == 1 )
-	static TCPSegment_t *xTCPWindowGetHead( List_t *pxList );
+	static TCPSegment_t *xTCPWindowGetHead( const List_t *pxList );
 #endif /* ipconfigUSE_TCP_WIN == 1 */
 
 /*
  * Returns the head of a queue but it won't be detached
  */
 #if( ipconfigUSE_TCP_WIN == 1 )
-	static TCPSegment_t *xTCPWindowPeekHead( List_t *pxList );
+	static TCPSegment_t *xTCPWindowPeekHead( const List_t *pxList );
 #endif /* ipconfigUSE_TCP_WIN == 1 */
 
 /*
@@ -148,7 +148,7 @@ extern void vListInsertGeneric( List_t * const pxList, ListItem_t * const pxNewL
  * segment should have a sequence number equal to '(ulSequenceNumber+xLength)'.
  */
 #if( ipconfigUSE_TCP_WIN == 1 )
-	static TCPSegment_t *xTCPWindowRxConfirm( TCPWindow_t *pxWindow, uint32_t ulSequenceNumber, uint32_t ulLength );
+	static TCPSegment_t *xTCPWindowRxConfirm( const TCPWindow_t *pxWindow, uint32_t ulSequenceNumber, uint32_t ulLength );
 #endif /* ipconfigUSE_TCP_WIN == 1 */
 
 /*
@@ -164,7 +164,7 @@ extern void vListInsertGeneric( List_t * const pxList, ListItem_t * const pxNewL
  * true if there is data to be sent.
  */
 #if( ipconfigUSE_TCP_WIN == 1 )
-	static BaseType_t prvTCPWindowTxHasSpace( TCPWindow_t *pxWindow, uint32_t ulWindowSize );
+	static BaseType_t prvTCPWindowTxHasSpace( TCPWindow_t const * pxWindow, uint32_t ulWindowSize );
 #endif /* ipconfigUSE_TCP_WIN == 1 */
 
 /*
@@ -192,7 +192,7 @@ extern void vListInsertGeneric( List_t * const pxList, ListItem_t * const pxNewL
 
 /* List of free TCP segments. */
 #if( ipconfigUSE_TCP_WIN == 1 )
-	static List_t xSegmentList;
+	_static List_t xSegmentList;
 #endif
 
 /* Logging verbosity level. */
@@ -295,10 +295,10 @@ static portINLINE void vTCPTimerSet( TCPTimer_t *pxTimer )
 }
 /*-----------------------------------------------------------*/
 
-static portINLINE uint32_t ulTimerGetAge( TCPTimer_t *pxTimer );
-static portINLINE uint32_t ulTimerGetAge( TCPTimer_t *pxTimer )
+static portINLINE uint32_t ulTimerGetAge( const TCPTimer_t *pxTimer );
+static portINLINE uint32_t ulTimerGetAge( const TCPTimer_t *pxTimer )
 {
-	return ( ( xTaskGetTickCount() - pxTimer->ulBorn ) * portTICK_PERIOD_MS );
+	return ( ( xTaskGetTickCount() - ( ( TickType_t ) pxTimer->ulBorn ) ) * portTICK_PERIOD_MS );
 }
 /*-----------------------------------------------------------*/
 
@@ -346,11 +346,11 @@ void vListInsertGeneric( List_t * const pxList, ListItem_t * const pxNewListItem
 			{
 				/* Could call vListInitialiseItem here but all data has been
 				nulled already.  Set the owner to a segment descriptor. */
-				listSET_LIST_ITEM_OWNER( &( xTCPSegments[ xIndex ].xListItem  ), ipPOINTER_CAST( void *, &( xTCPSegments[ xIndex ] ) ) );
+				listSET_LIST_ITEM_OWNER( &( xTCPSegments[ xIndex ].xSegmentItem  ), ipPOINTER_CAST( void *, &( xTCPSegments[ xIndex ] ) ) );
 				listSET_LIST_ITEM_OWNER( &( xTCPSegments[ xIndex ].xQueueItem ), ipPOINTER_CAST( void *, &( xTCPSegments[ xIndex ] ) ) );
 
 				/* And add it to the pool of available segments */
-				vListInsertFifo( &xSegmentList, &( xTCPSegments[xIndex].xListItem ) );
+				vListInsertFifo( &xSegmentList, &( xTCPSegments[xIndex].xSegmentItem ) );
 			}
 
 			xReturn = pdPASS;
@@ -364,7 +364,7 @@ void vListInsertGeneric( List_t * const pxList, ListItem_t * const pxNewListItem
 
 #if( ipconfigUSE_TCP_WIN == 1 )
 
-	static TCPSegment_t *xTCPWindowRxFind( TCPWindow_t *pxWindow, uint32_t ulSequenceNumber )
+	static TCPSegment_t *xTCPWindowRxFind( const TCPWindow_t *pxWindow, uint32_t ulSequenceNumber )
 	{
 	const ListItem_t *pxIterator;
 	const ListItem_t* pxEnd;
@@ -372,7 +372,6 @@ void vListInsertGeneric( List_t * const pxList, ListItem_t * const pxNewListItem
 
 		/* Find a segment with a given sequence number in the list of received
 		segments. */
-
 		pxEnd = ipPOINTER_CAST( const ListItem_t *, listGET_END_MARKER( &pxWindow->xRxSegments ) );
 
 		for( pxIterator  = listGET_NEXT( pxEnd );
@@ -462,7 +461,7 @@ void vListInsertGeneric( List_t * const pxList, ListItem_t * const pxNewListItem
 
 #if( ipconfigUSE_TCP_WIN == 1 )
 
-	BaseType_t xTCPWindowRxEmpty( TCPWindow_t *pxWindow )
+	BaseType_t xTCPWindowRxEmpty( const TCPWindow_t *pxWindow )
 	{
 	BaseType_t xReturn;
 
@@ -498,7 +497,7 @@ void vListInsertGeneric( List_t * const pxList, ListItem_t * const pxNewListItem
 
 #if( ipconfigUSE_TCP_WIN == 1 )
 
-	static TCPSegment_t *xTCPWindowGetHead( List_t *pxList )
+	static TCPSegment_t *xTCPWindowGetHead( const List_t *pxList )
 	{
 	TCPSegment_t *pxSegment;
 	ListItem_t * pxItem;
@@ -524,9 +523,9 @@ void vListInsertGeneric( List_t * const pxList, ListItem_t * const pxNewListItem
 
 #if( ipconfigUSE_TCP_WIN == 1 )
 
-	static TCPSegment_t *xTCPWindowPeekHead( List_t *pxList )
+	static TCPSegment_t *xTCPWindowPeekHead( const List_t *pxList )
 	{
-	ListItem_t *pxItem;
+	const ListItem_t *pxItem;
 	TCPSegment_t *pxReturn;
 
 		/* Returns the head of a queue but it won't be detached. */
@@ -564,13 +563,13 @@ void vListInsertGeneric( List_t * const pxList, ListItem_t * const pxNewListItem
 		pxSegment->u.ulFlags = 0UL;
 
 		/* Take it out of xRxSegments/xTxSegments */
-		if( listLIST_ITEM_CONTAINER( &( pxSegment->xListItem ) ) != NULL )
+		if( listLIST_ITEM_CONTAINER( &( pxSegment->xSegmentItem ) ) != NULL )
 		{
-			( void ) uxListRemove( &( pxSegment->xListItem ) );
+			( void ) uxListRemove( &( pxSegment->xSegmentItem ) );
 		}
 
 		/* Return it to xSegmentList */
-		vListInsertFifo( &xSegmentList, &( pxSegment->xListItem ) );
+		vListInsertFifo( &xSegmentList, &( pxSegment->xSegmentItem ) );
 	}
 
 #endif /* ipconfigUSE_TCP_WIN == 1 */
@@ -578,9 +577,9 @@ void vListInsertGeneric( List_t * const pxList, ListItem_t * const pxNewListItem
 
 #if( ipconfigUSE_TCP_WIN == 1 )
 
-	void vTCPWindowDestroy( TCPWindow_t *pxWindow )
+	void vTCPWindowDestroy( TCPWindow_t const * pxWindow )
 	{
-	List_t * pxSegments;
+	const List_t * pxSegments;
 	BaseType_t xRound;
 	TCPSegment_t *pxSegment;
 
@@ -652,7 +651,7 @@ void vTCPWindowInit( TCPWindow_t *pxWindow, uint32_t ulAckNumber, uint32_t ulSeq
 const int32_t l500ms = 500;
 
 	pxWindow->u.ulFlags = 0UL;
-	pxWindow->u.bits.bHasInit = pdTRUE;
+	pxWindow->u.bits.bHasInit = pdTRUE_UNSIGNED;
 
 	if( ulMSS != 0UL )
 	{
@@ -735,7 +734,7 @@ const int32_t l500ms = 500;
 
 #if( ipconfigUSE_TCP_WIN == 1 )
 
-	static TCPSegment_t *xTCPWindowRxConfirm( TCPWindow_t *pxWindow, uint32_t ulSequenceNumber, uint32_t ulLength )
+	static TCPSegment_t *xTCPWindowRxConfirm( const TCPWindow_t *pxWindow, uint32_t ulSequenceNumber, uint32_t ulLength )
 	{
 	TCPSegment_t *pxBest = NULL;
 	const ListItem_t *pxIterator;
@@ -849,8 +848,13 @@ const int32_t l500ms = 500;
 
 					/*  Check for following segments that are already in the
 					queue and increment ulCurrentSequenceNumber. */
-					while( ( pxFound = xTCPWindowRxFind( pxWindow, ulCurrentSequenceNumber ) ) != NULL )	/*lint !e9084 result of assignment operator used in larger expression [MISRA 2012 Rule 13.4, advisory] */
+					for( ;; )
 					{
+						pxFound = xTCPWindowRxFind( pxWindow, ulCurrentSequenceNumber );
+						if( pxFound == NULL )
+						{
+							break;
+						}
 						ulCurrentSequenceNumber += ( uint32_t ) pxFound->lDataLength;
 
 						/* As all packet below this one have been passed to the
@@ -897,6 +901,8 @@ const int32_t l500ms = 500;
 			/*  An "out-of-sequence" segment was received, must have missed one.
 			Prepare a SACK (Selective ACK). */
 			ulLast = ulSequenceNumber + ulLength;
+			/* The cast from unsigned long to signed long is on purpose.
+			The macro 'ipNUMERIC_CAST' will prevent PC-lint from complaining. */
 			lDistance = ipNUMERIC_CAST( int32_t, ulLast - ulCurrentSequenceNumber );
 
 			if( lDistance <= 0 )
@@ -922,20 +928,25 @@ const int32_t l500ms = 500;
 				 * This is useful because subsequent packets will be SACK'd with
 				 * single one message
 				 */
-				while( ( pxFound = xTCPWindowRxFind( pxWindow, ulLast ) ) != NULL )	/*lint !e9084 result of assignment operator used in larger expression [MISRA 2012 Rule 13.4, advisory] */
+				for( ;; )
 				{
+					pxFound = xTCPWindowRxFind( pxWindow, ulLast );
+					if( pxFound == NULL )
+				{
+						break;
+					}
 					ulLast += ( uint32_t ) pxFound->lDataLength;
 				}
 
 				if( xTCPWindowLoggingLevel >= 1 )
 				{
-					FreeRTOS_debug_printf( ( "lTCPWindowRxCheck[%d,%d]: seqnr %lu exp %lu (dist %ld) SACK to %lu\n",
-						pxWindow->usPeerPortNumber,
-						pxWindow->usOurPortNumber,
-						ulSequenceNumber - pxWindow->rx.ulFirstSequenceNumber,
-						ulCurrentSequenceNumber - pxWindow->rx.ulFirstSequenceNumber,
-						( size_t ) ( ulSequenceNumber - ulCurrentSequenceNumber ),	/* want this signed */
-						ulLast - pxWindow->rx.ulFirstSequenceNumber ) );
+					FreeRTOS_debug_printf( ( "lTCPWindowRxCheck[%d,%d]: seqnr %u exp %u (dist %d) SACK to %u\n",
+						( int ) pxWindow->usPeerPortNumber,
+						( int ) pxWindow->usOurPortNumber,
+						( unsigned ) ulSequenceNumber - pxWindow->rx.ulFirstSequenceNumber,
+						( unsigned ) ulCurrentSequenceNumber - pxWindow->rx.ulFirstSequenceNumber,
+						( unsigned ) ( ulSequenceNumber - ulCurrentSequenceNumber ),	/* want this signed */
+						( unsigned ) ( ulLast - pxWindow->rx.ulFirstSequenceNumber ) ) );
 				}
 
 				/* Now prepare the SACK message.
@@ -1018,15 +1029,17 @@ const int32_t l500ms = 500;
 
 	static int32_t lTCPIncrementTxPosition( int32_t lPosition, int32_t lMax, int32_t lCount )
 	{
+	int32_t lReturn;
+
 		/* +TCP stores data in circular buffers.  Calculate the next position to
 		store. */
-		lPosition += lCount;
-		if( lPosition >= lMax )
+		lReturn = lPosition + lCount;
+		if( lReturn >= lMax )
 		{
-			lPosition -= lMax;
+			lReturn -= lMax;
 		}
 
-		return lPosition;
+		return lReturn;
 	}
 
 #endif /* ipconfigUSE_TCP_WIN == 1 */
@@ -1157,7 +1170,7 @@ const int32_t l500ms = 500;
 
 #if( ipconfigUSE_TCP_WIN == 1 )
 
-	BaseType_t xTCPWindowTxDone( TCPWindow_t *pxWindow )
+	BaseType_t xTCPWindowTxDone( const TCPWindow_t *pxWindow )
 	{
 		return listLIST_IS_EMPTY( ( &pxWindow->xTxSegments) );
 	}
@@ -1167,11 +1180,12 @@ const int32_t l500ms = 500;
 
 #if( ipconfigUSE_TCP_WIN == 1 )
 
-	static BaseType_t prvTCPWindowTxHasSpace( TCPWindow_t *pxWindow, uint32_t ulWindowSize )
+	static BaseType_t prvTCPWindowTxHasSpace( TCPWindow_t const * pxWindow, uint32_t ulWindowSize )
 	{
 	uint32_t ulTxOutstanding;
 	BaseType_t xHasSpace;
-	TCPSegment_t *pxSegment;
+	const TCPSegment_t *pxSegment;
+	uint32_t ulNettSize;
 
 		/* This function will look if there is new transmission data.  It will
 		return true if there is data to be sent. */
@@ -1196,10 +1210,10 @@ const int32_t l500ms = 500;
 			}
 
 			/* Subtract this from the peer's space. */
-			ulWindowSize -= FreeRTOS_min_uint32( ulWindowSize, ulTxOutstanding );
+			ulNettSize = ulWindowSize - FreeRTOS_min_uint32( ulWindowSize, ulTxOutstanding );
 
 			/* See if the next segment may be sent. */
-			if( ulWindowSize >= ( uint32_t ) pxSegment->lDataLength )
+			if( ulNettSize >= ( uint32_t ) pxSegment->lDataLength )
 			{
 				xHasSpace = pdTRUE;
 			}
@@ -1226,9 +1240,9 @@ const int32_t l500ms = 500;
 
 #if( ipconfigUSE_TCP_WIN == 1 )
 
-	BaseType_t xTCPWindowTxHasData( TCPWindow_t *pxWindow, uint32_t ulWindowSize, TickType_t *pulDelay )
+	BaseType_t xTCPWindowTxHasData( TCPWindow_t const * pxWindow, uint32_t ulWindowSize, TickType_t *pulDelay )
 	{
-	TCPSegment_t *pxSegment;
+	TCPSegment_t const * pxSegment;
 	BaseType_t xReturn;
 	TickType_t ulAge, ulMaxAge;
 
@@ -1433,7 +1447,7 @@ const int32_t l500ms = 500;
 			vListInsertFifo( &pxWindow->xWaitQueue, &pxSegment->xQueueItem );
 
 			/* And mark it as outstanding. */
-			pxSegment->u.bits.bOutstanding = pdTRUE;
+			pxSegment->u.bits.bOutstanding = pdTRUE_UNSIGNED;
 
 			/* Administer the transmit count, needed for fast
 			retransmissions. */
@@ -1503,10 +1517,8 @@ const int32_t l500ms = 500;
 		 A Smoothed RTT will increase quickly, but it is conservative when
 		 becoming smaller. */
 
-		for(
-				pxIterator  = listGET_NEXT( pxEnd );
-				( pxIterator != pxEnd ) && ( xSequenceLessThan( ulSequenceNumber, ulLast ) != 0 );
-			)
+		pxIterator  = listGET_NEXT( pxEnd );
+		while( ( pxIterator != pxEnd ) && ( xSequenceLessThan( ulSequenceNumber, ulLast ) != 0 ) )
 		{
 			xDoUnlink = pdFALSE;
 			pxSegment = ipPOINTER_CAST( TCPSegment_t *, listGET_LIST_ITEM_OWNER( pxIterator ) );
@@ -1524,6 +1536,7 @@ const int32_t l500ms = 500;
 			/* Is it ready? */
 			if( ulSequenceNumber != pxSegment->ulSequenceNumber )
 			{
+				/* coverity[break_stmt] : Break statement terminating the loop */
 				break;
 			}
 
@@ -1549,7 +1562,7 @@ const int32_t l500ms = 500;
 							ulFirstSeq, ulFirstSeq + ulDataLength ) );
 					}
 					#endif /* ipconfigHAS_DEBUG_PRINTF */
-					break;/*lint !e9011: (Note -- more than one 'break' terminates loop [MISRA 2012 Rule 15.4, advisory]. */
+					break;
 				}
 
 				/* This segment is fully ACK'd, set the flag. */
@@ -1637,8 +1650,9 @@ const int32_t l500ms = 500;
 
 		pxEnd = ipPOINTER_CAST( const ListItem_t *, listGET_END_MARKER( &( pxWindow->xWaitQueue ) ) );
 
-		for( pxIterator  = listGET_NEXT( pxEnd );
-			 pxIterator != pxEnd; )
+		pxIterator  = listGET_NEXT( pxEnd );
+
+		while( pxIterator != pxEnd )
 		{
 			/* Get the owner, which is a TCP segment. */
 			pxSegment = ipPOINTER_CAST( TCPSegment_t *, listGET_LIST_ITEM_OWNER( pxIterator ) );
@@ -1873,7 +1887,7 @@ const int32_t l500ms = 500;
 
 #if( ipconfigUSE_TCP_WIN == 0 )
 
-	BaseType_t xTCPWindowTxDone( TCPWindow_t *pxWindow )
+	BaseType_t xTCPWindowTxDone( const TCPWindow_t *pxWindow )
 	{
 	BaseType_t xReturn;
 
@@ -1895,8 +1909,8 @@ const int32_t l500ms = 500;
 
 #if( ipconfigUSE_TCP_WIN == 0 )
 
-	static BaseType_t prvTCPWindowTxHasSpace( TCPWindow_t *pxWindow, uint32_t ulWindowSize );
-	static BaseType_t prvTCPWindowTxHasSpace( TCPWindow_t *pxWindow, uint32_t ulWindowSize )
+	static BaseType_t prvTCPWindowTxHasSpace( TCPWindow_t const * pxWindow, uint32_t ulWindowSize );
+	static BaseType_t prvTCPWindowTxHasSpace( TCPWindow_t const * pxWindow, uint32_t ulWindowSize )
 	{
 	BaseType_t xReturn;
 
@@ -1917,9 +1931,9 @@ const int32_t l500ms = 500;
 
 #if( ipconfigUSE_TCP_WIN == 0 )
 
-	BaseType_t xTCPWindowTxHasData( TCPWindow_t *pxWindow, uint32_t ulWindowSize, TickType_t *pulDelay )
+	BaseType_t xTCPWindowTxHasData( TCPWindow_t const *pxWindow, uint32_t ulWindowSize, TickType_t *pulDelay )
 	{
-	TCPSegment_t *pxSegment = &( pxWindow->xTxSegment );
+	TCPSegment_t const *pxSegment = &( pxWindow->xTxSegment );
 	BaseType_t xReturn;
 	TickType_t ulAge, ulMaxAge;
 
@@ -2008,7 +2022,7 @@ const int32_t l500ms = 500;
 
 #if( ipconfigUSE_TCP_WIN == 0 )
 
-	BaseType_t xTCPWindowRxEmpty( TCPWindow_t *pxWindow )
+	BaseType_t xTCPWindowRxEmpty( const TCPWindow_t *pxWindow )
 	{
 		/* Return true if 'ulCurrentSequenceNumber >= ulHighestSequenceNumber'
 		'ulCurrentSequenceNumber' is the highest sequence number stored,
@@ -2022,7 +2036,7 @@ const int32_t l500ms = 500;
 #if( ipconfigUSE_TCP_WIN == 0 )
 
 	/* Destroy a window (always returns NULL) */
-	void vTCPWindowDestroy( TCPWindow_t *pxWindow )
+	void vTCPWindowDestroy( const TCPWindow_t *pxWindow )
 	{
 		/* As in tiny TCP there are no shared segments descriptors, there is
 		nothing to release. */

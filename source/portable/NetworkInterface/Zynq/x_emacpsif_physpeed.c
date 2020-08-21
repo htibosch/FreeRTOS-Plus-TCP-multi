@@ -153,21 +153,25 @@ int phy_detected[2] = {ETH0_PHY_ADDRESS, ETH1_PHY_ADDRESS};
 #define EMAC0_BASE_ADDRESS				0xE000B000
 #define EMAC1_BASE_ADDRESS				0xE000C000
 
+#define PHY_ADDRESS_COUNT				32
+
+#define MINIMUM_SLEEP_TIME				2
+
+
 static int detect_phy(XEmacPs *xemacpsp)
 {
-	u16 phy_reg;
+	u16 id_lower, id_upper;
 	u32 phy_addr;
 
-	for (phy_addr = 31; phy_addr > 0; phy_addr--) {
-		XEmacPs_PhyRead(xemacpsp, phy_addr, PHY_DETECT_REG,
-							&phy_reg);
+	for (phy_addr = 0; phy_addr < PHY_ADDRESS_COUNT; phy_addr++) {
+		XEmacPs_PhyRead(xemacpsp, phy_addr, PHY_DETECT_REG, &id_lower);
 
-		if ((phy_reg != 0xFFFF) &&
-			((phy_reg & PHY_DETECT_MASK) == PHY_DETECT_MASK)) {
+		if ((id_lower != 0xFFFF) &&
+			((id_lower & PHY_DETECT_MASK) == PHY_DETECT_MASK)) {
 			/* Found a valid PHY address */
 			FreeRTOS_printf( ("XEmacPs detect_phy: PHY detected at address %d.\n", phy_addr ) );
 			FreeRTOS_printf( ("XEmacPs detect_phy: PHY detected.\n" ) );
-			phy_detected[xemacpsp->Config.DeviceId] = phy_addr;
+			phy_detected[ xemacpsp->Config.DeviceId ] = phy_addr;
 			return phy_addr;
 		}
 	}
@@ -334,7 +338,7 @@ unsigned get_IEEE_phy_speed(XEmacPs *xemacpsp)
 
 	XEmacPs_PhyRead(xemacpsp, phy_addr, IEEE_STATUS_REG_OFFSET, &status);
 	while ( !(status & IEEE_STAT_AUTONEGOTIATE_COMPLETE) ) {
-		vTaskDelay(1);
+		vTaskDelay( MINIMUM_SLEEP_TIME );
 #if XPAR_GIGE_PCS_PMA_CORE_PRESENT == 1
 #else
 		XEmacPs_PhyRead(xemacpsp, phy_addr, IEEE_COPPER_SPECIFIC_STATUS_REG_2,
@@ -558,19 +562,19 @@ unsigned Phy_Setup (XEmacPs *xemacpsp)
 	link_speed = 1000;
 	configure_IEEE_phy_speed(xemacpsp, link_speed);
 	convspeeddupsetting = XEMACPS_GMII2RGMII_SPEED1000_FD;
-	vTaskDelay(1);
+	vTaskDelay( MINIMUM_SLEEP_TIME );
 #elif	defined(ipconfigNIC_LINKSPEED100)
 	SetUpSLCRDivisors(xemacpsp->Config.BaseAddress,100);
 	link_speed = 100;
 	configure_IEEE_phy_speed(xemacpsp, link_speed);
 	convspeeddupsetting = XEMACPS_GMII2RGMII_SPEED100_FD;
-	vTaskDelay(1);
+	vTaskDelay( MINIMUM_SLEEP_TIME );
 #elif	defined(ipconfigNIC_LINKSPEED10)
 	SetUpSLCRDivisors(xemacpsp->Config.BaseAddress,10);
 	link_speed = 10;
 	configure_IEEE_phy_speed(xemacpsp, link_speed);
 	convspeeddupsetting = XEMACPS_GMII2RGMII_SPEED10_FD;
-	vTaskDelay(1);
+	vTaskDelay( MINIMUM_SLEEP_TIME );
 #endif
 	if (conv_present) {
 		XEmacPs_PhyWrite(xemacpsp, convphyaddr,

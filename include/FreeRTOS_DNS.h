@@ -55,7 +55,7 @@ extern "C" {
 #define	ipNBNS_PORT		137	/* NetBIOS Name Service. */
 #define	ipNBDGM_PORT	138 /* Datagram Service, not included. */
 
-/* Even when a DNS server is reached by its IPv4 address,
+/* Even when a DNS server is contacted through its IPv4 address,
 it can look-up IPv6 addresses. */
 
 #define dnsTYPE_A_HOST						0x0001U
@@ -70,7 +70,7 @@ struct freertos_addrinfo
 	socklen_t					ai_addrlen;
 	struct freertos_sockaddr	*ai_addr;
 	char						*ai_canonname;
-	struct addrinfo				*ai_next;
+	struct freertos_addrinfo	*ai_next;
 	struct {
 		/* In order to avoid allocations, reserve space here for *ai_addr and *ai_canonname. */
 		#if( ipconfigUSE_IPv6 != 0 )
@@ -131,7 +131,7 @@ uint32_t ulDNSHandlePacket( const NetworkBufferDescriptor_t *pxNetworkBuffer );
 	#endif
 
 	/* Remove all entries from the DNS cache. */
-    void FreeRTOS_dnsclear( void );
+	void FreeRTOS_dnsclear( void );
 
 #endif /* ipconfigUSE_DNS_CACHE != 0 */
 
@@ -142,7 +142,7 @@ uint32_t ulDNSHandlePacket( const NetworkBufferDescriptor_t *pxNetworkBuffer );
 	 * It will be called when a DNS reply is received or when a timeout has been reached.
 	 */
 	#if( ipconfigUSE_IPv6 != 0 )
-		typedef void (* FOnDNSEvent ) ( const char * /* pcName */, void * /* pvSearchID */, struct freertos_sockaddr6 * /* pxAddress6 */ );
+		typedef void (* FOnDNSEvent ) ( const char * /* pcName */, void * /* pvSearchID */, struct freertos_addrinfo * /* pxAddressInfo */ );
 	#else
 		typedef void (* FOnDNSEvent ) ( const char * /* pcName */, void * /* pvSearchID */, uint32_t /* ulIPAddress */ );
 	#endif
@@ -187,7 +187,7 @@ BaseType_t FreeRTOS_getaddrinfo( const char *pcName,						/* The name of the nod
  * allocated structure.  This pointer must be released by the user by calling
  * FreeRTOS_freeaddrinfo().
  */
-void FreeRTOS_freeaddrinfo(struct freertos_addrinfo *pxResult);
+void FreeRTOS_freeaddrinfo( struct freertos_addrinfo *pxResult );
 
 /*
  * The function vDNSInitialise() initialises the DNS module.

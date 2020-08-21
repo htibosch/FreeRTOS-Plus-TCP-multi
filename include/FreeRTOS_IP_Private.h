@@ -953,12 +953,12 @@ BaseType_t xSendEventStructToIPTask( const IPStackEvent_t *pxEvent, TickType_t u
  * Returns a pointer to the original NetworkBuffer from a pointer to a UDP
  * payload buffer.
  */
-NetworkBufferDescriptor_t *pxUDPPayloadBuffer_to_NetworkBuffer( void *pvBuffer );
+NetworkBufferDescriptor_t *pxUDPPayloadBuffer_to_NetworkBuffer( const void *pvBuffer );
 
 /* Get the size of the IP-header.
 'usFrameType' must be filled in if IPv6is to be recognised. */
 #if( ipconfigUSE_IPv6 != 0 )
-	static portINLINE size_t xIPHeaderSize( NetworkBufferDescriptor_t *pxNetworkBuffer )
+	static portINLINE size_t uxIPHeaderSizePacket( const NetworkBufferDescriptor_t *pxNetworkBuffer )
 	{
 	BaseType_t xResult;
 
@@ -975,14 +975,14 @@ NetworkBufferDescriptor_t *pxUDPPayloadBuffer_to_NetworkBuffer( void *pvBuffer )
 	}
 #else
 	/* IPv6 is not used, return a fixed value of 20. */
-	#define xIPHeaderSize( pxNetworkBuffer )	( ipSIZE_OF_IPv4_HEADER )
+	#define uxIPHeaderSizePacket( pxNetworkBuffer )	( ipSIZE_OF_IPv4_HEADER )
 #endif
 /*-----------------------------------------------------------*/
 
 /* Get the size of the IP-header.
 The socket is checked for its type: IPv4 or IPv6. */
 #if( ipconfigUSE_IPv6 != 0 )
-	static portINLINE size_t uxIPHeaderSizeSocket( FreeRTOS_Socket_t *pxSocket )
+	static portINLINE size_t uxIPHeaderSizeSocket( const FreeRTOS_Socket_t *pxSocket )
 	{
 	BaseType_t xResult;
 

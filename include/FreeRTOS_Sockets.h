@@ -78,12 +78,12 @@ in case an operation would block */
 
 /* Values for the parameters to FreeRTOS_socket(), inline with the Berkeley
 standard.  See the documentation of FreeRTOS_socket() for more information. */
-#define FREERTOS_AF_INET4		( 2 )
+#define FREERTOS_AF_INET		( 2 )
 #define FREERTOS_AF_INET6		( 10 )
 #define FREERTOS_SOCK_DGRAM		( 2 )
 #define FREERTOS_IPPROTO_UDP	( 17 )
 
-#define FREERTOS_AF_INET		FREERTOS_AF_INET4
+#define FREERTOS_AF_INET4		FREERTOS_AF_INET
 
 #define FREERTOS_SOCK_STREAM	( 1 )
 #define FREERTOS_IPPROTO_TCP	( 6 )
@@ -193,6 +193,19 @@ struct freertos_sockaddr
 	};
 #endif
 
+
+/* In earlier releaes, FreeRTOS_inet_ntoa was a macro that used snprintf(),
+ * which was not MISRA compliant. Now it has become a normal function that
+doesn't use snprintf(). */
+extern const char *FreeRTOS_inet_ntoa( uint32_t ulIPAddress, char *pcBuffer );
+
+/* Testing: when using formatted printing, MISRA and some compilers complain
+about an incompatibily between format and parameters.
+Sometimes uint32_t is an unsigned (%u), sometimes it is a ulong (%lu). */
+
+typedef unsigned printf_unsigned;
+typedef int printf_signed;
+
 #if ipconfigBYTE_ORDER == pdFREERTOS_LITTLE_ENDIAN
 
 	#define FreeRTOS_inet_addr_quick( ucOctet0, ucOctet1, ucOctet2, ucOctet3 )				\
@@ -200,13 +213,6 @@ struct freertos_sockaddr
 										( ( ( uint32_t ) ( ucOctet2 ) ) << 16UL ) |			\
 										( ( ( uint32_t ) ( ucOctet1 ) ) <<  8UL ) |			\
 										( ( uint32_t ) ( ucOctet0 ) ) )
-
-	#define FreeRTOS_inet_ntoa( ulIPAddress, pcBuffer )									\
-								sprintf( ( char * ) ( pcBuffer ), "%u.%u.%u.%u",			\
-									( ( uint32_t ) ( ( ulIPAddress ) & 0xffUL ) ),			\
-									( ( uint32_t ) ( ( ( ulIPAddress ) >> 8 ) & 0xffUL ) ),	\
-									( ( uint32_t ) ( ( ( ulIPAddress ) >> 16 ) & 0xffUL ) ),\
-									( ( uint32_t ) ( ( ulIPAddress ) >> 24 ) ) )
 
 #else /* ipconfigBYTE_ORDER */
 
@@ -216,23 +222,19 @@ struct freertos_sockaddr
 										( ( ( uint32_t ) ( ucOctet2 ) ) <<  8UL ) |			\
 										( ( uint32_t ) ( ucOctet3 ) ) )
 
-	#define FreeRTOS_inet_ntoa( ulIPAddress, pcBuffer )									\
-								sprintf( ( char * ) ( pcBuffer ), "%u.%u.%u.%u",			\
-									( ( uint32_t ) ( ( ulIPAddress ) >> 24 ) ),				\
-									( ( uint32_t ) ( ( ( ulIPAddress ) >> 16 ) & 0xffUL ) ),\
-									( ( uint32_t ) ( ( ( ulIPAddress ) >> 8 ) & 0xffUL ) ),	\
-									( ( uint32_t ) ( ( ulIPAddress ) & 0xffUL ) ) )
-
 #endif /* ipconfigBYTE_ORDER */
 
 /* The socket type itself. */
 struct xSOCKET;
 typedef struct xSOCKET *Socket_t;
+typedef struct xSOCKET const * ConstSocket_t;
 
-/* The SocketSet_t type is the equivalent to the fd_set type used by the
-Berkeley API. */
-struct xSOCKET_SET;
-typedef struct xSOCKET_SET *SocketSet_t;
+#if( ipconfigSUPPORT_SELECT_FUNCTION == 1 )
+	/* The SocketSet_t type is the equivalent to the fd_set type used by the
+	Berkeley API. */
+	struct xSOCKET_SET;
+	typedef struct xSOCKET_SET *SocketSet_t;
+#endif	/* ( ipconfigSUPPORT_SELECT_FUNCTION == 1 ) */
 
 /**
  * FULL, UP-TO-DATE AND MAINTAINED REFERENCE DOCUMENTATION FOR ALL THESE
@@ -242,18 +244,20 @@ typedef struct xSOCKET_SET *SocketSet_t;
 Socket_t FreeRTOS_socket( BaseType_t xDomain, BaseType_t xType, BaseType_t xProtocol );
 int32_t FreeRTOS_recvfrom( Socket_t xSocket, void *pvBuffer, size_t uxBufferLength, BaseType_t xFlags, struct freertos_sockaddr *pxSourceAddress, socklen_t *pxSourceAddressLength );
 int32_t FreeRTOS_sendto( Socket_t xSocket, const void *pvBuffer, size_t uxTotalDataLength, BaseType_t xFlags, const struct freertos_sockaddr *pxDestinationAddress, socklen_t xDestinationAddressLength );
-BaseType_t FreeRTOS_bind( Socket_t xSocket, struct freertos_sockaddr *pxAddress, socklen_t xAddressLength );
+BaseType_t FreeRTOS_bind( Socket_t xSocket, struct freertos_sockaddr const * pxAddress, socklen_t xAddressLength );
 
 /* function to get the local address and IP port */
 /* Note that when 'ipconfigUSE_IPv6 != 0', freertos_sockaddr can be intepreted as a freertos_sockaddr6. */
 #if( ipconfigUSE_IPv6 != 0 )
-	size_t FreeRTOS_GetLocalAddress( Socket_t xSocket, struct freertos_sockaddr6 *pxAddress6 );
+	size_t FreeRTOS_GetLocalAddress( ConstSocket_t xSocket, struct freertos_sockaddr6 *pxAddress6 );
 #else
-	size_t FreeRTOS_GetLocalAddress( Socket_t xSocket, struct freertos_sockaddr *pxAddress );
+	size_t FreeRTOS_GetLocalAddress( ConstSocket_t xSocket, struct freertos_sockaddr *pxAddress );
 #endif
 
-/* Made available when ipconfigETHERNET_DRIVER_FILTERS_PACKETS is set to 1. */
-BaseType_t xPortHasUDPSocket( uint16_t usPortNr );
+#if( ipconfigETHERNET_DRIVER_FILTERS_PACKETS == 1 )
+	/* Returns true if an UDP socket exists bound to mentioned port number. */
+	BaseType_t xPortHasUDPSocket( uint16_t usPortNr );
+#endif
 
 #if ipconfigUSE_TCP == 1
 
@@ -275,44 +279,50 @@ BaseType_t FreeRTOS_shutdown (Socket_t xSocket, BaseType_t xHow);
 
 /* Return the remote address and IP port. */
 
-/* Note that when 'ipconfigUSE_IPv6 != 0', freertos_sockaddr can be intepreted as a freertos_sockaddr6. */
-#if( ipconfigUSE_IPv6 != 0 )
-	BaseType_t FreeRTOS_GetRemoteAddress( Socket_t xSocket, struct freertos_sockaddr6 *pxAddress6 );
-#else
-	BaseType_t FreeRTOS_GetRemoteAddress( Socket_t xSocket, struct freertos_sockaddr *pxAddress );
-#endif
+#if( ipconfigUSE_TCP == 1 )
 
-#if( ipconfigUSE_IPv6 != 0 )
-	/* Get the type of IP: either 'ipTYPE_IPv4' or 'ipTYPE_IPv6'. */
-	BaseType_t FreeRTOS_GetIPType( Socket_t xSocket );
-#else
-	static __inline BaseType_t FreeRTOS_GetIPType( Socket_t xSocket )
-	{
-		( void ) xSocket;
-		return ipTYPE_IPv4;
-	}
-#endif
+	/* Note that when 'ipconfigUSE_IPv6 != 0', freertos_sockaddr can be intepreted as a freertos_sockaddr6. */
+	#if( ipconfigUSE_IPv6 != 0 )
+		BaseType_t FreeRTOS_GetRemoteAddress( ConstSocket_t xSocket, struct freertos_sockaddr6 *pxAddress6 );
+	#else
+		BaseType_t FreeRTOS_GetRemoteAddress( ConstSocket_t xSocket, struct freertos_sockaddr *pxAddress );
+	#endif
 
-/* returns pdTRUE if TCP socket is connected */
-BaseType_t FreeRTOS_issocketconnected( Socket_t xSocket );
+	#if( ipconfigUSE_IPv6 != 0 )
+		/* Get the type of IP: either 'ipTYPE_IPv4' or 'ipTYPE_IPv6'. */
+		BaseType_t FreeRTOS_GetIPType( ConstSocket_t xSocket );
+	#else
+		static __inline BaseType_t FreeRTOS_GetIPType( ConstSocket_t xSocket )
+		{
+			( void ) xSocket;
+			return ipTYPE_IPv4;
+		}
+	#endif
 
-/* returns the actual size of MSS being used */
-BaseType_t FreeRTOS_mss( Socket_t xSocket );
+	/* Returns pdTRUE if TCP socket is connected. */
+	BaseType_t FreeRTOS_issocketconnected( ConstSocket_t xSocket );
 
-/* for internal use only: return the connection status */
-BaseType_t FreeRTOS_connstatus( Socket_t xSocket );
+	/* Returns the actual size of MSS being used. */
+	BaseType_t FreeRTOS_mss( ConstSocket_t xSocket );
+
+#endif	/* ( ipconfigUSE_TCP == 1 ) */
+
+/* For internal use only: return the connection status. */
+BaseType_t FreeRTOS_connstatus( ConstSocket_t xSocket );
 
 /* Returns the number of bytes that may be added to txStream */
-BaseType_t FreeRTOS_maywrite( Socket_t xSocket );
+BaseType_t FreeRTOS_maywrite( ConstSocket_t xSocket );
 
 /*
  * Two helper functions, mostly for testing
  * rx_size returns the number of bytes available in the Rx buffer
  * tx_space returns the free space in the Tx buffer
  */
-BaseType_t FreeRTOS_rx_size( Socket_t xSocket );
-BaseType_t FreeRTOS_tx_space( Socket_t xSocket );
-BaseType_t FreeRTOS_tx_size( Socket_t xSocket );
+#if( ipconfigUSE_TCP == 1 )
+	BaseType_t FreeRTOS_rx_size( ConstSocket_t xSocket );
+	BaseType_t FreeRTOS_tx_space( ConstSocket_t xSocket );
+	BaseType_t FreeRTOS_tx_size( ConstSocket_t xSocket );
+#endif	/* ( ipconfigUSE_TCP == 1 ) */
 
 /* Returns the number of outstanding bytes in txStream. */
 /* The function FreeRTOS_outstanding() was already implemented
@@ -329,56 +339,58 @@ FreeRTOS_rx_size(). */
  * Get a direct pointer to the circular transmit buffer.
  * '*pxLength' will contain the number of bytes that may be written.
  */
-uint8_t *FreeRTOS_get_tx_head( Socket_t xSocket, BaseType_t *pxLength );
+uint8_t *FreeRTOS_get_tx_head( ConstSocket_t xSocket, BaseType_t *pxLength );
 
 #endif /* ipconfigUSE_TCP */
 
-/*
- * Connect / disconnect handler for a TCP socket
- * For example:
- *		static void vMyConnectHandler (Socket_t xSocket, BaseType_t ulConnected)
- *		{
- *		}
- * 		F_TCP_UDP_Handler_t xHnd = { vMyConnectHandler };
- * 		FreeRTOS_setsockopt( sock, 0, FREERTOS_SO_TCP_CONN_HANDLER, ( void * ) &xHnd, sizeof( xHnd ) );
- */
+#if( ipconfigUSE_CALLBACKS != 0 )
+	/*
+	 * Connect / disconnect handler for a TCP socket
+	 * For example:
+	 *		static void vMyConnectHandler (Socket_t xSocket, BaseType_t ulConnected)
+	 *		{
+	 *		}
+	 * 		F_TCP_UDP_Handler_t xHnd = { vMyConnectHandler };
+	 * 		FreeRTOS_setsockopt( sock, 0, FREERTOS_SO_TCP_CONN_HANDLER, ( void * ) &xHnd, sizeof( xHnd ) );
+	 */
 
-typedef void (* FOnConnected_t )( Socket_t /* xSocket */, BaseType_t /* ulConnected */ );
+	typedef void (* FOnConnected_t )( Socket_t /* xSocket */, BaseType_t /* ulConnected */ );
 
-/*
- * Reception handler for a TCP socket
- * A user-proved function will be called on reception of a message
- * If the handler returns a positive number, the messages will not be stored
- * For example:
- *		static BaseType_t xOnTCPReceive( Socket_t xSocket, void * pData, size_t uxLength )
- *		{
- *			// handle the message
- *			return 1;
- *		}
- *		F_TCP_UDP_Handler_t xHand = { xOnTCPReceive };
- *		FreeRTOS_setsockopt( sock, 0, FREERTOS_SO_TCP_RECV_HANDLER, ( void * ) &xHand, sizeof( xHand ) );
- */
-typedef BaseType_t (* FOnTCPReceive_t )( Socket_t /* xSocket */, void * /* pData */, size_t /* xLength */ );
-typedef void (* FOnTCPSent_t )( Socket_t /* xSocket */, size_t /* xLength */ );
+	/*
+	 * Reception handler for a TCP socket
+	 * A user-proved function will be called on reception of a message
+	 * If the handler returns a positive number, the messages will not be stored
+	 * For example:
+	 *		static BaseType_t xOnTCPReceive( Socket_t xSocket, void * pData, size_t uxLength )
+	 *		{
+	 *			// handle the message
+	 *			return 1;
+	 *		}
+	 *		F_TCP_UDP_Handler_t xHand = { xOnTCPReceive };
+	 *		FreeRTOS_setsockopt( sock, 0, FREERTOS_SO_TCP_RECV_HANDLER, ( void * ) &xHand, sizeof( xHand ) );
+	 */
+	typedef BaseType_t (* FOnTCPReceive_t )( Socket_t /* xSocket */, void * /* pData */, size_t /* xLength */ );
+	typedef void (* FOnTCPSent_t )( Socket_t /* xSocket */, size_t /* xLength */ );
 
-/*
- * Reception handler for a UDP socket
- * A user-proved function will be called on reception of a message
- * If the handler returns a positive number, the messages will not be stored
- */
-typedef BaseType_t (* FOnUDPReceive_t ) (Socket_t /* xSocket */, void * /* pData */, size_t /* uxLength */,
-	const struct freertos_sockaddr * /* pxFrom */, const struct freertos_sockaddr * /* pxDest */ );
-typedef void (* FOnUDPSent_t )( Socket_t /* xSocket */, size_t /* xLength */ );
+	/*
+	 * Reception handler for a UDP socket
+	 * A user-proved function will be called on reception of a message
+	 * If the handler returns a positive number, the messages will not be stored
+	 */
+	typedef BaseType_t (* FOnUDPReceive_t ) (Socket_t /* xSocket */, void * /* pData */, size_t /* uxLength */,
+		const struct freertos_sockaddr * /* pxFrom */, const struct freertos_sockaddr * /* pxDest */ );
+	typedef void (* FOnUDPSent_t )( Socket_t /* xSocket */, size_t /* xLength */ );
 
 
-typedef union xTCP_UDP_HANDLER
-{
-	FOnConnected_t	pxOnTCPConnected;	/* FREERTOS_SO_TCP_CONN_HANDLER */
-	FOnTCPReceive_t	pxOnTCPReceive;		/* FREERTOS_SO_TCP_RECV_HANDLER */
-	FOnTCPSent_t	pxOnTCPSent;		/* FREERTOS_SO_TCP_SENT_HANDLER */
-	FOnUDPReceive_t	pxOnUDPReceive;		/* FREERTOS_SO_UDP_RECV_HANDLER */
-	FOnUDPSent_t	pxOnUDPSent;		/* FREERTOS_SO_UDP_SENT_HANDLER */
-} F_TCP_UDP_Handler_t;
+	typedef union xTCP_UDP_HANDLER
+	{
+		FOnConnected_t	pxOnTCPConnected;	/* FREERTOS_SO_TCP_CONN_HANDLER */
+		FOnTCPReceive_t	pxOnTCPReceive;		/* FREERTOS_SO_TCP_RECV_HANDLER */
+		FOnTCPSent_t	pxOnTCPSent;		/* FREERTOS_SO_TCP_SENT_HANDLER */
+		FOnUDPReceive_t	pxOnUDPReceive;		/* FREERTOS_SO_UDP_RECV_HANDLER */
+		FOnUDPSent_t	pxOnUDPSent;		/* FREERTOS_SO_UDP_SENT_HANDLER */
+	} F_TCP_UDP_Handler_t;
+#endif	/* ( ipconfigUSE_CALLBACKS != 0 ) */
 
 BaseType_t FreeRTOS_setsockopt( Socket_t xSocket, int32_t lLevel, int32_t lOptionName, const void *pvOptionValue, size_t uxOptionLength );
 BaseType_t FreeRTOS_closesocket( Socket_t xSocket );
@@ -404,7 +416,7 @@ const char *FreeRTOS_inet_ntop4( const void *pvSource, char *pcDestination, sock
  * For the web server: borrow the circular Rx buffer for inspection
  * HTML driver wants to see if a sequence of 13/10/13/10 is available
  */
-const struct xSTREAM_BUFFER *FreeRTOS_get_rx_buf( Socket_t xSocket );
+const struct xSTREAM_BUFFER *FreeRTOS_get_rx_buf( ConstSocket_t xSocket );
 
 void FreeRTOS_netstat( void );
 

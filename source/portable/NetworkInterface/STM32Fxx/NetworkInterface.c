@@ -4,29 +4,29 @@
  */
 
 /*
- * FreeRTOS+TCP V2.2.1
- * Copyright (C) 2017 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
- * the Software, and to permit persons to whom the Software is furnished to do so,
- * subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
- * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
- * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
- * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- *
- * http://aws.amazon.com/freertos
- * http://www.FreeRTOS.org
- */
+FreeRTOS+TCP V2.2.1
+Copyright (C) 2017 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software is furnished to do so,
+subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+ http://aws.amazon.com/freertos
+ http://www.FreeRTOS.org
+*/
 
 /* Standard includes. */
 #include <stdint.h>
@@ -816,7 +816,6 @@ const TickType_t xBlockTimeTicks = pdMS_TO_TICKS( 50u );
 				}
 				#endif
 
-
 				/* Prepare transmit descriptors to give to DMA. */
 
 				/* Set LAST and FIRST segment */
@@ -1329,54 +1328,6 @@ NetworkInterface_t *pxSTMF40_FillInterfaceDescriptor( BaseType_t xEMACIndex, Net
 }
 /*-----------------------------------------------------------*/
 
-#if ( ipconfigHAS_PRINTF != 0 )
-	static void prvMonitorResources()
-	{
-	static UBaseType_t uxLastMinBufferCount = 0u;
-	static size_t uxMinLastSize = 0uL;
-	UBaseType_t uxCurrentBufferCount;
-	size_t uxMinSize;
-
-		uxCurrentBufferCount = uxGetMinimumFreeNetworkBuffers();
-
-		if( uxLastMinBufferCount != uxCurrentBufferCount )
-		{
-			/* The logging produced below may be helpful
-			 * while tuning +TCP: see how many buffers are in use. */
-			uxLastMinBufferCount = uxCurrentBufferCount;
-			FreeRTOS_printf( ( "Network buffers: %lu lowest %lu\n",
-							   uxGetNumberOfFreeNetworkBuffers(),
-							   uxCurrentBufferCount ) );
-		}
-
-		uxMinSize = xPortGetMinimumEverFreeHeapSize();
-
-		if( uxMinLastSize != uxMinSize )
-		{
-			uxMinLastSize = uxMinSize;
-			FreeRTOS_printf( ( "Heap: current %u lowest %u\n", ( unsigned ) xPortGetFreeHeapSize(), ( unsigned ) uxMinSize ) );
-		}
-
-		#if ( ipconfigCHECK_IP_QUEUE_SPACE != 0 )
-			{
-				static UBaseType_t uxLastMinQueueSpace = 0;
-				UBaseType_t uxCurrentCount = 0u;
-
-				uxCurrentCount = uxGetMinimumIPQueueSpace();
-
-				if( uxLastMinQueueSpace != uxCurrentCount )
-				{
-					/* The logging produced below may be helpful
-					while tuning +TCP: see how many buffers are in use. */
-					uxLastMinQueueSpace = uxCurrentCount;
-					FreeRTOS_printf( ( "Queue space: lowest %lu\n", uxCurrentCount ) );
-				}
-			}
-		#endif /* ipconfigCHECK_IP_QUEUE_SPACE */
-	}
-#endif /* ( ipconfigHAS_PRINTF != 0 ) */
-/*-----------------------------------------------------------*/
-
 static void prvEMACHandlerTask( void *pvParameters )
 {
 BaseType_t xResult;
@@ -1388,11 +1339,15 @@ const TickType_t ulMaxBlockTime = pdMS_TO_TICKS( 100UL );
 	for( ;; )
 	{
 		xResult = 0;
-		#if ( ipconfigHAS_PRINTF != 0 )
+
+		#if( ipconfigHAS_PRINTF != 0 )
 		{
-			prvMonitorResources();
+			/* Call a function that monitors resources: the amount of free network
+			buffers and the amount of free space on the heap.  See FreeRTOS_IP.c
+			for more detailed comments. */
+			vPrintResourceStats();
 		}
-		#endif /* ipconfigHAS_PRINTF != 0 ) */
+		#endif /* ( ipconfigHAS_PRINTF != 0 ) */
 
 		if( ( ulISREvents & EMAC_IF_ALL_EVENT ) == 0 )
 		{

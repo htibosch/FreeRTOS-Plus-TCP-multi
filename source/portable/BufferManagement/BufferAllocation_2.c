@@ -103,7 +103,7 @@ BaseType_t xReturn, x;
 	if( xNetworkBufferSemaphore == NULL )
 	{
 		xNetworkBufferSemaphore = xSemaphoreCreateCounting( ipconfigNUM_NETWORK_BUFFER_DESCRIPTORS, ipconfigNUM_NETWORK_BUFFER_DESCRIPTORS );
-		configASSERT( xNetworkBufferSemaphore );
+		configASSERT( xNetworkBufferSemaphore != NULL );
 
 		if( xNetworkBufferSemaphore != NULL )
 		{
@@ -169,9 +169,9 @@ size_t xSize = *pxRequestedSizeBytes;
 
 	/* Round up xSize to the nearest multiple of N bytes,
 	where N equals 'sizeof( size_t )'. */
-	if( ( xSize & ( sizeof( size_t ) - 1u ) ) != 0u )
+	if( ( xSize & ( sizeof( size_t ) - 1U ) ) != 0U )
 	{
-		xSize = ( xSize | ( sizeof( size_t ) - 1u ) ) + 1u;
+		xSize = ( xSize | ( sizeof( size_t ) - 1U ) ) + 1U;
 	}
 	*pxRequestedSizeBytes = xSize;
 
@@ -179,10 +179,9 @@ size_t xSize = *pxRequestedSizeBytes;
 	and a pointer to a network buffer structure (hence the addition of
 	ipBUFFER_PADDING bytes). */
 	pucEthernetBuffer = ipPOINTER_CAST( uint8_t *, pvPortMalloc( xSize + ipBUFFER_PADDING ) );
-	configASSERT( pucEthernetBuffer );
+	configASSERT( pucEthernetBuffer != NULL );
 
-	if( pucEthernetBuffer != NULL )	/*lint !e774 Boolean within 'if' always evaluates to True [MISRA 2012 Rule 14.3, required]. */
-	
+	if( pucEthernetBuffer != NULL )
 	{
 		/* Enough space is left at the start of the buffer to place a pointer to
 		the network buffer structure that references this Ethernet buffer.
@@ -202,7 +201,7 @@ void vReleaseNetworkBuffer( uint8_t *pucEthernetBuffer )
 	if( pucEthernetBuffer != NULL )
 	{
 		pucEthernetBuffer -= ipBUFFER_PADDING;
-		vPortFree( pucEthernetBuffer );
+		vPortFree( ( void * ) pucEthernetBuffer );
 	}
 }
 /*-----------------------------------------------------------*/
@@ -215,7 +214,7 @@ size_t xRequestedSizeBytes = xByteCount;	/* To avoid lint complain: function par
 
 	if( xNetworkBufferSemaphore != NULL )
 	{
-		if( ( xRequestedSizeBytes != 0u ) && ( xRequestedSizeBytes < ( size_t ) baMINIMAL_BUFFER_SIZE ) )
+		if( ( xRequestedSizeBytes != 0U ) && ( xRequestedSizeBytes < ( size_t ) baMINIMAL_BUFFER_SIZE ) )
 		{
 			/* ARP packets can replace application packets, so the storage must be
 			at least large enough to hold an ARP. */
@@ -224,10 +223,10 @@ size_t xRequestedSizeBytes = xByteCount;	/* To avoid lint complain: function par
 
 		/* Add 2 bytes to xRequestedSizeBytes and round up xRequestedSizeBytes
 		to the nearest multiple of N bytes, where N equals 'sizeof( size_t )'. */
-		xRequestedSizeBytes += 2u;
-		if( ( xRequestedSizeBytes & ( sizeof( size_t ) - 1u ) ) != 0u )
+		xRequestedSizeBytes += 2U;
+		if( ( xRequestedSizeBytes & ( sizeof( size_t ) - 1U ) ) != 0U )
 		{
-			xRequestedSizeBytes = ( xRequestedSizeBytes | ( sizeof( size_t ) - 1u ) ) + 1u;
+			xRequestedSizeBytes = ( xRequestedSizeBytes | ( sizeof( size_t ) - 1U ) ) + 1U;
 		}
 
 		/* If there is a semaphore available, there is a network buffer available. */

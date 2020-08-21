@@ -34,6 +34,11 @@ will be removed. */
 /* This file provides default values for configuration options that are missing
 from the FreeRTOSIPConfig.h configuration header file. */
 
+/* These macros are used to define away static keyword for CBMC proofs */
+#ifndef _static
+	#define _static static
+#endif
+
 #ifndef configPRINTF
 	#define	configPRINTF( X )	do {} while( 0 )
 #endif
@@ -197,7 +202,7 @@ from the FreeRTOSIPConfig.h configuration header file. */
 #endif /* ifdef ipconfigHAS_DEBUG_PRINTF */
 
 #ifndef FreeRTOS_debug_printf
-    #define FreeRTOS_debug_printf( MSG )		do{} while(0)
+    #define FreeRTOS_debug_printf( MSG )		do{} while( ipFALSE_BOOL )
 	#define ipconfigHAS_DEBUG_PRINTF			0
 #endif
 
@@ -218,7 +223,7 @@ from the FreeRTOSIPConfig.h configuration header file. */
 #endif /* ifdef ipconfigHAS_PRINTF */
 
 #ifndef FreeRTOS_printf
-    #define FreeRTOS_printf( MSG )				do{} while(0)
+    #define FreeRTOS_printf( MSG )				do{} while( ipFALSE_BOOL )
 	#define ipconfigHAS_PRINTF					0
 #endif
 
@@ -228,7 +233,7 @@ from the FreeRTOSIPConfig.h configuration header file. */
  * An example of this is the netstat command, which produces many lines of logging
  */
 #ifndef FreeRTOS_flush_logging
-    #define FreeRTOS_flush_logging( )			do{} while(0)
+    #define FreeRTOS_flush_logging( )			do{} while( ipFALSE_BOOL )
 #endif
 
 /* Malloc functions. Within most applications of FreeRTOS, the couple
@@ -303,7 +308,15 @@ from the FreeRTOSIPConfig.h configuration header file. */
 #endif
 
 #ifndef ipconfigALLOW_SOCKET_SEND_WITHOUT_BIND
-	#define ipconfigALLOW_SOCKET_SEND_WITHOUT_BIND 1
+	#define ipconfigALLOW_SOCKET_SEND_WITHOUT_BIND	1
+#endif
+
+#ifndef ipconfigIP_PASS_PACKETS_WITH_IP_OPTIONS
+	#define ipconfigIP_PASS_PACKETS_WITH_IP_OPTIONS	1
+#endif
+
+#ifndef ipconfigUDP_PASS_ZERO_CHECKSUM_PACKETS
+	#define ipconfigUDP_PASS_ZERO_CHECKSUM_PACKETS	0
 #endif
 
 #ifndef ipconfigUDP_TIME_TO_LIVE

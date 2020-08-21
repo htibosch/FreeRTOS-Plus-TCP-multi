@@ -448,7 +448,7 @@ UDPPacket_t *pxUDPPacket = ipPOINTER_CAST( UDPPacket_t *, pxNetworkBuffer->pucEt
 
 	configASSERT( pxNetworkBuffer->pucEthernetBuffer != NULL );
 
-	pxProtocolHeaders = ipPOINTER_CAST( ProtocolHeaders_t *, &( pxNetworkBuffer->pucEthernetBuffer[ ( size_t ) ipSIZE_OF_ETH_HEADER + xIPHeaderSize( pxNetworkBuffer ) ] ) );
+	pxProtocolHeaders = ipPOINTER_CAST( ProtocolHeaders_t *, &( pxNetworkBuffer->pucEthernetBuffer[ ( size_t ) ipSIZE_OF_ETH_HEADER + uxIPHeaderSizePacket( pxNetworkBuffer ) ] ) );
 	#if( ipconfigUSE_IPv6 != 0 )
 	pxUDPPacket_IPv6 = ipPOINTER_CAST( UDPPacket_IPv6_t *, pxNetworkBuffer->pucEthernetBuffer );
 	if( pxUDPPacket->xEthernetHeader.usFrameType == ipIPv6_FRAME_TYPE )
@@ -534,7 +534,7 @@ UDPPacket_t *pxUDPPacket = ipPOINTER_CAST( UDPPacket_t *, pxNetworkBuffer->pucEt
 				}
 				#endif	/* ( ipconfigUSE_IPv6 != 0 ) */
 
-				uxPayloadSize = pxNetworkBuffer->xDataLength - ( ipSIZE_OF_ETH_HEADER + ipSIZE_OF_UDP_HEADER + ( size_t ) xIPHeaderSize( pxNetworkBuffer ) );
+				uxPayloadSize = pxNetworkBuffer->xDataLength - ( ipSIZE_OF_ETH_HEADER + ipSIZE_OF_UDP_HEADER + ( size_t ) uxIPHeaderSizePacket( pxNetworkBuffer ) );
 				if( xHandler( pxSocket,
 							  pcData, ( size_t ) uxPayloadSize,
 							  ipPOINTER_CAST( struct freertos_sockaddr *, &( xSourceAddress ) ),

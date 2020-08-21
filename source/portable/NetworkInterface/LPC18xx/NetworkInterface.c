@@ -1,27 +1,27 @@
 /*
- * FreeRTOS+TCP V2.2.1
- * Copyright (C) 2017 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
- * the Software, and to permit persons to whom the Software is furnished to do so,
- * subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
- * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
- * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
- * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- *
- * http://aws.amazon.com/freertos
- * http://www.FreeRTOS.org
- */
+FreeRTOS+TCP V2.2.1
+Copyright (C) 2017 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software is furnished to do so,
+subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+ http://aws.amazon.com/freertos
+ http://www.FreeRTOS.org
+*/
 
 /* Standard includes. */
 #include <stdint.h>
@@ -84,7 +84,7 @@
 #endif
 
 #ifndef iptraceEMAC_TASK_STARTING
-	#define iptraceEMAC_TASK_STARTING()	do { } while( 0 )
+	#define iptraceEMAC_TASK_STARTING()	do { } while( ipFALSE_BOOL )
 #endif
 
 /* Define the bits of .STATUS that indicate a reception error. */
@@ -575,7 +575,7 @@ BaseType_t x;
 			/* Use an assert to check the allocation as +TCP applications will
 			often not use a malloc() failed hook as the TCP stack will recover
 			from allocation failures. */
-			configASSERT( xDMATxDescriptors[ x ].B1ADD );
+			configASSERT( xDMATxDescriptors[ x ].B1ADD != 0U );
 		}
 		#endif
 
@@ -641,7 +641,7 @@ BaseType_t x;
 		/* Use an assert to check the allocation as +TCP applications will often
 		not use a malloc failed hook as the TCP stack will recover from
 		allocation failures. */
-		configASSERT( xDMARxDescriptors[ x ].B1ADD );
+		configASSERT( xDMARxDescriptors[ x ].B1ADD != 0U );
 
 		xDMARxDescriptors[ x ].B2ADD = ( uint32_t ) &( xDMARxDescriptors[ x + 1 ] );
 		xDMARxDescriptors[ x ].CTRL = ( uint32_t ) RDES_ENH_BS1( ipTOTAL_ETHERNET_FRAME_SIZE ) | RDES_ENH_RCH;
