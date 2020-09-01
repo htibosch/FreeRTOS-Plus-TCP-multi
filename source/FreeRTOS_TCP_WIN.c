@@ -932,7 +932,7 @@ const int32_t l500ms = 500;
 				{
 					pxFound = xTCPWindowRxFind( pxWindow, ulLast );
 					if( pxFound == NULL )
-				{
+					{
 						break;
 					}
 					ulLast += ( uint32_t ) pxFound->lDataLength;
@@ -1561,7 +1561,7 @@ const int32_t l500ms = 500;
 							ulLast - pxWindow->tx.ulFirstSequenceNumber,
 							ulFirstSeq, ulFirstSeq + ulDataLength ) );
 					}
-					#endif /* ipconfigHAS_DEBUG_PRINTF */
+					#endif	/* ipconfigHAS_DEBUG_PRINTF */
 					break;
 				}
 

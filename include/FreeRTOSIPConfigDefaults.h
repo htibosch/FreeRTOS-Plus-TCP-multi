@@ -634,10 +634,6 @@ connections, hang protection can help reduce the impact of SYN floods. */
 	#define ipconfigUSE_LOOPBACK 0
 #endif
 
-#ifndef ipconfigFREERTOS_PLUS_NABTO
-	#define ipconfigFREERTOS_PLUS_NABTO 0
-#endif
-
 #ifndef ipconfigUSE_TCP_TIMESTAMPS
 	#define ipconfigUSE_TCP_TIMESTAMPS 0
 #endif

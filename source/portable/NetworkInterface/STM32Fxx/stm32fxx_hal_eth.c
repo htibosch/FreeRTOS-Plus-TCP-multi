@@ -247,19 +247,19 @@ HAL_StatusTypeDef HAL_ETH_Init(ETH_HandleTypeDef *heth)
 	if( ( hclk >= 20000000uL ) && ( hclk < 35000000uL ) )
 	{
 		/* CSR Clock Range between 20-35 MHz */
-		tmpreg |= (uint32_t) ETH_MACMIIAR_CR_Div16;
+		tmpreg |= ( uint32_t ) ETH_MACMIIAR_CR_Div16;
 	}
 	else if( ( hclk >= 35000000uL ) && ( hclk < 60000000uL ) )
 	{
 	/* CSR Clock Range between 35-60 MHz */
 	tmpreg |= ( uint32_t ) ETH_MACMIIAR_CR_Div26;
 	}
-	else if((hclk >= 60000000uL ) && ( hclk < 100000000uL ) )
+	else if( ( hclk >= 60000000uL ) && ( hclk < 100000000uL ) )
 	{
 		/* CSR Clock Range between 60-100 MHz */
 		tmpreg |= (uint32_t)ETH_MACMIIAR_CR_Div42;
 	}
-	else if((hclk >= 100000000uL ) && ( hclk < 150000000uL ) )
+	else if( ( hclk >= 100000000uL ) && ( hclk < 150000000uL ) )
 	{
 		/* CSR Clock Range between 100-150 MHz */
 		tmpreg |= (uint32_t)ETH_MACMIIAR_CR_Div62;
