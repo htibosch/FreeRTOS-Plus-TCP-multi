@@ -1,5 +1,5 @@
 /*
-FreeRTOS+TCP V2.2.1
+FreeRTOS+TCP V2.3.0
 Copyright (C) 2017 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -276,25 +276,29 @@ is declared static or global, and that it will remain to exist. */
 }
 /*-----------------------------------------------------------*/
 
-BaseType_t FreeRTOS_IPInit( const uint8_t ucIPAddress[ ipIP_ADDRESS_LENGTH_BYTES ],
-		const uint8_t ucNetMask[ ipIP_ADDRESS_LENGTH_BYTES ],
-		const uint8_t ucGatewayAddress[ ipIP_ADDRESS_LENGTH_BYTES ],
-		const uint8_t ucDNSServerAddress[ ipIP_ADDRESS_LENGTH_BYTES ],
-		const uint8_t ucMACAddressP[ ipMAC_ADDRESS_LENGTH_BYTES ] )
-{
-static NetworkInterface_t xInterfaces[ 1 ];
-static NetworkEndPoint_t xEndPoints[ 1 ];
-
-	xWinPcap_FillInterfaceDescriptor( 0, &( xInterfaces[0] ) );
-	FreeRTOS_FillEndPoint( &( xInterfaces[0] ), &( xEndPoints[ 0 ] ), ucIPAddress, ucNetMask, ucGatewayAddress, ucDNSServerAddress, ucMACAddressP );
-	#if( ipconfigUSE_DHCP != 0 )
+#if( ipconfigCOMPATIBLE_WITH_SINGLE != 0 )
+	/* Provide backward-compatibility with the earlier FreeRTOS+TCP which only had
+	single network interface. */
+	BaseType_t FreeRTOS_IPInit( const uint8_t ucIPAddress[ ipIP_ADDRESS_LENGTH_BYTES ],
+			const uint8_t ucNetMask[ ipIP_ADDRESS_LENGTH_BYTES ],
+			const uint8_t ucGatewayAddress[ ipIP_ADDRESS_LENGTH_BYTES ],
+			const uint8_t ucDNSServerAddress[ ipIP_ADDRESS_LENGTH_BYTES ],
+			const uint8_t ucMACAddressP[ ipMAC_ADDRESS_LENGTH_BYTES ] )
 	{
-		xEndPoints[ 0 ].bits.bWantDHCP = pdTRUE;
+	static NetworkInterface_t xInterfaces[ 1 ] = { 0 };
+	static NetworkEndPoint_t xEndPoints[ 1 ] = { 0 };
+
+		xWinPcap_FillInterfaceDescriptor( 0, &( xInterfaces[0] ) );
+		FreeRTOS_FillEndPoint( &( xInterfaces[0] ), &( xEndPoints[ 0 ] ), ucIPAddress, ucNetMask, ucGatewayAddress, ucDNSServerAddress, ucMACAddressP );
+		#if( ipconfigUSE_DHCP != 0 )
+		{
+			xEndPoints[ 0 ].bits.bWantDHCP = pdTRUE;
+		}
+		#endif	/* ipconfigUSE_DHCP */
+		FreeRTOS_IPStart();
+		return 1;
 	}
-	#endif	/* ipconfigUSE_DHCP */
-	FreeRTOS_IPStart();
-	return 1;
-}
+#endif /* ( ipconfigCOMPATIBLE_WITH_SINGLE != 0 ) */	
 /*-----------------------------------------------------------*/
 
 static pcap_if_t * prvPrintAvailableNetworkInterfaces( void )
@@ -582,6 +586,7 @@ NetworkEndPoint_t *pxEndPoint;
 	{
 		if( memcmp( pxEndPoint->xMACAddress.ucBytes, pxEtherHeader->xSourceAddress.ucBytes, ipMAC_ADDRESS_LENGTH_BYTES ) == 0 )
 		{
+		/*
 			FreeRTOS_debug_printf( ( "Bounced back: %02x:%02x:%02x:%02x:%02x:%02x\n",
 				pxEndPoint->xMACAddress.ucBytes[ 0 ],
 				pxEndPoint->xMACAddress.ucBytes[ 1 ],
@@ -589,6 +594,7 @@ NetworkEndPoint_t *pxEndPoint;
 				pxEndPoint->xMACAddress.ucBytes[ 3 ],
 				pxEndPoint->xMACAddress.ucBytes[ 4 ],
 				pxEndPoint->xMACAddress.ucBytes[ 5 ] ) );
+		*/
 			return pdTRUE;
 		}
 	}

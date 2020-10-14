@@ -1,5 +1,5 @@
 /*
- * FreeRTOS+TCP V2.2.1
+ * FreeRTOS+TCP V2.3.0
  * Copyright (C) 2017 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -32,5 +32,8 @@
 #define NTPDEMO_H
 
 void vStartNTPTask( uint16_t usTaskStackSize, UBaseType_t uxTaskPriority );
+
+extern BaseType_t xNTPHasTime;
+extern uint32_t ulNTPTime;
 
 #endif

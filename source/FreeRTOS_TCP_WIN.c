@@ -1,5 +1,5 @@
 /*
- * FreeRTOS+TCP V2.2.1
+ * FreeRTOS+TCP V2.3.0
  * Copyright (C) 2017 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -943,8 +943,8 @@ const int32_t l500ms = 500;
 					FreeRTOS_debug_printf( ( "lTCPWindowRxCheck[%d,%d]: seqnr %u exp %u (dist %d) SACK to %u\n",
 						( int ) pxWindow->usPeerPortNumber,
 						( int ) pxWindow->usOurPortNumber,
-						( unsigned ) ulSequenceNumber - pxWindow->rx.ulFirstSequenceNumber,
-						( unsigned ) ulCurrentSequenceNumber - pxWindow->rx.ulFirstSequenceNumber,
+						( unsigned ) ( ulSequenceNumber - pxWindow->rx.ulFirstSequenceNumber ),
+						( unsigned ) ( ulCurrentSequenceNumber - pxWindow->rx.ulFirstSequenceNumber ),
 						( unsigned ) ( ulSequenceNumber - ulCurrentSequenceNumber ),	/* want this signed */
 						( unsigned ) ( ulLast - pxWindow->rx.ulFirstSequenceNumber ) ) );
 				}

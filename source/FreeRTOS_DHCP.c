@@ -161,6 +161,16 @@ struct xDHCPMessage_IPv4
 #include "pack_struct_end.h"	/*lint !e537 !e451 !e9019*/
 typedef struct xDHCPMessage_IPv4 DHCPMessage_IPv4_t;
 
+static portINLINE ipDECL_CAST_PTR_FUNC_FOR_TYPE( DHCPMessage_IPv4_t )
+{
+    return ( DHCPMessage_IPv4_t *)pvArgument;
+}
+
+static portINLINE ipDECL_CAST_CONST_PTR_FUNC_FOR_TYPE( DHCPMessage_IPv4_t )
+{
+    return ( const DHCPMessage_IPv4_t *) pvArgument;
+}
+
 
 #if( ipconfigDHCP_FALL_BACK_AUTO_IP != 0 )
 	/* Define the Link Layer IP address: 169.254.x.x */
@@ -247,14 +257,28 @@ BaseType_t xReturn;
 }
 /*-----------------------------------------------------------*/
 
+eDHCPState_t eGetDHCPState( struct xNetworkEndPoint *pxEndPoint )
+{
+	/* Note that EP_DHCPData is defined as "pxEndPoint->xDHCPData". */
+	return EP_DHCPData.eDHCPState;
+}
+/*-----------------------------------------------------------*/
+
 void vDHCPProcess( BaseType_t xReset, struct xNetworkEndPoint *pxEndPoint )
 {
 BaseType_t xDoProcess = pdTRUE;
+
+	/* Is DHCP starting over? */
+	if( xReset != pdFALSE )
+	{
+		EP_DHCPData.eDHCPState = aInitialWait;
+	}
+
 	/* If there is a socket, check for incoming messasges first. */
 	if( xDHCPSocket != NULL )
 	{
 	uint8_t *pucUDPPayload;
-	DHCPMessage_IPv4_t *pxDHCPMessage;
+	const DHCPMessage_IPv4_t *pxDHCPMessage;
 	BaseType_t lBytes;
 
 		for( ;; )
@@ -273,7 +297,7 @@ BaseType_t xDoProcess = pdTRUE;
 			}
 
 			/* Map a DHCP structure onto the received data. */
-			pxDHCPMessage = ipPOINTER_CAST( DHCPMessage_IPv4_t *, pucUDPPayload );
+			pxDHCPMessage = ipCAST_CONST_PTR_TO_CONST_TYPE_PTR( DHCPMessage_IPv4_t, pucUDPPayload );
 
 			/* Sanity check. */
 			if( ( pxDHCPMessage->ulDHCPCookie == dhcpCOOKIE ) && ( pxDHCPMessage->ucOpcode == dhcpREPLY_OPCODE ) )
@@ -292,6 +316,7 @@ BaseType_t xDoProcess = pdTRUE;
 
 			if( ( pxIterator != NULL ) && ( pxIterator->xDHCPData.eDHCPState == eLeasedAddress ) )
 			{
+				/* No DHCP messages are expected while in eLeasedAddress state. */
 				pxIterator = NULL;
 			}
 
@@ -321,6 +346,7 @@ BaseType_t xDoProcess = pdTRUE;
 
 	if( ( pxEndPoint != NULL ) && ( xDoProcess != pdFALSE ) )
 	{
+		/* Process the end-point, but do not expect pincoming packets. */
 		vDHCPProcessEndPoint( xReset, pdFALSE, pxEndPoint );
 	}
 }
@@ -337,78 +363,58 @@ BaseType_t xGivingUp = pdFALSE;
 	/* Is DHCP starting over? */
 	if( xReset != pdFALSE )
 	{
-		EP_DHCPData.eDHCPState = eWaitingSendFirstDiscover;
+		EP_DHCPData.eDHCPState = aInitialWait;
 	}
 
-	switch( EP_DHCPData.eDHCPState )
+	if( ( EP_DHCPData.eDHCPState != EP_DHCPData.eExpectedState ) && ( xReset == pdFALSE ) )
 	{
-		case eWaitingSendFirstDiscover :
-			/* Ask the user if a DHCP discovery is required. */
-		#if( ipconfigUSE_DHCP_HOOK != 0 )
-			eAnswer = xApplicationDHCPHook( eDHCPPhasePreDiscover, pxEndPoint->ipv4_defaults.ulIPAddress );
-			if( eAnswer == eDHCPContinue )
-		#endif	/* ipconfigUSE_DHCP_HOOK */
-			{
+		/* When the DHCP event was generated, the DHCP client was
+		in a differente state.  Therefore, ignore this event. */
+		FreeRTOS_debug_printf( ( "vDHCPProcessEndPoint: wrong state: expect: %d got: %d : ignore\n",
+			EP_DHCPData.eExpectedState, EP_DHCPData.eDHCPState ) );
+	}
+	else
+	{
+
+		switch( EP_DHCPData.eDHCPState )
+		{
+			case aInitialWait :
+				/* Initial state.  Create the DHCP socket, timer, etc. if they
+				have not already been created. */
 				/* Initial state.  Create the DHCP socket, timer, etc. if they
 				have not already been created. */
 				prvInitialiseDHCP( pxEndPoint );
-				/* See if prvInitialiseDHCP() has creates a socket. */
-				if( xDHCPSocket == NULL )
+				EP_DHCPData.eDHCPState     = eWaitingSendFirstDiscover;
+				//EP_DHCPData.eExpectedState = eWaitingSendFirstDiscover;
+				break;
+
+			case eWaitingSendFirstDiscover :
+				/* Ask the user if a DHCP discovery is required. */
+			#if( ipconfigUSE_DHCP_HOOK != 0 )
+				eAnswer = xApplicationDHCPHook( eDHCPPhasePreDiscover, pxEndPoint->ipv4_defaults.ulIPAddress );
+				if( eAnswer == eDHCPContinue )
+			#endif	/* ipconfigUSE_DHCP_HOOK */
 				{
-					xGivingUp = pdTRUE;
+					/* See if prvInitialiseDHCP() has creates a socket. */
+					if( xDHCPSocket == NULL )
+					{
+						xGivingUp = pdTRUE;
+					}
+					else
+					{
+
+						/* Put 'ulIPAddress' to zero to indicate that the end-point is down. */
+						EP_IPv4_SETTINGS.ulIPAddress = 0UL;
+
+						/* Send the first discover request. */
+						EP_DHCPData.xDHCPTxTime = xTaskGetTickCount();
+						prvSendDHCPDiscover( pxEndPoint );
+						EP_DHCPData.eDHCPState = eWaitingOffer;
+					}
 				}
+			#if( ipconfigUSE_DHCP_HOOK != 0 )
 				else
 				{
-
-					/* Put 'ulIPAddress' to zero to indicate that the end-point is down. */
-					EP_IPv4_SETTINGS.ulIPAddress = 0UL;
-
-					/* Send the first discover request. */
-					EP_DHCPData.xDHCPTxTime = xTaskGetTickCount();
-					prvSendDHCPDiscover( pxEndPoint );
-					EP_DHCPData.eDHCPState = eWaitingOffer;
-				}
-			}
-		#if( ipconfigUSE_DHCP_HOOK != 0 )
-			else
-			{
-				if( eAnswer == eDHCPUseDefaults )
-				{
-					( void ) memcpy( &( pxEndPoint->ipv4_settings ), &( pxEndPoint->ipv4_defaults ), sizeof( pxEndPoint->ipv4_settings ) );
-				}
-
-				/* The user indicates that the DHCP process does not continue. */
-				xGivingUp = pdTRUE;
-			}
-		#endif	/* ipconfigUSE_DHCP_HOOK */
-			break;
-
-		case eWaitingOffer :
-
-			xGivingUp = pdFALSE;
-
-			/* Look for offers coming in. */
-			if( xDoCheck != pdFALSE )
-			{
-				if( prvProcessDHCPReplies( dhcpMESSAGE_TYPE_OFFER, pxEndPoint ) == pdPASS )
-				{
-				#if( ipconfigUSE_DHCP_HOOK != 0 )
-					/* Ask the user if a DHCP request is required. */
-					eAnswer = xApplicationDHCPHook( eDHCPPhasePreRequest, EP_DHCPData.ulOfferedIPAddress );
-
-					if( eAnswer == eDHCPContinue )
-				#endif	/* ipconfigUSE_DHCP_HOOK */
-					{
-						/* An offer has been made, the user wants to continue,
-						generate the request. */
-						EP_DHCPData.xDHCPTxTime = xTaskGetTickCount();
-						EP_DHCPData.xDHCPTxPeriod = dhcpINITIAL_DHCP_TX_PERIOD;
-						prvSendDHCPRequest( pxEndPoint );
-						EP_DHCPData.eDHCPState = eWaitingAcknowledge;
-						break;
-					}
-
-				#if( ipconfigUSE_DHCP_HOOK != 0 )
 					if( eAnswer == eDHCPUseDefaults )
 					{
 						( void ) memcpy( &( pxEndPoint->ipv4_settings ), &( pxEndPoint->ipv4_defaults ), sizeof( pxEndPoint->ipv4_settings ) );
@@ -416,223 +422,262 @@ BaseType_t xGivingUp = pdFALSE;
 
 					/* The user indicates that the DHCP process does not continue. */
 					xGivingUp = pdTRUE;
-				#endif	/* ipconfigUSE_DHCP_HOOK */
 				}
-			}
+			#endif	/* ipconfigUSE_DHCP_HOOK */
+				break;
 
-			/* Is it time to send another Discover? */
-			else if( ( xTaskGetTickCount() - EP_DHCPData.xDHCPTxTime ) > EP_DHCPData.xDHCPTxPeriod )
-			{
-				/* It is time to send another Discover.  Increase the time
-				period, and if it has not got to the point of giving up - send
-				another discovery. */
-				EP_DHCPData.xDHCPTxPeriod <<= 1;
+			case eWaitingOffer :
 
-				if( EP_DHCPData.xDHCPTxPeriod <= ipconfigMAXIMUM_DISCOVER_TX_PERIOD )
+				xGivingUp = pdFALSE;
+
+				/* Look for offers coming in. */
+				if( xDoCheck != pdFALSE )
 				{
-					if( xApplicationGetRandomNumber( &( EP_DHCPData.ulTransactionId ) ) != pdFALSE )
+					if( prvProcessDHCPReplies( dhcpMESSAGE_TYPE_OFFER, pxEndPoint ) == pdPASS )
 					{
-						EP_DHCPData.xDHCPTxTime = xTaskGetTickCount();
-						if( EP_DHCPData.xUseBroadcast != pdFALSE )
-						{
-							EP_DHCPData.xUseBroadcast = pdFALSE;
-						}
-						else
-						{
-							EP_DHCPData.xUseBroadcast = pdTRUE;
-						}
-						prvSendDHCPDiscover( pxEndPoint );
-						FreeRTOS_debug_printf( ( "vDHCPProcess: timeout %lu ticks\n", EP_DHCPData.xDHCPTxPeriod ) );
-					}
-					else
-					{
-						FreeRTOS_debug_printf( ( "vDHCPProcess: failed to generate a random Transaction ID\n" ) );
-					}
-				}
-				else
-				{
-					FreeRTOS_debug_printf( ( "vDHCPProcess: giving up %lu > %lu ticks\n", EP_DHCPData.xDHCPTxPeriod, ipconfigMAXIMUM_DISCOVER_TX_PERIOD ) );
+					#if( ipconfigUSE_DHCP_HOOK != 0 )
+						/* Ask the user if a DHCP request is required. */
+						eAnswer = xApplicationDHCPHook( eDHCPPhasePreRequest, EP_DHCPData.ulOfferedIPAddress );
 
-					#if( ipconfigDHCP_FALL_BACK_AUTO_IP != 0 )
-					{
-						/* Only use a fake Ack if the default IP address == 0x00
-						and the link local addressing is used.  Start searching
-						a free LinkLayer IP-address.  Next state will be
-						'eGetLinkLayerAddress'. */
-						prvPrepareLinkLayerIPLookUp( pxEndPoint );
+						if( eAnswer == eDHCPContinue )
+					#endif	/* ipconfigUSE_DHCP_HOOK */
+						{
+							/* An offer has been made, the user wants to continue,
+							generate the request. */
+							EP_DHCPData.xDHCPTxTime = xTaskGetTickCount();
+							EP_DHCPData.xDHCPTxPeriod = dhcpINITIAL_DHCP_TX_PERIOD;
+							prvSendDHCPRequest( pxEndPoint );
+							EP_DHCPData.eDHCPState = eWaitingAcknowledge;
+							break;
+						}
 
-						/* Setting an IP address manually so set to not using
-						leased address mode. */
-						EP_DHCPData.eDHCPState = eGetLinkLayerAddress;
-					}
-					#else
-					{
+					#if( ipconfigUSE_DHCP_HOOK != 0 )
+						if( eAnswer == eDHCPUseDefaults )
+						{
+							( void ) memcpy( &( pxEndPoint->ipv4_settings ), &( pxEndPoint->ipv4_defaults ), sizeof( pxEndPoint->ipv4_settings ) );
+						}
+
+						/* The user indicates that the DHCP process does not continue. */
 						xGivingUp = pdTRUE;
+					#endif	/* ipconfigUSE_DHCP_HOOK */
 					}
-					#endif /* ipconfigDHCP_FALL_BACK_AUTO_IP */
 				}
-			}
-			else
-			{
-				/* There was no DHCP reply, there was no time-out, just keep on waiting. */
-			}
-			break;
 
-		case eWaitingAcknowledge :
-
-			if( xDoCheck == pdFALSE )
-			{
 				/* Is it time to send another Discover? */
-				if( ( xTaskGetTickCount() - EP_DHCPData.xDHCPTxTime ) > EP_DHCPData.xDHCPTxPeriod )
+				else if( ( xTaskGetTickCount() - EP_DHCPData.xDHCPTxTime ) > EP_DHCPData.xDHCPTxPeriod )
 				{
-					/* Increase the time period, and if it has not got to the
-					point of giving up - send another request. */
+					/* It is time to send another Discover.  Increase the time
+					period, and if it has not got to the point of giving up - send
+					another discovery. */
 					EP_DHCPData.xDHCPTxPeriod <<= 1;
 
 					if( EP_DHCPData.xDHCPTxPeriod <= ipconfigMAXIMUM_DISCOVER_TX_PERIOD )
 					{
-						EP_DHCPData.xDHCPTxTime = xTaskGetTickCount();
-						prvSendDHCPRequest( pxEndPoint );
+						if( xApplicationGetRandomNumber( &( EP_DHCPData.ulTransactionId ) ) != pdFALSE )
+						{
+							EP_DHCPData.xDHCPTxTime = xTaskGetTickCount();
+							if( EP_DHCPData.xUseBroadcast != pdFALSE )
+							{
+								EP_DHCPData.xUseBroadcast = pdFALSE;
+							}
+							else
+							{
+								EP_DHCPData.xUseBroadcast = pdTRUE;
+							}
+							prvSendDHCPDiscover( pxEndPoint );
+							FreeRTOS_debug_printf( ( "vDHCPProcess: timeout %lu ticks\n", EP_DHCPData.xDHCPTxPeriod ) );
+						}
+						else
+						{
+							FreeRTOS_debug_printf( ( "vDHCPProcess: failed to generate a random Transaction ID\n" ) );
+						}
 					}
 					else
 					{
-						/* Give up, start again. */
-						EP_DHCPData.eDHCPState = eWaitingSendFirstDiscover;
+						FreeRTOS_debug_printf( ( "vDHCPProcess: giving up %lu > %lu ticks\n", EP_DHCPData.xDHCPTxPeriod, ipconfigMAXIMUM_DISCOVER_TX_PERIOD ) );
+
+						#if( ipconfigDHCP_FALL_BACK_AUTO_IP != 0 )
+						{
+							/* Only use a fake Ack if the default IP address == 0x00
+							and the link local addressing is used.  Start searching
+							a free LinkLayer IP-address.  Next state will be
+							'eGetLinkLayerAddress'. */
+							prvPrepareLinkLayerIPLookUp( pxEndPoint );
+
+							/* Setting an IP address manually so set to not using
+							leased address mode. */
+							EP_DHCPData.eDHCPState = eGetLinkLayerAddress;
+						}
+						#else
+						{
+							xGivingUp = pdTRUE;
+						}
+						#endif /* ipconfigDHCP_FALL_BACK_AUTO_IP */
 					}
 				}
-			}
-			else if ( prvProcessDHCPReplies( dhcpMESSAGE_TYPE_ACK, pxEndPoint ) == pdPASS )
-			{
-				FreeRTOS_debug_printf( ( "vDHCPProcess: acked %lxip\n", FreeRTOS_ntohl( EP_DHCPData.ulOfferedIPAddress ) ) );
-
-				/* DHCP completed.  The IP address can now be used, and the
-				timer set to the lease timeout time. */
-				EP_IPv4_SETTINGS.ulIPAddress = EP_DHCPData.ulOfferedIPAddress;
-
-				/* Setting the 'local' broadcast address, something like 192.168.1.255' */
-				EP_IPv4_SETTINGS.ulBroadcastAddress = EP_DHCPData.ulOfferedIPAddress | ~( EP_IPv4_SETTINGS.ulNetMask );
-
-				EP_DHCPData.eDHCPState = eLeasedAddress;
-
-				iptraceDHCP_SUCCEDEED( EP_DHCPData.ulOfferedIPAddress );
-
-				/* DHCP failed, the default configured IP-address will be used
-				Now call vIPNetworkUpCalls() to send the network-up event and
-				start the ARP timer. */
-				vIPNetworkUpCalls( pxEndPoint );
-
-				/* Close socket to ensure packets don't queue on it. */
-				prvCloseDHCPSocket( pxEndPoint );
-
-				if( EP_DHCPData.ulLeaseTime == 0UL )
-				{
-					EP_DHCPData.ulLeaseTime = dhcpDEFAULT_LEASE_TIME;
-				}
-				else if( EP_DHCPData.ulLeaseTime < dhcpMINIMUM_LEASE_TIME )
-				{
-					EP_DHCPData.ulLeaseTime = dhcpMINIMUM_LEASE_TIME;
-				}
 				else
 				{
-					/* The lease time is already valid. */
+					/* There was no DHCP reply, there was no time-out, just keep on waiting. */
 				}
+				break;
 
-				/* Check for clashes. */
-				vARPSendGratuitous();
-				vIPReloadDHCP_RATimer( ( struct xNetworkEndPoint * ) pxEndPoint, EP_DHCPData.ulLeaseTime );
-			}
-			else
-			{
-				/* There are no replies yet. */
-			}
-			break;
+			case eWaitingAcknowledge :
 
-#if( ipconfigDHCP_FALL_BACK_AUTO_IP != 0 )
-		case eGetLinkLayerAddress:
-			if( ( xTaskGetTickCount() - EP_DHCPData.xDHCPTxTime ) > EP_DHCPData.xDHCPTxPeriod )
-			{
-				if( xARPHadIPClash == pdFALSE )
+				if( xDoCheck == pdFALSE )
 				{
-					/* ARP OK. proceed. */
+					/* Is it time to send another Discover? */
+					if( ( xTaskGetTickCount() - EP_DHCPData.xDHCPTxTime ) > EP_DHCPData.xDHCPTxPeriod )
+					{
+						/* Increase the time period, and if it has not got to the
+						point of giving up - send another request. */
+						EP_DHCPData.xDHCPTxPeriod <<= 1;
+
+						if( EP_DHCPData.xDHCPTxPeriod <= ipconfigMAXIMUM_DISCOVER_TX_PERIOD )
+						{
+							EP_DHCPData.xDHCPTxTime = xTaskGetTickCount();
+							prvSendDHCPRequest( pxEndPoint );
+						}
+						else
+						{
+							/* Give up, start again. */
+							EP_DHCPData.eDHCPState = aInitialWait;
+						}
+					}
+				}
+				else if ( prvProcessDHCPReplies( dhcpMESSAGE_TYPE_ACK, pxEndPoint ) == pdPASS )
+				{
+					FreeRTOS_debug_printf( ( "vDHCPProcess: acked %lxip\n", FreeRTOS_ntohl( EP_DHCPData.ulOfferedIPAddress ) ) );
+
+					/* DHCP completed.  The IP address can now be used, and the
+					timer set to the lease timeout time. */
+					EP_IPv4_SETTINGS.ulIPAddress = EP_DHCPData.ulOfferedIPAddress;
+
+					/* Setting the 'local' broadcast address, something like 192.168.1.255' */
+					EP_IPv4_SETTINGS.ulBroadcastAddress = EP_DHCPData.ulOfferedIPAddress | ~( EP_IPv4_SETTINGS.ulNetMask );
+
+					EP_DHCPData.eDHCPState = eLeasedAddress;
+
 					iptraceDHCP_SUCCEDEED( EP_DHCPData.ulOfferedIPAddress );
 
-					/* Auto-IP succeeded, the default configured IP-address will
-					be used.  Now call vIPNetworkUpCalls() to send the
-					network-up event and start the ARP timer. */
+					/* Close socket to ensure packets don't queue on it. */
+					prvCloseDHCPSocket( pxEndPoint );
+
+					if( EP_DHCPData.ulLeaseTime == 0UL )
+					{
+						EP_DHCPData.ulLeaseTime = dhcpDEFAULT_LEASE_TIME;
+					}
+					else if( EP_DHCPData.ulLeaseTime < dhcpMINIMUM_LEASE_TIME )
+					{
+						EP_DHCPData.ulLeaseTime = dhcpMINIMUM_LEASE_TIME;
+					}
+					else
+					{
+						/* The lease time is already valid. */
+					}
+
+					/* Check for clashes. */
+					vARPSendGratuitous();
+					vIPReloadDHCP_RATimer( ( struct xNetworkEndPoint * ) pxEndPoint, EP_DHCPData.ulLeaseTime );
+
+					/* DHCP failed, the default configured IP-address will be used
+					Now call vIPNetworkUpCalls() to send the network-up event and
+					start the ARP timer. */
 					vIPNetworkUpCalls( pxEndPoint );
-					EP_DHCPData.eDHCPState = eNotUsingLeasedAddress;
 				}
 				else
 				{
-					/* ARP clashed - try another IP address. */
-					prvPrepareLinkLayerIPLookUp( pxEndPoint );
-
-					/* Setting an IP address manually so set to not using leased
-					address mode. */
-					EP_DHCPData.eDHCPState = eGetLinkLayerAddress;
+					/* There are no replies yet. */
 				}
-			}
-			break;
-#endif	/* ipconfigDHCP_FALL_BACK_AUTO_IP */
+				break;
 
-		case eLeasedAddress :
+	#if( ipconfigDHCP_FALL_BACK_AUTO_IP != 0 )
+			case eGetLinkLayerAddress:
+				if( ( xTaskGetTickCount() - EP_DHCPData.xDHCPTxTime ) > EP_DHCPData.xDHCPTxPeriod )
+				{
+					if( xARPHadIPClash == pdFALSE )
+					{
+						/* ARP OK. proceed. */
+						iptraceDHCP_SUCCEDEED( EP_DHCPData.ulOfferedIPAddress );
 
-			/* Resend the request at the appropriate time to renew the lease. */
-			prvCreateDHCPSocket( pxEndPoint );
+						EP_DHCPData.eDHCPState = eNotUsingLeasedAddress;
 
-			if( xDHCPSocket != NULL )
-			{
-				EP_DHCPData.xDHCPTxTime = xTaskGetTickCount();
-				EP_DHCPData.xDHCPTxPeriod = dhcpINITIAL_DHCP_TX_PERIOD;
-				prvSendDHCPRequest( pxEndPoint );
-				EP_DHCPData.eDHCPState = eWaitingAcknowledge;
+						/* Auto-IP succeeded, the default configured IP-address will
+						be used.  Now call vIPNetworkUpCalls() to send the
+						network-up event and start the ARP timer. */
+						vIPNetworkUpCalls( pxEndPoint );
+					}
+					else
+					{
+						/* ARP clashed - try another IP address. */
+						prvPrepareLinkLayerIPLookUp( pxEndPoint );
 
-				/* From now on, we should be called more often */
-				vIPReloadDHCP_RATimer( pxEndPoint, dhcpINITIAL_TIMER_PERIOD );
-			}
-			break;
+						/* Setting an IP address manually so set to not using leased
+						address mode. */
+						EP_DHCPData.eDHCPState = eGetLinkLayerAddress;
+					}
+				}
+				break;
+	#endif	/* ipconfigDHCP_FALL_BACK_AUTO_IP */
 
-		case eNotUsingLeasedAddress:
+			case eLeasedAddress :
 
-			vIPSetDHCP_RATimerEnableState( pxEndPoint, pdFALSE );
-			break;
+				/* Resend the request at the appropriate time to renew the lease. */
+				prvCreateDHCPSocket( pxEndPoint );
 
-		default:
-			/* Lint: all options are included. */
-			break;
-	}
+				if( xDHCPSocket != NULL )
+				{
+					EP_DHCPData.xDHCPTxTime = xTaskGetTickCount();
+					EP_DHCPData.xDHCPTxPeriod = dhcpINITIAL_DHCP_TX_PERIOD;
+					prvSendDHCPRequest( pxEndPoint );
+					EP_DHCPData.eDHCPState = eWaitingAcknowledge;
 
-	if( xGivingUp != pdFALSE )
-	{
-		/* xGivingUp became true either because of a time-out, or because
-		xApplicationDHCPHook() returned another value than 'eDHCPContinue',
-		meaning that the conversion is cancelled from here. */
+					/* From now on, we should be called more often */
+					vIPReloadDHCP_RATimer( pxEndPoint, dhcpINITIAL_TIMER_PERIOD );
+				}
+				break;
 
-		/* Revert to static IP address. */
-		taskENTER_CRITICAL();
-		{
-			EP_IPv4_SETTINGS.ulIPAddress = pxEndPoint->ipv4_defaults.ulIPAddress;
-			iptraceDHCP_REQUESTS_FAILED_USING_DEFAULT_IP_ADDRESS( pxEndPoint->ipv4_defaults.ulIPAddress );
+			case eNotUsingLeasedAddress:
+
+				vIPSetDHCP_RATimerEnableState( pxEndPoint, pdFALSE );
+				break;
+
+			default:
+				/* Lint: all options are included. */
+				break;
 		}
-		taskEXIT_CRITICAL();
 
-		EP_DHCPData.eDHCPState = eNotUsingLeasedAddress;
-		vIPSetDHCP_RATimerEnableState( pxEndPoint, pdFALSE );
+		if( xGivingUp != pdFALSE )
+		{
+			/* xGivingUp became true either because of a time-out, or because
+			xApplicationDHCPHook() returned another value than 'eDHCPContinue',
+			meaning that the conversion is cancelled from here. */
 
-		/* DHCP failed, the default configured IP-address will be used. Now
-		call vIPNetworkUpCalls() to send the network-up event and start the ARP
-		timer. */
-		vIPNetworkUpCalls( pxEndPoint );
+			/* Revert to static IP address. */
+			taskENTER_CRITICAL();
+			{
+				EP_IPv4_SETTINGS.ulIPAddress = pxEndPoint->ipv4_defaults.ulIPAddress;
+				iptraceDHCP_REQUESTS_FAILED_USING_DEFAULT_IP_ADDRESS( pxEndPoint->ipv4_defaults.ulIPAddress );
+			}
+			taskEXIT_CRITICAL();
 
-		/* Close socket to ensure packets don't queue on it. */
-		prvCloseDHCPSocket( pxEndPoint );
+			EP_DHCPData.eDHCPState = eNotUsingLeasedAddress;
+			vIPSetDHCP_RATimerEnableState( pxEndPoint, pdFALSE );
+
+			/* Close socket to ensure packets don't queue on it. */
+			prvCloseDHCPSocket( pxEndPoint );
+
+			/* DHCP failed, the default configured IP-address will be used. Now
+			call vIPNetworkUpCalls() to send the network-up event and start the ARP
+			timer. */
+			vIPNetworkUpCalls( pxEndPoint );
+		}
 	}
 }
 /*-----------------------------------------------------------*/
 
 static void prvCloseDHCPSocket( NetworkEndPoint_t *pxEndPoint )
 {
-	if( (EP_DHCPData.xDHCPSocket == NULL ) || ( EP_DHCPData.xDHCPSocket != xDHCPSocket ) )
+	if( ( EP_DHCPData.xDHCPSocket == NULL ) || ( EP_DHCPData.xDHCPSocket != xDHCPSocket ) )
 	{
 		/* the socket can not be closed. */
 	}
@@ -728,7 +773,7 @@ static BaseType_t prvProcessDHCPReplies( BaseType_t xExpectedMessageType, Networ
 {
 uint8_t *pucUDPPayload;
 int32_t lBytes;
-DHCPMessage_IPv4_t *pxDHCPMessage;
+const DHCPMessage_IPv4_t *pxDHCPMessage;
 uint8_t *pucByte, ucOptionCode;
 uint32_t ulProcessed, ulParameter;
 BaseType_t xReturn = pdFALSE;
@@ -740,7 +785,7 @@ const uint32_t ulMandatoryOptions = 2UL; /* DHCP server address, and the correct
 	if( lBytes > 0 )
 	{
 		/* Map a DHCP structure onto the received data. */
-		pxDHCPMessage = ipPOINTER_CAST( DHCPMessage_IPv4_t *, pucUDPPayload );
+		pxDHCPMessage = ipCAST_CONST_PTR_TO_CONST_TYPE_PTR( DHCPMessage_IPv4_t, pucUDPPayload );
 
 		/* Sanity check. */
 		if( lBytes < ( int32_t ) sizeof( DHCPMessage_IPv4_t ) )
@@ -844,7 +889,7 @@ const uint32_t ulMandatoryOptions = 2UL; /* DHCP server address, and the correct
 									if( xExpectedMessageType == ( BaseType_t ) dhcpMESSAGE_TYPE_ACK )
 									{
 										/* Start again. */
-										EP_DHCPData.eDHCPState = eWaitingSendFirstDiscover;
+										EP_DHCPData.eDHCPState = aInitialWait;
 									}
 								}
 								/* Stop processing further options. */
@@ -982,7 +1027,7 @@ uint8_t *pucUDPPayloadBuffer;
 
 	/* Leave space for the UPD header. */
 	pucUDPPayloadBuffer = &( pxNetworkBuffer->pucEthernetBuffer[ ipUDP_PAYLOAD_OFFSET_IPv4 ] );
-	pxDHCPMessage = ipPOINTER_CAST( DHCPMessage_IPv4_t *, pucUDPPayloadBuffer );
+	pxDHCPMessage = ipCAST_PTR_TO_TYPE_PTR( DHCPMessage_IPv4_t, pucUDPPayloadBuffer );
 
 	#if( ipconfigUSE_IPv6 != 0 )
 	{

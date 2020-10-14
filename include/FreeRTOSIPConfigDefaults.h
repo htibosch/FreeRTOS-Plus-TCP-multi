@@ -1,5 +1,5 @@
 /*
- * FreeRTOS+TCP V2.2.1
+ * FreeRTOS+TCP V2.3.0
  * Copyright (C) 2017 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -451,6 +451,13 @@ Finally the end-point will go in the UP state.
 		#define ipconfigDNS_CACHE_ENTRIES			1
 	#endif
 #endif /* ipconfigUSE_DNS_CACHE != 0 */
+
+/* When accessing services which have multiple IP addresses, setting this
+greater than 1 can improve reliability by returning different IP address
+answers on successive calls to FreeRTOS_gethostbyname(). */
+#ifndef ipconfigDNS_CACHE_ADDRESSES_PER_ENTRY 
+	#define ipconfigDNS_CACHE_ADDRESSES_PER_ENTRY 1
+#endif
 
 #ifndef ipconfigCHECK_IP_QUEUE_SPACE
 	#define ipconfigCHECK_IP_QUEUE_SPACE			0

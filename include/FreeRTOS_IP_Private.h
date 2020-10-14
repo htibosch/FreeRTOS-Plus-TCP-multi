@@ -1,5 +1,5 @@
 /*
- * FreeRTOS+TCP V2.2.1
+ * FreeRTOS+TCP V2.3.0
  * Copyright (C) 2017 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -45,6 +45,29 @@ extern "C" {
 
 #include "event_groups.h"
 
+/*-----------------------------------------------------------*/
+/* Utility macros for marking casts as recognized during     */
+/* static analysis.                                          */
+/*-----------------------------------------------------------*/
+#define ipCAST_PTR_TO_TYPE_PTR( TYPE, pointer ) ( vCastPointerTo_##TYPE( ( void * )( pointer ) ) )
+#define ipCAST_CONST_PTR_TO_CONST_TYPE_PTR( TYPE, pointer ) ( vCastConstPointerTo_##TYPE( ( const void * )( pointer ) ) )
+
+/*-----------------------------------------------------------*/
+/* Utility macros for declaring cast utility functions in    */
+/* order to centralize typecasting for static analysis.      */
+/*-----------------------------------------------------------*/
+#define ipDECL_CAST_PTR_FUNC_FOR_TYPE( TYPE ) TYPE * vCastPointerTo_##TYPE( void * pvArgument )
+#define ipDECL_CAST_CONST_PTR_FUNC_FOR_TYPE( TYPE ) const TYPE * vCastConstPointerTo_##TYPE( const void * pvArgument )
+
+typedef struct xNetworkAddressingParameters
+{
+	uint32_t ulDefaultIPAddress;
+	uint32_t ulNetMask;
+	uint32_t ulGatewayAddress;
+	uint32_t ulDNSServerAddress;
+	uint32_t ulBroadcastAddress;
+} NetworkAddressingParameters_t;
+
 extern BaseType_t xTCPWindowLoggingLevel;
 extern QueueHandle_t xNetworkEventQueue;
 
@@ -61,6 +84,16 @@ struct xETH_HEADER
 }
 #include "pack_struct_end.h"
 typedef struct xETH_HEADER EthernetHeader_t;
+
+static portINLINE ipDECL_CAST_PTR_FUNC_FOR_TYPE( EthernetHeader_t )
+{
+	return ( EthernetHeader_t *)pvArgument;
+}
+
+static portINLINE ipDECL_CAST_CONST_PTR_FUNC_FOR_TYPE( EthernetHeader_t )
+{
+	return ( const EthernetHeader_t *) pvArgument;
+}
 
 #include "pack_struct_start.h"
 struct xARP_HEADER
@@ -94,6 +127,16 @@ struct xIP_HEADER
 }
 #include "pack_struct_end.h"
 typedef struct xIP_HEADER IPHeader_t;
+
+static portINLINE ipDECL_CAST_PTR_FUNC_FOR_TYPE( IPHeader_t )
+{
+	return ( IPHeader_t *)pvArgument;
+}
+
+static portINLINE ipDECL_CAST_CONST_PTR_FUNC_FOR_TYPE( IPHeader_t )
+{
+	return ( const IPHeader_t *) pvArgument;
+}
 
 #if( ipconfigUSE_IPv6 != 0 )
 	#include "pack_struct_start.h"
@@ -134,6 +177,16 @@ struct xICMP_HEADER
 }
 #include "pack_struct_end.h"
 typedef struct xICMP_HEADER ICMPHeader_t;
+
+static portINLINE ipDECL_CAST_PTR_FUNC_FOR_TYPE( ICMPHeader_t )
+{
+	return ( ICMPHeader_t *)pvArgument;
+}
+
+static portINLINE ipDECL_CAST_CONST_PTR_FUNC_FOR_TYPE( ICMPHeader_t )
+{
+	return ( const ICMPHeader_t *) pvArgument;
+}
 
 #if( ipconfigUSE_IPv6 != 0 )
 	#include "pack_struct_start.h"
@@ -267,6 +320,17 @@ struct xARP_PACKET
 #include "pack_struct_end.h"
 typedef struct xARP_PACKET ARPPacket_t;
 
+static portINLINE ipDECL_CAST_PTR_FUNC_FOR_TYPE( ARPPacket_t )
+{
+    return ( ARPPacket_t *)pvArgument;
+}
+
+static portINLINE ipDECL_CAST_CONST_PTR_FUNC_FOR_TYPE( ARPPacket_t )
+{
+    return ( const ARPPacket_t *) pvArgument;
+}
+
+
 #include "pack_struct_start.h"
 struct xIP_PACKET
 {
@@ -275,6 +339,16 @@ struct xIP_PACKET
 }
 #include "pack_struct_end.h"
 typedef struct xIP_PACKET IPPacket_t;
+
+static portINLINE ipDECL_CAST_PTR_FUNC_FOR_TYPE( IPPacket_t )
+{
+    return ( IPPacket_t *)pvArgument;
+}
+
+static portINLINE ipDECL_CAST_CONST_PTR_FUNC_FOR_TYPE( IPPacket_t )
+{
+    return ( const IPPacket_t *) pvArgument;
+}
 
 #if( ipconfigUSE_IPv6 != 0 )
 	#include "pack_struct_start.h"
@@ -285,6 +359,17 @@ typedef struct xIP_PACKET IPPacket_t;
 	}
 	#include "pack_struct_end.h"
 	typedef struct xIP_PACKET_IPv6 IPPacket_IPv6_t;
+
+	static portINLINE ipDECL_CAST_PTR_FUNC_FOR_TYPE( IPPacket_IPv6_t )
+	{
+		return ( IPPacket_IPv6_t *)pvArgument;
+	}
+
+	static portINLINE ipDECL_CAST_CONST_PTR_FUNC_FOR_TYPE( IPPacket_IPv6_t )
+	{
+		return ( const IPPacket_IPv6_t *) pvArgument;
+	}
+
 #endif /* ipconfigUSE_IPv6 */
 
 #include "pack_struct_start.h"
@@ -296,6 +381,11 @@ struct xICMP_PACKET
 }
 #include "pack_struct_end.h"
 typedef struct xICMP_PACKET ICMPPacket_t;
+
+static portINLINE ipDECL_CAST_PTR_FUNC_FOR_TYPE( ICMPPacket_t )
+{
+    return ( ICMPPacket_t *)pvArgument;
+}
 
 #if( ipconfigUSE_IPv6 != 0 )
 	#include "pack_struct_start.h"
@@ -320,6 +410,16 @@ struct xUDP_PACKET
 #include "pack_struct_end.h"
 typedef struct xUDP_PACKET UDPPacket_t;
 
+static portINLINE ipDECL_CAST_PTR_FUNC_FOR_TYPE( UDPPacket_t )
+{
+    return ( UDPPacket_t *)pvArgument;
+}
+
+static portINLINE ipDECL_CAST_CONST_PTR_FUNC_FOR_TYPE( UDPPacket_t )
+{
+    return ( const UDPPacket_t *) pvArgument;
+}
+
 #if( ipconfigUSE_IPv6 != 0 )
 	#include "pack_struct_start.h"
 	struct xUDP_PACKET_IPv6
@@ -330,6 +430,15 @@ typedef struct xUDP_PACKET UDPPacket_t;
 	}
 	#include "pack_struct_end.h"
 	typedef struct xUDP_PACKET_IPv6 UDPPacket_IPv6_t;
+	static portINLINE ipDECL_CAST_PTR_FUNC_FOR_TYPE( UDPPacket_IPv6_t )
+	{
+		return ( UDPPacket_IPv6_t *)pvArgument;
+	}
+
+	static portINLINE ipDECL_CAST_CONST_PTR_FUNC_FOR_TYPE( UDPPacket_IPv6_t )
+	{
+		return ( const UDPPacket_IPv6_t *) pvArgument;
+	}
 #endif /* ipconfigUSE_IPv6 */
 
 #include "pack_struct_start.h"
@@ -341,6 +450,16 @@ struct xTCP_PACKET
 }
 #include "pack_struct_end.h"
 typedef struct xTCP_PACKET TCPPacket_t;
+
+static portINLINE ipDECL_CAST_PTR_FUNC_FOR_TYPE( TCPPacket_t )
+{
+    return ( TCPPacket_t *)pvArgument;
+}
+
+static portINLINE ipDECL_CAST_CONST_PTR_FUNC_FOR_TYPE( TCPPacket_t )
+{
+	return ( const TCPPacket_t *) pvArgument;
+}
 
 #if( ipconfigUSE_IPv6 != 0 )
 	#include "pack_struct_start.h"
@@ -362,6 +481,16 @@ typedef union xPROT_PACKET
 	ICMPPacket_t xICMPPacket;
 } ProtocolPacket_t;
 
+static portINLINE ipDECL_CAST_PTR_FUNC_FOR_TYPE( ProtocolPacket_t )
+{
+	return ( ProtocolPacket_t *)pvArgument;
+}
+
+static portINLINE ipDECL_CAST_CONST_PTR_FUNC_FOR_TYPE( ProtocolPacket_t )
+{
+	return ( const ProtocolPacket_t *) pvArgument;
+}
+
 typedef union xPROT_HEADERS
 {
 	ICMPHeader_t xICMPHeader;
@@ -372,6 +501,15 @@ typedef union xPROT_HEADERS
 #endif
 } ProtocolHeaders_t;
 
+static portINLINE ipDECL_CAST_PTR_FUNC_FOR_TYPE( ProtocolHeaders_t )
+{
+	return ( ProtocolHeaders_t *)pvArgument;
+}
+
+static portINLINE ipDECL_CAST_CONST_PTR_FUNC_FOR_TYPE( ProtocolHeaders_t )
+{
+	return ( const ProtocolHeaders_t *) pvArgument;
+}
 
 /* The maximum UDP payload length. */
 #if( ipconfigUSE_IPv6 != 0 )
@@ -547,15 +685,15 @@ socket events. */
 #define vSetField16( pxBase, xType, xField, usValue ) \
 { \
 	( ( uint8_t* )( pxBase ) ) [ offsetof( xType, xField ) + 0 ] = ( uint8_t ) ( ( usValue ) >> 8 ); \
-	( ( uint8_t* )( pxBase ) ) [ offsetof( xType, xField ) + 1 ] = ( uint8_t ) ( ( usValue ) & 0xff ); \
+	( ( uint8_t* )( pxBase ) ) [ offsetof( xType, xField ) + 1 ] = ( uint8_t ) ( ( usValue ) & 0xffU ); \
 }
 
 #define vSetField32( pxBase, xType, xField, ulValue ) \
 { \
 	( (uint8_t*)( pxBase ) ) [ offsetof( xType, xField ) + 0 ] = ( uint8_t )   ( ( ulValue ) >> 24 ); \
-	( (uint8_t*)( pxBase ) ) [ offsetof( xType, xField ) + 1 ] = ( uint8_t ) ( ( ( ulValue ) >> 16 ) & 0xff ); \
-	( (uint8_t*)( pxBase ) ) [ offsetof( xType, xField ) + 2 ] = ( uint8_t ) ( ( ( ulValue ) >> 8 ) & 0xff ); \
-	( (uint8_t*)( pxBase ) ) [ offsetof( xType, xField ) + 3 ] = ( uint8_t )   ( ( ulValue ) & 0xff ); \
+	( (uint8_t*)( pxBase ) ) [ offsetof( xType, xField ) + 1 ] = ( uint8_t ) ( ( ( ulValue ) >> 16 ) & 0xffU ); \
+	( (uint8_t*)( pxBase ) ) [ offsetof( xType, xField ) + 2 ] = ( uint8_t ) ( ( ( ulValue ) >> 8 ) & 0xffU ); \
+	( (uint8_t*)( pxBase ) ) [ offsetof( xType, xField ) + 3 ] = ( uint8_t )   ( ( ulValue ) & 0xffU ); \
 }
 
 #define vFlip_16( left, right ) \
@@ -563,17 +701,18 @@ socket events. */
 		uint16_t tmp = (left); \
 		(left) = (right); \
 		(right) = tmp; \
-	} while (0)
+	} while ( ipFALSE_BOOL )
 
 #define vFlip_32( left, right ) \
 	do { \
 		uint32_t tmp = (left); \
 		(left) = (right); \
 		(right) = tmp; \
-	} while (0)
+	} while ( ipFALSE_BOOL )
 
+/* WARNING: Do NOT use this macro when the array was received as a parameter. */
 #ifndef ARRAY_SIZE
-	#define ARRAY_SIZE(x)	(BaseType_t)(sizeof(x)/sizeof(x)[0])
+	#define ARRAY_SIZE(x)	( ( BaseType_t ) ( sizeof( x ) / sizeof( ( x )[ 0 ] ) ) )
 #endif
 
 /*
@@ -616,7 +755,17 @@ eFrameProcessingResult_t eConsiderFrameForProcessing( const uint8_t * const pucE
 uint16_t usGenerateChecksum( uint16_t usSum, const uint8_t * pucNextData, size_t uxDataLengthBytes );
 
 /* Socket related private functions. */
+
+/*
+ * The caller must ensure that pxNetworkBuffer->xDataLength is the UDP packet 
+ * payload size (excluding packet headers) and that the packet in pucEthernetBuffer 
+ * is at least the size of UDPPacket_t. 
+ */
 BaseType_t xProcessReceivedUDPPacket( NetworkBufferDescriptor_t *pxNetworkBuffer, uint16_t usPort );
+
+/*
+ * Initialize the socket list data structures for TCP and UDP. 
+ */
 void vNetworkSocketsInit( void );
 
 /*
@@ -636,7 +785,9 @@ BaseType_t xIPIsNetworkTaskReady( void );
 	 * Actually a user thing, but because xBoundTCPSocketsList, let it do by the
 	 * IP-task
 	 */
-	void vTCPNetStat( void );
+	#if( ipconfigHAS_PRINTF != 0 )
+		void vTCPNetStat( void );
+	#endif
 
 	/*
 	 * At least one socket needs to check for timeouts
@@ -748,7 +899,7 @@ BaseType_t xIPIsNetworkTaskReady( void );
 		#if( ipconfigUSE_CALLBACKS == 1 )
 			FOnTCPReceive_t pxHandleReceive;	/*
 										 		 * In case of a TCP socket:
-										 		 * typedef void (* FOnTCPReceive_t) (Socket_t xSocket, void *pData, size_t uxLength );
+										 		 * typedef void ( * FOnTCPReceive_t ) ( Socket_t xSocket, void *pData, size_t uxLength );
 										 		 */
 			FOnTCPSent_t pxHandleSent;
 			FOnConnected_t pxHandleConnected;	/* Actually type: typedef void (* FOnConnected_t) (Socket_t xSocket, BaseType_t ulConnected ); */
@@ -771,13 +922,15 @@ typedef struct UDPSOCKET
 	#if( ipconfigUSE_CALLBACKS == 1 )
 		FOnUDPReceive_t pxHandleReceive;	/*
 											 * In case of a UDP socket:
-											 * typedef void (* FOnUDPReceive_t) (Socket_t xSocket, void *pData, size_t uxLength, struct freertos_sockaddr *pxAddr );
+											 * typedef void ( * FOnUDPReceive_t ) ( Socket_t xSocket, void *pData, size_t uxLength, struct freertos_sockaddr *pxAddr );
 											 */
 		FOnUDPSent_t pxHandleSent;
 	#endif /* ipconfigUSE_CALLBACKS */
 } IPUDPSocket_t;
 
-typedef enum eSOCKET_EVENT {
+/* Formally typedef'd as eSocketEvent_t. */
+enum eSOCKET_EVENT
+{
 	eSOCKET_RECEIVE = 0x0001,
 	eSOCKET_SEND    = 0x0002,
 	eSOCKET_ACCEPT  = 0x0004,
@@ -786,7 +939,7 @@ typedef enum eSOCKET_EVENT {
 	eSOCKET_CLOSED	= 0x0020,
 	eSOCKET_INTR	= 0x0040,
 	eSOCKET_ALL		= 0x007F,
-} eSocketEvent_t;
+};
 
 typedef struct xSOCKET
 {
@@ -844,6 +997,16 @@ typedef struct xSOCKET
 		#endif /* ipconfigUSE_TCP */
 	} u;
 } FreeRTOS_Socket_t;
+
+static portINLINE ipDECL_CAST_PTR_FUNC_FOR_TYPE( FreeRTOS_Socket_t )
+{
+	return ( FreeRTOS_Socket_t *)pvArgument;
+}
+
+static portINLINE ipDECL_CAST_CONST_PTR_FUNC_FOR_TYPE( FreeRTOS_Socket_t )
+{
+	return ( const FreeRTOS_Socket_t *) pvArgument;
+}
 
 #if( ipconfigUSE_TCP == 1 )
 	/*
@@ -908,21 +1071,21 @@ void vSocketWakeUpUser( FreeRTOS_Socket_t *pxSocket );
 /*
  * Some helping function, their meaning should be clear
  */
-static portINLINE uint32_t ulChar2u32 (const uint8_t *pucPtr);
-static portINLINE uint32_t ulChar2u32 (const uint8_t *pucPtr)
+static portINLINE uint32_t ulChar2u32( const uint8_t *pucPtr );
+static portINLINE uint32_t ulChar2u32( const uint8_t *pucPtr )
 {
-	return  ( ( ( uint32_t )pucPtr[ 0 ] ) << 24) |
-			( ( ( uint32_t )pucPtr[ 1 ] ) << 16) |
-			( ( ( uint32_t )pucPtr[ 2 ] ) << 8) |
+	return  ( ( ( uint32_t )pucPtr[ 0 ] ) << 24 ) |
+			( ( ( uint32_t )pucPtr[ 1 ] ) << 16 ) |
+			( ( ( uint32_t )pucPtr[ 2 ] ) << 8 ) |
 			( ( ( uint32_t )pucPtr[ 3 ] ) );
 }
 
-static portINLINE uint16_t usChar2u16 (const uint8_t *pucPtr);
-static portINLINE uint16_t usChar2u16 (const uint8_t *pucPtr)
+static portINLINE uint16_t usChar2u16( const uint8_t *pucPtr );
+static portINLINE uint16_t usChar2u16( const uint8_t *pucPtr )
 {
 	return ( uint16_t )
-			( ( ( ( uint32_t )pucPtr[0] ) << 8) |
-			  ( ( ( uint32_t )pucPtr[1] ) ) );
+			( ( ( ( uint32_t ) pucPtr[ 0 ] ) << 8 ) |
+			  ( ( ( uint32_t ) pucPtr[ 1 ] ) ) );
 }
 
 /* Check a single socket for retransmissions and timeouts */
@@ -1049,31 +1212,53 @@ The socket is checked for its type: IPv4 or IPv6. */
 	const char *prvSocketProps( FreeRTOS_Socket_t *pxSocket );
 #endif /* ipconfigHAS_DEBUG_PRINTF || ipconfigHAS_PRINTF */
 /*
- * Internal: Sets a new state for a TCP socket
- * and performs the necessary actions like calling a OnConnected handler
- * to notify the socket owner
+ * Internal: Sets a new state for a TCP socket and performs the necessary
+ * actions like calling a OnConnected handler to notify the socket owner.
  */
-void vTCPStateChange( FreeRTOS_Socket_t *pxSocket, enum eTCP_STATE eTCPState );
-
-/*_RB_ Should this be part of the public API? */
-void FreeRTOS_netstat( void );
+#if( ipconfigUSE_TCP == 1 )
+	void vTCPStateChange( FreeRTOS_Socket_t *pxSocket, enum eTCP_STATE eTCPState );
+#endif /* ipconfigUSE_TCP */
 
 /* Returns pdTRUE is this function is called from the IP-task */
 BaseType_t xIsCallingFromIPTask( void );
 
 #if( ipconfigSUPPORT_SELECT_FUNCTION == 1 )
 
-typedef struct xSOCKET_SET
-{
-	EventGroupHandle_t xSelectGroup;
-	BaseType_t bApiCalled;	/* True if the API was calling  the private vSocketSelect */
-	FreeRTOS_Socket_t *pxSocket;
-} SocketSelect_t;
+	typedef struct xSOCKET_SET
+	{
+		EventGroupHandle_t xSelectGroup;
+	} SocketSelect_t;
 
-extern void vSocketSelect( SocketSelect_t *pxSocketSet );
+	static portINLINE ipDECL_CAST_PTR_FUNC_FOR_TYPE( SocketSelect_t )
+	{
+		return ( SocketSelect_t *)pvArgument;
+	}
+
+	static portINLINE ipDECL_CAST_CONST_PTR_FUNC_FOR_TYPE( SocketSelect_t )
+	{
+		return ( const SocketSelect_t *) pvArgument;
+	}
+
+	extern void vSocketSelect( SocketSelect_t *pxSocketSet );
+
+	/* Define the data that must be passed for a 'eSocketSelectEvent'. */
+	typedef struct xSocketSelectMessage
+	{
+		TaskHandle_t xTaskhandle;
+		SocketSelect_t *pxSocketSet;
+	} SocketSelectMessage_t;
+
+	static portINLINE ipDECL_CAST_PTR_FUNC_FOR_TYPE( SocketSelectMessage_t )
+	{
+		return ( SocketSelectMessage_t *)pvArgument;
+	}
+
+	static portINLINE ipDECL_CAST_CONST_PTR_FUNC_FOR_TYPE( SocketSelectMessage_t )
+	{
+		return ( const SocketSelectMessage_t *) pvArgument;
+	}
 
 #endif /* ipconfigSUPPORT_SELECT_FUNCTION */
-
 
 #if( ipconfigUSE_DHCP == 1 ) || ( ipconfigUSE_RA == 1 )
 	void vIPSetDHCP_RATimerEnableState( struct xNetworkEndPoint *pxEndPoint, BaseType_t xEnableState );
@@ -1100,16 +1285,3 @@ eFrameProcessingResult_t prvProcessICMPMessage_IPv6( NetworkBufferDescriptor_t *
 #endif
 
 #endif /* FREERTOS_IP_PRIVATE_H */
-
-
-
-
-
-
-
-
-
-
-
-
-

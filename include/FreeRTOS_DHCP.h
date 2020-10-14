@@ -1,5 +1,5 @@
 /*
- * FreeRTOS+TCP V2.2.1
+ * FreeRTOS+TCP V2.3.0
  * Copyright (C) 2017 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -52,7 +52,8 @@ typedef enum eDHCP_ANSWERS
 /* DHCP state machine states. */
 typedef enum
 {
-	eWaitingSendFirstDiscover = 0,	/* Initial state.  Send a discover the first time it is called, and reset all timers. */
+	aInitialWait = 0,				/* Initial state: open a socket and wait a short time. */
+	eWaitingSendFirstDiscover,		/* Send a discover the first time it is called, and reset all timers. */
 	eWaitingOffer,					/* Either resend the discover, or, if the offer is forthcoming, send a request. */
 	eWaitingAcknowledge,			/* Either resend the request. */
 	#if( ipconfigDHCP_FALL_BACK_AUTO_IP != 0 )
@@ -76,13 +77,28 @@ struct xDHCP_DATA
 	BaseType_t xUseBroadcast;
 	/* Maintains the DHCP state machine state. */
 	eDHCPState_t eDHCPState;
+	eDHCPState_t eExpectedState;
 	Socket_t xDHCPSocket;
 };
 
 typedef struct xDHCP_DATA DHCPData_t;
 
+/* Returns the current state of a DHCP process. */
+eDHCPState_t eGetDHCPState( struct xNetworkEndPoint *pxEndPoint );
+
+struct xNetworkEndPoint;
+
+#if( ipconfigUSE_DHCPv6 == 1 ) || ( ipconfigUSE_DHCP == 1 )
+	/*
+	* Send a message to the IP-task, which will call vDHCPProcess().
+	*/
+	BaseType_t xSendDHCPEvent( struct xNetworkEndPoint *pxEndPoint );
+#endif
+
 /*
  * NOT A PUBLIC API FUNCTION.
+ * It will be called when the DHCP timer expires, or when
+ * data has been received on the DHCP socket.
  */
 void vDHCPProcess( BaseType_t xReset, struct xNetworkEndPoint *pxEndPoint );
 

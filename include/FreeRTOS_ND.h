@@ -1,5 +1,5 @@
 /*
- * FreeRTOS+TCP V2.2.1
+ * FreeRTOS+TCP V2.3.0
  * Copyright (C) 2017 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -67,6 +67,13 @@ void vNDRefreshCacheEntry( const MACAddress_t * pxMACAddress, const IPv6_Address
 
 #endif /* ipconfigUSE_ARP_REMOVE_ENTRY != 0 */
 
+/* Options that can be send after the ICMPv6 header. */
+#define	ndICMP_SOURCE_LINK_LAYER_ADDRESS		1
+#define	ndICMP_TARGET_LINK_LAYER_ADDRESS		2
+#define	ndICMP_PREFIX_INFORMATION				3
+#define	ndICMP_REDIRECTED_HEADER				4
+#define	ndICMP_MTU_OPTION						5
+
 /*
  * Look for ulIPAddress in the ND cache.  If the IP address exists, copy the
  * associated MAC address into pxMACAddress, refresh the ND cache entry's
@@ -122,7 +129,13 @@ void FreeRTOS_PrintNDCache( void );
 	void FreeRTOS_OutputAdvertiseIPv6( NetworkEndPoint_t *pxEndPoint );
 	BaseType_t FreeRTOS_SendPingRequestIPv6( IPv6_Address_t *pxIPAddress, size_t uxNumberOfBytesToSend, TickType_t uxBlockTimeTicks );
 	BaseType_t FreeRTOS_CreateIPv6Address( IPv6_Address_t *pxIPAddress, const IPv6_Address_t *pxPrefix, size_t uxPrefixLength, BaseType_t xDoRandom );
-#endif
+#endif /* ( ipconfigUSE_IPv6 != 0 ) */
+
+/* Receive a Neighbourhood Advertisement. */
+void vReceiveNA( NetworkBufferDescriptor_t * const pxNetworkBuffer );
+
+/* Receive a Router Advertisement. */
+void vReceiveRA( NetworkBufferDescriptor_t * const pxNetworkBuffer );
 
 #endif /* ipconfigUSE_IPv6 != 0 */
 

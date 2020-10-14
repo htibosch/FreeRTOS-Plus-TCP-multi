@@ -258,6 +258,30 @@
 		}
     }
 
+    #if( ipconfigCOMPATIBLE_WITH_SINGLE != 0 )
+        /* Provide backward-compatibility with the earlier FreeRTOS+TCP which only had
+        single network interface. */
+        BaseType_t FreeRTOS_IPInit( const uint8_t ucIPAddress[ ipIP_ADDRESS_LENGTH_BYTES ],
+                const uint8_t ucNetMask[ ipIP_ADDRESS_LENGTH_BYTES ],
+                const uint8_t ucGatewayAddress[ ipIP_ADDRESS_LENGTH_BYTES ],
+                const uint8_t ucDNSServerAddress[ ipIP_ADDRESS_LENGTH_BYTES ],
+                const uint8_t ucMACAddressP[ ipMAC_ADDRESS_LENGTH_BYTES ] )
+        {
+        static NetworkInterface_t xInterfaces[ 1 ] = { 0 };
+        static NetworkEndPoint_t xEndPoints[ 1 ] = { 0 };
+
+            pxPIC32_Eth_FillInterfaceDescriptor( 0, &( xInterfaces[0] ) );
+            FreeRTOS_FillEndPoint( &( xInterfaces[0] ), &( xEndPoints[ 0 ] ), ucIPAddress, ucNetMask, ucGatewayAddress, ucDNSServerAddress, ucMACAddressP );
+            #if( ipconfigUSE_DHCP != 0 )
+            {
+                xEndPoints[ 0 ].bits.bWantDHCP = pdTRUE;
+            }
+            #endif	/* ipconfigUSE_DHCP */
+            FreeRTOS_IPStart();
+            return 1;
+        }
+    #endif /* ( ipconfigCOMPATIBLE_WITH_SINGLE != 0 ) */	
+    /*-----------------------------------------------------------*/
 
     /*-----------------------------------------------------------*/
     static BaseType_t xPIC32_Eth_NetworkInterfaceOutput( NetworkInterface_t *pxInterface,

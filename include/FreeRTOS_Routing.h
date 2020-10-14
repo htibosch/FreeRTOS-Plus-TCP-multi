@@ -1,5 +1,5 @@
 /*
- * FreeRTOS+TCP V2.2.1
+ * FreeRTOS+TCP V2.3.0
  * Copyright (C) 2017 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -30,7 +30,13 @@
 extern "C" {
 #endif
 
-#include "FreeRTOS_DHCP.h"
+#if( ipconfigUSE_DHCP != 0 )
+	#include "FreeRTOS_DHCP.h"
+#endif
+
+#if( ipconfigUSE_IPv6 != 0 )
+	#include "FreeRTOS_DHCPv6.h"
+#endif
 
 /* Every NetworkInterface needs a set of access functions: */
 
@@ -148,7 +154,7 @@ typedef struct xNetworkEndPoint
 	{
 		uint32_t
 			bIsDefault : 1,
-			#if( ipconfigUSE_DHCP != 0 )
+			#if( ipconfigUSE_DHCP != 0 ) || ( ipconfigUSE_DHCPv6 != 0 )
 				bWantDHCP : 1,
 			#endif	/* ipconfigUSE_DHCP */
 			#if( ipconfigUSE_RA != 0 )
@@ -168,6 +174,9 @@ typedef struct xNetworkEndPoint
 #if( ipconfigUSE_DHCP != 0 )
 	DHCPData_t xDHCPData;
 #endif	/* ( ipconfigUSE_DHCP != 0 ) */
+#if( ipconfigUSE_IPv6 != 0 )
+	DHCPMessage_IPv6_t *pxDHCPMessage;
+#endif
 #if( ipconfigUSE_RA != 0 )
 	RAData_t xRAData;
 #endif	/* ( ipconfigUSE_RA != 0 ) */
@@ -177,7 +186,7 @@ typedef struct xNetworkEndPoint
 
 
 #if( ipconfigUSE_IPv6 != 0 )
-	#define END_POINT_USES_DHCP( pxEndPoint )	( ( ( pxEndPoint ) != NULL ) && ( ( pxEndPoint )->bits.bIPv6 == pdFALSE_UNSIGNED ) && ( ( pxEndPoint )->bits.bWantDHCP != pdFALSE_UNSIGNED ) )
+	#define END_POINT_USES_DHCP( pxEndPoint )	( ( ( pxEndPoint ) != NULL ) && ( ( pxEndPoint )->bits.bWantDHCP != pdFALSE_UNSIGNED ) )
 	#define END_POINT_USES_RA( pxEndPoint )		( ( ( pxEndPoint ) != NULL ) && ( ( pxEndPoint )->bits.bIPv6 != pdFALSE_UNSIGNED ) && ( ( pxEndPoint )->bits.bWantRA != pdFALSE_UNSIGNED ) )
 
 	#define ENDPOINT_IS_IPv4( pxEndPoint ) ( ( ( pxEndPoint ) != NULL ) && ( ( pxEndPoint )->bits.bIPv6 == 0U ) )
@@ -273,7 +282,7 @@ NetworkEndPoint_t *FreeRTOS_FindEndPointOnNetMask( uint32_t ulIPAddress, uint32_
 NetworkEndPoint_t *FreeRTOS_InterfaceEndPointOnNetMask( NetworkInterface_t *pxInterface, uint32_t ulIPAddress, uint32_t ulWhere );
 
 #if( ipconfigUSE_IPv6 != 0 )
-	NetworkEndPoint_t *FreeRTOS_FindEndPointOnNetMask_IPv6( IPv6_Address_t *pxIPv6Address );
+	NetworkEndPoint_t *FreeRTOS_FindEndPointOnNetMask_IPv6( const IPv6_Address_t *pxIPv6Address );
 #endif /* ipconfigUSE_IPv6 */
 
 #if( ipconfigUSE_IPv6 != 0 )

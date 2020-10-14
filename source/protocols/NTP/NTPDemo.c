@@ -1,5 +1,5 @@
 /*
- * FreeRTOS+TCP V2.2.1
+ * FreeRTOS+TCP V2.3.0
  * Copyright (C) 2017 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -49,12 +49,23 @@
 #include "FreeRTOS_Stream_Buffer.h"
 
 /* Use the date & time functions from +FAT. */
-#include "ff_time.h"
+#if( USE_PLUS_FAT != 0 )
+	#include "ff_time.h"
+#endif	/* ( USE_PLUS_FAT != 0 ) */
 
 #include "NTPDemo.h"
 #include "ntpClient.h"
 
 #include "date_and_time.h"
+
+#if( ipconfigDNS_USE_CALLBACKS == 0 )
+	#error ipconfigDNS_USE_CALLBACKS must be 1
+#endif
+
+#warning Testing developing
+void dump_packet( const uint8_t *pucBuffer, size_t uxLength );
+
+int stime(const time_t *t);
 
 enum EStatus {
 	EStatusLookup,
@@ -65,11 +76,19 @@ enum EStatus {
 
 static struct SNtpPacket xNTPPacket;
 
+BaseType_t xNTPHasTime;
+uint32_t ulNTPTime;
+
 #if( ipconfigUSE_CALLBACKS == 0 )
 	static char cRecvBuffer[ sizeof( struct SNtpPacket ) + 64 ];
 #endif
 
 static enum EStatus xStatus = EStatusLookup;
+
+static BaseType_t xIPFamily = FREERTOS_AF_INET6;
+#if( ipconfigMULTI_INTERFACE != 0 )
+	struct freertos_addrinfo *pxDNSResult;
+#endif
 
 static const char *pcTimeServers[] = {
 	"0.asia.pool.ntp.org",
@@ -82,6 +101,11 @@ static const char *pcTimeServers[] = {
 
 static SemaphoreHandle_t xNTPWakeupSem = NULL;
 static uint32_t ulIPAddressFound;
+
+#if( ipconfigUSE_IPv6 != 0 )
+static IPv6_Address_t xAddressFound;
+#endif
+
 static Socket_t xUDPSocket = NULL;
 static TaskHandle_t xNTPTaskhandle = NULL;
 static TickType_t uxSendTime;
@@ -165,9 +189,52 @@ void vStartNTPTask( uint16_t usTaskStackSize, UBaseType_t uxTaskPriority )
 /*-----------------------------------------------------------*/
 
 #if( ipconfigUSE_IPv6 != 0 )
-static void vDNS_callback( const char *pcName, void *pvSearchID, struct freertos_sockaddr6 *pxAddress )
+static void vDNS_callback( const char *pcName, void *pvSearchID, struct freertos_addrinfo *pxAddrInfo )
 {
 	xStatus = EStatusAsking;
+
+	( void ) pvSearchID;
+
+	if( pxAddrInfo == NULL )
+	{
+		FreeRTOS_printf( ( "vDNS_callback: No IPv%c address found\n", ( xIPFamily == FREERTOS_AF_INET4 ) ? '4' : '6' ) );
+	}
+	else
+	{
+		switch( pxAddrInfo->ai_family )
+		{
+		case FREERTOS_AF_INET4:
+			{
+				char pcBuf[16];
+				uint32_t ulIPAddress;
+
+				/* The DNS lookup has a result, or it has reached the time-out. */
+				ulIPAddress = pxAddrInfo->ai_addr->sin_addr;
+				FreeRTOS_inet_ntoa( ulIPAddress, pcBuf );
+				FreeRTOS_printf( ( "vDNS_callback: IP address of %s found: %s\n", pcName, pcBuf ) );
+				if( ulIPAddressFound == 0ul )
+				{
+					ulIPAddressFound = FreeRTOS_inet_addr_quick( 162, 159, 200, 1 );
+				}
+			}
+			break;
+		case FREERTOS_AF_INET6:
+			{
+			const struct freertos_sockaddr6 *pxAddress6 = ( const struct freertos_sockaddr6 * ) pxAddrInfo->ai_addr;
+
+				FreeRTOS_printf( ( "vDNS_callback: IPv6 replied: %pip\n", pxAddress6->sin_addrv6.ucBytes ) );
+				memcpy( xAddressFound.ucBytes, pxAddress6->sin_addrv6.ucBytes, sizeof( xAddressFound.ucBytes ) );
+				/* Indicate that an address has been found. */
+				ulIPAddressFound = 1U;
+			}
+			break;
+		default:
+			{
+				FreeRTOS_printf( ( "vDNS_callback: address family %02lx not supported\n", pxAddrInfo->ai_family ) );
+			}
+			break;
+		}
+	}
 
 	vSignalTask();
 }
@@ -223,9 +290,9 @@ static void prvNTPPacketInit( )
 
 	xNTPPacket.flags = 0xDB;				/* value 0xDB : mode 3 (client), version 3, leap indicator unknown 3 */
 	xNTPPacket.poll = 10;					/* 10 means 1 << 10 = 1024 seconds */
-	xNTPPacket.precision = 0xFA;			/* = 250 = 0.015625 seconds */
-	xNTPPacket.rootDelay = 0x5D2E;			/* 0x5D2E = 23854 or (23854/65535)= 0.3640 sec */
-	xNTPPacket.rootDispersion = 0x0008CAC8;	/* 0x0008CAC8 = 8.7912  seconds */
+	xNTPPacket.precision = 0xE9;			/* = 250 = 0.015625 seconds */
+	xNTPPacket.rootDelay = 0x00001087;		/* 0x5D2E = 23854 or (23854/65535)= 0.3640 sec */
+	xNTPPacket.rootDispersion = 0x00091FC7;	/* 0x0008CAC8 = 8.7912  seconds */
 
 	/* use the recorded NTP time */
 	time_t uxSecs = FreeRTOS_time( NULL );/* apTime may be NULL, returns seconds */
@@ -240,7 +307,11 @@ static void prvNTPPacketInit( )
 
 static void prvReadTime( struct SNtpPacket * pxPacket )
 {
-FF_TimeStruct_t xTimeStruct;
+#if( USE_PLUS_FAT != 0 )
+	FF_TimeStruct_t xTimeStruct;
+#else
+	struct tm  xTimeStruct;;
+#endif
 
 	time_t uxPreviousSeconds;
 	time_t uxPreviousMS;
@@ -256,6 +327,20 @@ FF_TimeStruct_t xTimeStruct;
 
 	/* Transform the contents of the fields from big to native endian. */
 	prvSwapFields( pxPacket );
+
+	FreeRTOS_printf( ( "Stratum 0x%02x Poll %u Prec %u Dely %u\n",
+	  /** Stratum of the clock. */
+	  ( int ) pxPacket->stratum,  // value 0 : unspecified
+	  /** Maximum interval between successive messages, in log2 seconds. Note that the value is signed. */
+	  ( unsigned ) pxPacket->poll,  // 10 means 1 << 10 = 1024 seconds
+	  /** Precision of the clock, in log2 seconds. Note that the value is signed. */
+	  ( unsigned ) pxPacket->precision, // 0xFA = 250 = 0.015625 seconds
+	  /** Round trip time to the primary reference source, in NTP short format. */
+	  ( unsigned ) pxPacket->rootDelay ) ); // 0x5D2E = 23854 or (23854/65535)= 0.3640 sec
+
+	FreeRTOS_printf( ( "Time %u frac %u\n",
+		( unsigned ) ( pxPacket->receiveTimestamp.seconds - TIME1970 ),
+		( unsigned ) ( pxPacket->receiveTimestamp.fraction / 4294967U ) ) );
 
 	uxCurrentSeconds = pxPacket->receiveTimestamp.seconds - TIME1970;
 	uxCurrentMS = pxPacket->receiveTimestamp.fraction / 4294967;
@@ -293,7 +378,11 @@ FF_TimeStruct_t xTimeStruct;
 	}
 	uxCurrentSeconds -= iTimeZone;
 
+#if( USE_PLUS_FAT != 0 )
 	FreeRTOS_gmtime_r( &uxCurrentSeconds, &xTimeStruct );
+#else
+	gmtime_r( &uxCurrentSeconds, &xTimeStruct );
+#endif	/* ( USE_PLUS_FAT != 0 ) */
 
 	/*
 		378.067 [NTP client] NTP time: 9/11/2015 16:11:19.559 Diff -20 ms (289 ms)
@@ -312,6 +401,10 @@ FF_TimeStruct_t xTimeStruct;
 		pcTimeUnit,
 		uxTravelTime ) );
 
+	xNTPHasTime = pdTRUE;
+	ulNTPTime = uxCurrentSeconds;
+	stime( &uxCurrentSeconds );
+
 	/* Remove compiler warnings in case FreeRTOS_printf() is not used. */
 	( void ) pcTimeUnit;
 	( void ) uxTravelTime;
@@ -323,8 +416,14 @@ FF_TimeStruct_t xTimeStruct;
 	static BaseType_t xOnUDPReceive( Socket_t xSocket, void * pvData, size_t xLength,
 		const struct freertos_sockaddr *pxFrom, const struct freertos_sockaddr *pxDest )
 	{
+		( void ) xSocket;
+		( void ) pxDest;
+
 		if( xLength >= sizeof( xNTPPacket ) )
 		{
+FreeRTOS_printf( ( "Recv NTP from %xip:%u\n", ( unsigned ) FreeRTOS_ntohl( pxFrom->sin_addr ), FreeRTOS_ntohs( pxFrom->sin_port ) ) );
+dump_packet( ( const uint8_t * )pvData, xLength );
+
 			prvReadTime( ( struct SNtpPacket *)pvData );
 			if( xStatus != EStatusPause )
 			{
@@ -346,6 +445,8 @@ struct freertos_sockaddr xAddress;
 #if( ipconfigUSE_CALLBACKS != 0 )
 	F_TCP_UDP_Handler_t xHandler;
 #endif /* ipconfigUSE_CALLBACKS != 0 */
+
+	( void ) pvParameters;
 
 	xStatus = EStatusLookup;
 	#if( ipconfigSOCKET_HAS_USER_SEMAPHORE != 0 ) || ( ipconfigUSE_CALLBACKS != 0 )
@@ -373,33 +474,83 @@ struct freertos_sockaddr xAddress;
 		case EStatusLookup:
 			if( ( ulIPAddressFound == 0ul ) || ( ulIPAddressFound == ~0ul ) )
 			{
+			char pcHostName[ 65 ];
+				snprintf( pcHostName, sizeof pcHostName, "%s", pcTimeServers[ xServerIndex ] );
+
 				if( ++xServerIndex == sizeof( pcTimeServers ) / sizeof( pcTimeServers[ 0 ] ) )
 				{
 					xServerIndex = 0;
+					if( xIPFamily == FREERTOS_AF_INET6 )
+					{
+						xIPFamily = FREERTOS_AF_INET4;
+					}
+					else
+					{
+						xIPFamily = FREERTOS_AF_INET6;
+					}
 				}
-				FreeRTOS_printf( ( "Looking up server '%s'\n", pcTimeServers[ xServerIndex ] ) );
-				FreeRTOS_gethostbyname_a( pcTimeServers[ xServerIndex ], vDNS_callback, (void *)NULL, 1200 );
+				if( xIPFamily == FREERTOS_AF_INET6 )
+				{
+					pcHostName[ 0 ] = '2';
+				}
+				FreeRTOS_printf( ( "Looking up server '%s' with IPv%c\n", pcTimeServers[ xServerIndex ], ( xIPFamily == FREERTOS_AF_INET4 ) ? '4' : '6' ) );
+				/* The asynchronous verions of FreeRTOS_getaddrinfo(). */
+			#if( ipconfigMULTI_INTERFACE != 0 )
+				{
+				struct freertos_addrinfo xHints;
+
+					memset( &( xHints ) , 0, sizeof( xHints ) );
+					xHints.ai_family = xIPFamily;
+					FreeRTOS_getaddrinfo_a( pcHostName,			/* The name of the node or device */
+											NULL,				/* pcService: Ignored for now. */
+											&( xHints ),		/* If not NULL: preferences. */
+											&( pxDNSResult ),	/* An allocated struct, containing the results. */
+											vDNS_callback,
+											NULL,				/* void *pvSearchID, */
+											3000U );			/* Time-out. */
+				}
+			#else
+				{
+					FreeRTOS_gethostbyname_a( pcHostName, vDNS_callback, (void *)NULL, 3000U );
+				}
+			#endif /* ( ipconfigMULTI_INTERFACE != 0 ) */
 			}
 			else
 			{
+FreeRTOS_printf( ( "Server found at %xip\n", ( unsigned ) ulIPAddressFound ) );
 				xStatus = EStatusAsking;
 			}
 			break;
 
 		case EStatusAsking:
 			{
-			char pcBuf[16];
-
 				prvNTPPacketInit( );
-				xAddress.sin_addr = ulIPAddressFound;
-				xAddress.sin_port = FreeRTOS_htons( NTP_PORT );
-
-				FreeRTOS_inet_ntoa( xAddress.sin_addr, pcBuf );
-				FreeRTOS_printf( ( "Sending UDP message to %s:%u\n",
-					pcBuf,
-					FreeRTOS_ntohs( xAddress.sin_port ) ) );
+				memset( &( xAddress ), 0, sizeof ( xAddress ) );
+				#if( ipconfigUSE_IPv6 != 0 )
+				if( xIPFamily == FREERTOS_AF_INET6 )
+				{
+					struct freertos_sockaddr6 *pxAddress6 = ( struct freertos_sockaddr6 * ) &( xAddress );
+					pxAddress6->sin_port = FreeRTOS_htons( NTP_PORT );
+					memcpy( pxAddress6->sin_addrv6.ucBytes, xAddressFound.ucBytes, sizeof  pxAddress6->sin_addrv6.ucBytes );
+					pxAddress6->sin_family = FREERTOS_AF_INET6;
+					FreeRTOS_printf( ( "Sending UDP message to %pip port %u\n",
+						pxAddress6->sin_addrv6.ucBytes,
+						( unsigned ) FreeRTOS_ntohs( pxAddress6->sin_port ) ) );
+				}
+				else
+				#endif
+				{
+					xAddress.sin_addr = ulIPAddressFound;
+					xAddress.sin_port = FreeRTOS_htons( NTP_PORT );
+					xAddress.sin_family = FREERTOS_AF_INET;
+					FreeRTOS_printf( ( "Sending UDP message to %xip port %u\n",
+						( unsigned ) FreeRTOS_ntohl( ulIPAddressFound ),
+						( unsigned ) FreeRTOS_ntohs( xAddress.sin_port ) ) );
+				}
 
 				uxSendTime = xTaskGetTickCount( );
+FreeRTOS_printf( ( "Send NTP \n" ) );
+dump_packet( ( const uint8_t * )&xNTPPacket, sizeof( xNTPPacket ) );
 				FreeRTOS_sendto( xUDPSocket, ( void * )&xNTPPacket, sizeof( xNTPPacket ), 0, &xAddress, sizeof( xAddress ) );
 			}
 			break;

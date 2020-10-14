@@ -1,5 +1,5 @@
 /*
- * FreeRTOS+TCP V2.2.1
+ * FreeRTOS+TCP V2.3.0
  * Copyright (C) 2017 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -187,7 +187,7 @@ BaseType_t FreeRTOS_getaddrinfo( const char *pcName,						/* The name of the nod
  * allocated structure.  This pointer must be released by the user by calling
  * FreeRTOS_freeaddrinfo().
  */
-void FreeRTOS_freeaddrinfo( struct freertos_addrinfo *pxResult );
+void FreeRTOS_freeaddrinfo( struct freertos_addrinfo *pxInfo );
 
 /*
  * The function vDNSInitialise() initialises the DNS module.

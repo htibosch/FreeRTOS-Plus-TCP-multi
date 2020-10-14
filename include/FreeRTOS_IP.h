@@ -1,5 +1,5 @@
 /*
- * FreeRTOS+TCP V2.2.1
+ * FreeRTOS+TCP V2.3.0
  * Copyright (C) 2017 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -92,8 +92,8 @@ extern uint32_t ulApplicationGetNextSequenceNumber( uint32_t ulSourceAddress,
 													uint16_t usDestinationPort );
 
 /* The number of octets in the MAC and IP addresses respectively. */
-#define ipMAC_ADDRESS_LENGTH_BYTES ( 6 )
-#define ipIP_ADDRESS_LENGTH_BYTES ( 4 )
+#define ipMAC_ADDRESS_LENGTH_BYTES	( 6U )
+#define ipIP_ADDRESS_LENGTH_BYTES	( 4U )
 
 /* IP protocol definitions. */
 #define ipPROTOCOL_EXT_HEADER	( 0U )	/* Extension header, IPv6 only. */
@@ -305,6 +305,28 @@ that network interfaces and IP-addresses have been added using the functions
 from FreeRTOS_Routing.h. */
 BaseType_t FreeRTOS_IPStart( void );
 
+#if( ipconfigCOMPATIBLE_WITH_SINGLE != 0 )
+	/* The following function is only provided to allow backward compatibility
+	with the earlier version of FreeRTOS+TCP which had a single interface only. */
+	BaseType_t FreeRTOS_IPInit( const uint8_t ucIPAddress[ ipIP_ADDRESS_LENGTH_BYTES ],
+		const uint8_t ucNetMask[ ipIP_ADDRESS_LENGTH_BYTES ],
+		const uint8_t ucGatewayAddress[ ipIP_ADDRESS_LENGTH_BYTES ],
+		const uint8_t ucDNSServerAddress[ ipIP_ADDRESS_LENGTH_BYTES ],
+		const uint8_t ucMACAddress[ ipMAC_ADDRESS_LENGTH_BYTES ] );
+	/* The following 2 functions also assume that there is only 1 betwork interface.
+	The new function are called: FreeRTOS_GetEndPointConfiguration() and
+	FreeRTOS_SetEndPointConfiguration(), see below. */
+	void FreeRTOS_GetAddressConfiguration( uint32_t *pulIPAddress,
+										uint32_t *pulNetMask,
+										uint32_t *pulGatewayAddress,
+										uint32_t *pulDNSServerAddress );
+	
+	void FreeRTOS_SetAddressConfiguration( const uint32_t *pulIPAddress,
+										const uint32_t *pulNetMask,
+										const uint32_t *pulGatewayAddress,
+										const uint32_t *pulDNSServerAddress );
+#endif
+
 #if( ipconfigUSE_IPv6 != 0 )
 	/* The last parameter is either ipTYPE_IPv4 or ipTYPE_IPv6. */
 	void * FreeRTOS_GetUDPPayloadBuffer( size_t uxRequestedSizeBytes, TickType_t uxBlockTimeTicks, uint8_t ucIPType );
@@ -322,23 +344,29 @@ uint8_t *pcNetworkBuffer_to_UDPPayloadBuffer( NetworkBufferDescriptor_t *pxNetwo
  * This function already existed in the release with the single-interface.
  * Only the first parameters is new: an end-point
  */
-void FreeRTOS_GetAddressConfiguration( uint32_t *pulIPAddress,
-									   uint32_t *pulNetMask,
-									   uint32_t *pulGatewayAddress,
-									   uint32_t *pulDNSServerAddress,
-									   struct xNetworkEndPoint *pxEndPoint );
+void FreeRTOS_GetEndPointConfiguration( uint32_t *pulIPAddress,
+										uint32_t *pulNetMask,
+										uint32_t *pulGatewayAddress,
+										uint32_t *pulDNSServerAddress,
+										struct xNetworkEndPoint *pxEndPoint );
 
-void FreeRTOS_SetAddressConfiguration( const uint32_t *pulIPAddress,
-									   const uint32_t *pulNetMask,
-									   const uint32_t *pulGatewayAddress,
-									   const uint32_t *pulDNSServerAddress,
-									   struct xNetworkEndPoint *pxEndPoint );
+void FreeRTOS_SetEndPointConfiguration( const uint32_t *pulIPAddress,
+										const uint32_t *pulNetMask,
+										const uint32_t *pulGatewayAddress,
+										const uint32_t *pulDNSServerAddress,
+										struct xNetworkEndPoint *pxEndPoint );
 
 BaseType_t FreeRTOS_SendPingRequest( uint32_t ulIPAddress, size_t uxNumberOfBytesToSend, TickType_t uxBlockTimeTicks );
 void FreeRTOS_ReleaseUDPPayloadBuffer( void *pvBuffer );
 /* _HT_ FreeRTOS_GetMACAddress() can not continue to exist with multiple interfaces.*/
 //const uint8_t * FreeRTOS_GetMACAddress( void );
-void vApplicationIPNetworkEventHook( eIPCallbackEvent_t eNetworkEvent, struct xNetworkEndPoint *pxEndPoint );
+
+#if( ipconfigCOMPATIBLE_WITH_SINGLE == 0 )
+	void vApplicationIPNetworkEventHook( eIPCallbackEvent_t eNetworkEvent, struct xNetworkEndPoint *pxEndPoint );
+#else
+	void vApplicationIPNetworkEventHook( eIPCallbackEvent_t eNetworkEvent );
+#endif
+
 void vApplicationPingReplyHook( ePingReplyStatus_t eStatus, uint16_t usIdentifier );
 uint32_t FreeRTOS_GetIPAddress( void );
 /*

@@ -4,7 +4,7 @@
  */
 
 /*
-FreeRTOS+TCP V2.2.1
+FreeRTOS+TCP V2.3.0
 Copyright (C) 2017 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -561,7 +561,7 @@ BaseType_t xMACEntry = ETH_MAC_ADDRESS1;	/* ETH_MAC_ADDRESS0 reserved for the pr
 		}
 		#if( ipconfigUSE_IPv6 != 0 )
 		{
-			if( xMACEntry <= ETH_MAC_ADDRESS3 )
+			if( xMACEntry <= ( BaseType_t ) ETH_MAC_ADDRESS3 )
 			{
 				/* 33:33:00:00:00:01 */
 				uint8_t ucMACAddress[ 6 ] = { 0x33, 0x33, 0, 0, 0, 0x01 };
