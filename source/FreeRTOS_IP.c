@@ -1,6 +1,6 @@
 /*
  * FreeRTOS+TCP V2.3.0
- * Copyright (C) 2017 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -1756,13 +1756,13 @@ NetworkEndPoint_t *pxEndPoint;
 			#if( ipconfigUSE_DHCP == 1 )
 			if( END_POINT_USES_DHCP( pxEndPoint ) )
 			{
-				#if( ipconfigUSE_IPv6 != 0 )
+				#if( ipconfigUSE_DHCPv6 != 0 )
 				if( pxEndPoint->bits.bIPv6 != pdFALSE_UNSIGNED )
 				{
 					vDHCPv6Process( pdTRUE, pxEndPoint );
 				}
 				else
-				#endif /* ipconfigUSE_IPv6 */
+				#endif /* ipconfigUSE_DHCPv6 */
 				{
 					/* Reset the DHCP process for this end-point. */
 					vDHCPProcess( pdTRUE, pxEndPoint );

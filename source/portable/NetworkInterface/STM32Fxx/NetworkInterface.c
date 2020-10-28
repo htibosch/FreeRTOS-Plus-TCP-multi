@@ -600,6 +600,31 @@ BaseType_t xMACEntry = ETH_MAC_ADDRESS1;	/* ETH_MAC_ADDRESS0 reserved for the pr
 }
 /*-----------------------------------------------------------*/
 
+#if( ipconfigCOMPATIBLE_WITH_SINGLE != 0 )
+	/* Provide backward-compatibility with the earlier FreeRTOS+TCP which only had
+	single network interface. */
+	BaseType_t FreeRTOS_IPInit( const uint8_t ucIPAddress[ ipIP_ADDRESS_LENGTH_BYTES ],
+			const uint8_t ucNetMask[ ipIP_ADDRESS_LENGTH_BYTES ],
+			const uint8_t ucGatewayAddress[ ipIP_ADDRESS_LENGTH_BYTES ],
+			const uint8_t ucDNSServerAddress[ ipIP_ADDRESS_LENGTH_BYTES ],
+			const uint8_t ucMACAddressP[ ipMAC_ADDRESS_LENGTH_BYTES ] )
+	{
+	static NetworkInterface_t xInterfaces[ 1 ];
+	static NetworkEndPoint_t xEndPoints[ 1 ];
+
+		pxSTM32Fxx_FillInterfaceDescriptor( 0, &( xInterfaces[0] ) );
+		FreeRTOS_FillEndPoint( &( xInterfaces[0] ), &( xEndPoints[ 0 ] ), ucIPAddress, ucNetMask, ucGatewayAddress, ucDNSServerAddress, ucMACAddressP );
+		#if( ipconfigUSE_DHCP != 0 )
+		{
+			xEndPoints[ 0 ].bits.bWantDHCP = pdTRUE;
+		}
+		#endif	/* ipconfigUSE_DHCP */
+		FreeRTOS_IPStart();
+		return 1;
+	}
+#endif /* ( ipconfigCOMPATIBLE_WITH_SINGLE != 0 ) */	
+/*-----------------------------------------------------------*/
+
 static void prvDMATxDescListInit()
 {
 ETH_DMADescTypeDef *pxDMADescriptor;
@@ -750,15 +775,34 @@ const TickType_t xBlockTimeTicks = pdMS_TO_TICKS( 50u );
 		}
 		#if( ipconfigDRIVER_INCLUDED_TX_IP_CHECKSUM != 0 )
 		{
-		ProtocolPacket_t *pxPacket;
+		const IPPacket_t * pxIPPacket;
 
-			/* If the peripheral must calculate the checksum, it wants
-			the protocol checksum to have a value of zero. */
-			pxPacket = ( ProtocolPacket_t * ) ( pxDescriptor->pucEthernetBuffer );
-
-			if( pxPacket->xICMPPacket.xIPHeader.ucProtocol == ( uint8_t ) ipPROTOCOL_ICMP )
+			pxIPPacket = ipPOINTER_CAST( const IPPacket_t *, pxDescriptor->pucEthernetBuffer );
+		#if( ipconfigUSE_IPv6 != 0 )
+			if( pxIPPacket->xEthernetHeader.usFrameType == ipIPv6_FRAME_TYPE )
 			{
-				pxPacket->xICMPPacket.xICMPHeader.usChecksum = ( uint16_t )0u;
+			const IPHeader_IPv6_t * pxIPPacket_IPv6;
+
+				pxIPPacket_IPv6 = ipPOINTER_CAST( const IPHeader_IPv6_t *, &( pxDescriptor->pucEthernetBuffer[ ipSIZE_OF_ETH_HEADER ] ) );
+				if( pxIPPacket_IPv6->ucNextHeader == ( uint8_t ) ipPROTOCOL_ICMP )
+				{
+				ICMPHeader_IPv6_t *pxICMPHeader_IPv6;
+
+					pxICMPHeader_IPv6 = ipPOINTER_CAST( ICMPHeader_IPv6_t *, &( pxDescriptor->pucEthernetBuffer[ ipSIZE_OF_ETH_HEADER + ipSIZE_OF_IPv6_HEADER ] ) );
+					pxICMPHeader_IPv6->usChecksum = 0U;
+				}
+			}
+			else
+		#endif
+			if( pxIPPacket->xEthernetHeader.usFrameType == ipIPv4_FRAME_TYPE )
+			{
+				if( pxIPPacket->xIPHeader.ucProtocol == ( uint8_t ) ipPROTOCOL_ICMP )
+				{
+				ICMPHeader_t *pxICMPHeader;
+
+					pxICMPHeader = ipPOINTER_CAST( ICMPHeader_t *, &( pxDescriptor->pucEthernetBuffer[ ipSIZE_OF_ETH_HEADER + ipSIZE_OF_IPv4_HEADER ] ) );
+					pxICMPHeader->usChecksum = ( uint16_t ) 0U;
+				}
 			}
 		}
 		#endif /* ipconfigDRIVER_INCLUDED_TX_IP_CHECKSUM */
@@ -1036,6 +1080,7 @@ uint8_t *pucBuffer;
 			/* Find out which Network Buffer was originally passed to the descriptor. */
 			pxCurDescriptor = pxPacketBuffer_to_NetworkBuffer( pucBuffer );
 			configASSERT( pxCurDescriptor != NULL );
+			configASSERT( pxCurDescriptor->pucEthernetBuffer != NULL );
 		}
 		#else
 		{

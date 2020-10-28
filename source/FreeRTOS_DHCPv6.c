@@ -1,6 +1,6 @@
 /*
  * FreeRTOS+TCP V2.3.0
- * Copyright (C) 2022 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -59,6 +59,12 @@
 
 #define DHCPv6_CLIENT_PORT											546U
 #define DHCPv6_SERVER_PORT											547U
+
+/* Timer parameters */
+#ifndef dhcpINITIAL_DHCP_TX_PERIOD
+	#define dhcpINITIAL_TIMER_PERIOD			( pdMS_TO_TICKS( 250U ) )
+	#define dhcpINITIAL_DHCP_TX_PERIOD			( pdMS_TO_TICKS( 5000U ) )
+#endif
 
 /* IPv6 optoin numbers. */
 
@@ -1064,8 +1070,6 @@ uint32_t ulOptionsReceived = 0U;
 }
 /*-----------------------------------------------------------*/
 
-#endif	/* ( ipconfigUSE_IPv6 != 0 ) */
-
 static const char *prvStateName( eDHCPState_t eState )
 {
 	switch (eState)
@@ -1082,3 +1086,5 @@ static const char *prvStateName( eDHCPState_t eState )
 	}
 	return "Unknown state";
 }
+
+#endif	/* ( ipconfigUSE_IPv6 != 0 ) */

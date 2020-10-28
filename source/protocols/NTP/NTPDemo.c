@@ -62,9 +62,6 @@
 	#error ipconfigDNS_USE_CALLBACKS must be 1
 #endif
 
-#warning Testing developing
-void dump_packet( const uint8_t *pucBuffer, size_t uxLength );
-
 int stime(const time_t *t);
 
 enum EStatus {
@@ -422,7 +419,6 @@ static void prvReadTime( struct SNtpPacket * pxPacket )
 		if( xLength >= sizeof( xNTPPacket ) )
 		{
 FreeRTOS_printf( ( "Recv NTP from %xip:%u\n", ( unsigned ) FreeRTOS_ntohl( pxFrom->sin_addr ), FreeRTOS_ntohs( pxFrom->sin_port ) ) );
-dump_packet( ( const uint8_t * )pvData, xLength );
 
 			prvReadTime( ( struct SNtpPacket *)pvData );
 			if( xStatus != EStatusPause )
@@ -550,7 +546,7 @@ FreeRTOS_printf( ( "Server found at %xip\n", ( unsigned ) ulIPAddressFound ) );
 
 				uxSendTime = xTaskGetTickCount( );
 FreeRTOS_printf( ( "Send NTP \n" ) );
-dump_packet( ( const uint8_t * )&xNTPPacket, sizeof( xNTPPacket ) );
+
 				FreeRTOS_sendto( xUDPSocket, ( void * )&xNTPPacket, sizeof( xNTPPacket ), 0, &xAddress, sizeof( xAddress ) );
 			}
 			break;
