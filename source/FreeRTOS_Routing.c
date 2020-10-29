@@ -900,5 +900,3 @@ uint32_t ulIPAddress;
 	( void ) FreeRTOS_AddEndPoint( pxNetworkInterface, pxEndPoint );
 }
 /*-----------------------------------------------------------*/
-
-#endif /* ( ipconfigCOMPATIBLE_WITH_SINGLE == 0 ) */

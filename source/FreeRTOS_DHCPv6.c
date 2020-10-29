@@ -38,7 +38,7 @@
 /* FreeRTOS+TCP includes. */
 #include "FreeRTOS_IP.h"
 
-#if( ipconfigUSE_IPv6 != 0 )
+#if( ipconfigUSE_IPv6 != 0 ) && ( ipconfigUSE_DHCPv6 != 0 )
 
 #include "FreeRTOS_Sockets.h"
 #include "FreeRTOS_DHCPv6.h"
@@ -1087,4 +1087,4 @@ static const char *prvStateName( eDHCPState_t eState )
 	return "Unknown state";
 }
 
-#endif	/* ( ipconfigUSE_IPv6 != 0 ) */
+#endif	/* ( ipconfigUSE_IPv6 != 0 ) && ( ipconfigUSE_DHCPv6 != 0 ) */
