@@ -42,21 +42,21 @@
  * http://aws.amazon.com/freertos
  * http://www.FreeRTOS.org
  */
-#ifndef	BUFFERTESTING_H
+#ifndef BUFFERTESTING_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+    #ifdef __cplusplus
+        extern "C" {
+    #endif
 
-extern BaseType_t xBufferTestingPrepare( size_t uxSize );
+    extern BaseType_t xBufferTestingPrepare( size_t uxSize );
 
-extern size_t xBufferSendCounts[ 2 ], xBufferRecvCounts[ 2 ];
+    extern size_t xBufferSendCounts[ 2 ], xBufferRecvCounts[ 2 ];
 
-extern BaseType_t xBufferTestingContentsCheck;
-extern BaseType_t xBufferTestingStop;
+    extern BaseType_t xBufferTestingContentsCheck;
+    extern BaseType_t xBufferTestingStop;
 
-#ifdef __cplusplus
-}	/* extern "C" */
-#endif
+    #ifdef __cplusplus
+        } /* extern "C" */
+    #endif
 
-#endif
+#endif /* ifndef BUFFERTESTING_H */

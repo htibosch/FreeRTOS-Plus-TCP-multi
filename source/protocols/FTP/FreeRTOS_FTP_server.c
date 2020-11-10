@@ -1,5 +1,5 @@
 /*
- * FreeRTOS+TCP V2.3.0
+ * FreeRTOS+TCP V2.3.1
  * Copyright (C) 2017 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -2182,7 +2182,7 @@ static const char pcMonthList[] = "JanFebMarAprMayJunJulAugSepOctNovDec";
 
 static BaseType_t prvGetFileInfoStat( FF_DirEnt_t *pxEntry, char *pcLine, BaseType_t xMaxLength )
 {
-	char date[ 16 ];
+	char date[ 40 ];
 	char mode[ 11 ]	= "----------";
 	BaseType_t st_nlink = 1;
 	const char user[ 9 ] = "freertos";
