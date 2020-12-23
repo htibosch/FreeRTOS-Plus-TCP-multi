@@ -1,6 +1,6 @@
 /*
  * FreeRTOS+TCP V2.3.1
- * Copyright (C) 2017 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -43,45 +43,63 @@
 #include "NetworkBufferManagement.h"
 #include "NetworkInterface.h"
 
-#if( ipconfigUSE_LOOPBACK == 0 )
+#if ( ipconfigUSE_LOOPBACK == 0 )
 	#error Please define ipconfigUSE_LOOPBACK as 1 if you want to use the loop-back interface
 #endif
 
-#define ipICMP_ECHO_REQUEST				( ( uint8_t ) 8 )
-#define ipICMP_ECHO_REPLY				( ( uint8_t ) 0 )
+#define ipICMP_ECHO_REQUEST	   ( ( uint8_t ) 8 )
+#define ipICMP_ECHO_REPLY	   ( ( uint8_t ) 0 )
 
 /*-----------------------------------------------------------*/
 
-NetworkInterface_t *xLoopbackInterface;
+NetworkInterface_t * xLoopbackInterface;
 
-static BaseType_t prvLoopback_Initialise( NetworkInterface_t *pxInterface );
-static BaseType_t prvLoopback_Output( NetworkInterface_t *pxInterface, NetworkBufferDescriptor_t * const pxBuffer, BaseType_t bReleaseAfterSend );
-static BaseType_t prvLoopback_GetPhyLinkStatus( NetworkInterface_t *pxInterface );
+static BaseType_t prvLoopback_Initialise( NetworkInterface_t * pxInterface );
+static BaseType_t prvLoopback_Output( NetworkInterface_t * pxInterface,
+									  NetworkBufferDescriptor_t * const pxBuffer,
+									  BaseType_t bReleaseAfterSend );
+static BaseType_t prvLoopback_GetPhyLinkStatus( NetworkInterface_t * pxInterface );
+
+NetworkInterface_t * pxLoopback_FillInterfaceDescriptor( BaseType_t xEMACIndex,
+														 NetworkInterface_t * pxInterface );
 
 /*-----------------------------------------------------------*/
 
-static BaseType_t prvLoopback_Initialise( NetworkInterface_t *pxInterface )
+static BaseType_t prvLoopback_Initialise( NetworkInterface_t * pxInterface )
 {
 	/* When returning non-zero, the stack will become active and
-    start DHCP (in configured) */
+	 * start DHCP (in configured) */
 	( void ) pxInterface;
 	return pdTRUE;
 }
 /*-----------------------------------------------------------*/
 
-/* pxLoopback_FillInterfaceDescriptor() goes into the NetworkInterface.c of the SAM4e driver. */
+#if ( ipconfigCOMPATIBLE_WITH_SINGLE != 0 )
 
-NetworkInterface_t *pxLoopback_FillInterfaceDescriptor( BaseType_t xEMACIndex, NetworkInterface_t *pxInterface )
+/* Do not call the following function directly. It is there for downward compatibility.
+ * The function FreeRTOS_IPInit() will call it to initialice the interface and end-point
+ * objects.  See the description in FreeRTOS_Routing.h. */
+	NetworkInterface_t * pxFillInterfaceDescriptor( BaseType_t xEMACIndex,
+													NetworkInterface_t * pxInterface )
+	{
+		pxLoopback_FillInterfaceDescriptor( xEMACIndex, pxInterface );
+	}
+
+#endif /* ( ipconfigCOMPATIBLE_WITH_SINGLE != 0 ) */
+/*-----------------------------------------------------------*/
+
+NetworkInterface_t * pxLoopback_FillInterfaceDescriptor( BaseType_t xEMACIndex,
+														 NetworkInterface_t * pxInterface )
 {
 /* This function pxLoopback_FillInterfaceDescriptor() adds a network-interface.
-Make sure that the object pointed to by 'pxInterface'
-is declared static or global, and that it will remain to exist. */
+ * Make sure that the object pointed to by 'pxInterface'
+ * is declared static or global, and that it will remain to exist. */
 
 	memset( pxInterface, '\0', sizeof( *pxInterface ) );
-	pxInterface->pcName				= "Loopback";	/* Just for logging, debugging. */
-	pxInterface->pvArgument			= (void*)xEMACIndex;		/* Has only meaning for the driver functions. */
-	pxInterface->pfInitialise		= prvLoopback_Initialise;
-	pxInterface->pfOutput			= prvLoopback_Output;
+	pxInterface->pcName = "Loopback";                /* Just for logging, debugging. */
+	pxInterface->pvArgument = ( void * ) xEMACIndex; /* Has only meaning for the driver functions. */
+	pxInterface->pfInitialise = prvLoopback_Initialise;
+	pxInterface->pfOutput = prvLoopback_Output;
 	pxInterface->pfGetPhyLinkStatus = prvLoopback_GetPhyLinkStatus;
 	xLoopbackInterface = pxInterface;
 
@@ -89,7 +107,7 @@ is declared static or global, and that it will remain to exist. */
 }
 /*-----------------------------------------------------------*/
 
-static BaseType_t prvLoopback_GetPhyLinkStatus( NetworkInterface_t *pxInterface )
+static BaseType_t prvLoopback_GetPhyLinkStatus( NetworkInterface_t * pxInterface )
 {
 	/* This function returns true if the Link Status in the PHY is high. */
 	( void ) pxInterface;
@@ -97,21 +115,26 @@ static BaseType_t prvLoopback_GetPhyLinkStatus( NetworkInterface_t *pxInterface 
 }
 /*-----------------------------------------------------------*/
 
-static BaseType_t prvLoopback_Output( NetworkInterface_t *pxInterface, NetworkBufferDescriptor_t * const pxDescriptor, BaseType_t bReleaseAfterSend )
+static BaseType_t prvLoopback_Output( NetworkInterface_t * pxInterface,
+									  NetworkBufferDescriptor_t * const pxDescriptor,
+									  BaseType_t bReleaseAfterSend )
 {
 	( void ) pxInterface;
+
 	if( bReleaseAfterSend == pdFALSE )
 	{
-		NetworkBufferDescriptor_t *pxNewDescriptor =
+		NetworkBufferDescriptor_t * pxNewDescriptor =
 			pxDuplicateNetworkBufferWithDescriptor( pxDescriptor, pxDescriptor->xDataLength );
 		*( ( NetworkBufferDescriptor_t ** ) &pxDescriptor ) = pxNewDescriptor;
 	}
+
 	if( pxDescriptor )
 	{
-	IPStackEvent_t xRxEvent;
+		IPStackEvent_t xRxEvent;
 
 		xRxEvent.eEventType = eNetworkRxEvent;
 		xRxEvent.pvData = ( void * ) pxDescriptor;
+
 		if( xSendEventStructToIPTask( &xRxEvent, 0u ) != pdTRUE )
 		{
 			vReleaseNetworkBufferAndDescriptor( pxDescriptor );
@@ -119,6 +142,7 @@ static BaseType_t prvLoopback_Output( NetworkInterface_t *pxInterface, NetworkBu
 			FreeRTOS_printf( ( "prvEMACRxPoll: Can not queue return packet!\n" ) );
 		}
 	}
+
 	/* The return value is actually ignored by the IP-stack. */
 	return pdTRUE;
 }

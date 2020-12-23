@@ -50,24 +50,17 @@
 #include "NetworkBufferManagement.h"
 #include "FreeRTOS_Routing.h"
 
-/* A tool to measure RAM usage. By default, it is disabled
- * and it won't add any code.
- * See also tools/tcp_mem_stats.md */
-
-/*lint -e766 Header files is sometimes not used, depending on the configuration. */
-#include "tcp_mem_stats.h"
-
 /* The ItemValue of the sockets xBoundSocketListItem member holds the socket's
  * port number. */
 /** @brief Set the port number for the socket in the xBoundSocketListItem. */
-#define socketSET_SOCKET_PORT( pxSocket, usPort )    listSET_LIST_ITEM_VALUE( ( &( ( pxSocket )->xBoundSocketListItem ) ), ( usPort ) )
+#define socketSET_SOCKET_PORT( pxSocket, usPort )	 listSET_LIST_ITEM_VALUE( ( &( ( pxSocket )->xBoundSocketListItem ) ), ( usPort ) )
 /** @brief Get the port number for the socket in the xBoundSocketListItem. */
-#define socketGET_SOCKET_PORT( pxSocket )            listGET_LIST_ITEM_VALUE( ( &( ( pxSocket )->xBoundSocketListItem ) ) )
+#define socketGET_SOCKET_PORT( pxSocket )			 listGET_LIST_ITEM_VALUE( ( &( ( pxSocket )->xBoundSocketListItem ) ) )
 
 /** @brief Test if a socket it bound which means it is either included in
  *         xBoundUDPSocketsList or xBoundTCPSocketsList
  */
-#define socketSOCKET_IS_BOUND( pxSocket )            ( listLIST_ITEM_CONTAINER( &( pxSocket )->xBoundSocketListItem ) != NULL )
+#define socketSOCKET_IS_BOUND( pxSocket )			 ( listLIST_ITEM_CONTAINER( &( pxSocket )->xBoundSocketListItem ) != NULL )
 
 /** @brief If FreeRTOS_sendto() is called on a socket that is not bound to a port
  *         number then, depending on the FreeRTOSIPConfig.h settings, it might be
@@ -81,37 +74,37 @@
  *       or outbound).
  */
 #if !defined( socketAUTO_PORT_ALLOCATION_START_NUMBER )
-    #define socketAUTO_PORT_ALLOCATION_START_NUMBER    ( ( uint16_t ) 0x0400 )
+	#define socketAUTO_PORT_ALLOCATION_START_NUMBER    ( ( uint16_t ) 0x0400 )
 #endif
 
 /** @brief Maximum value of port number which can be auto assigned. */
-#define socketAUTO_PORT_ALLOCATION_MAX_NUMBER    ( ( uint16_t ) 0xffff )
+#define socketAUTO_PORT_ALLOCATION_MAX_NUMBER	 ( ( uint16_t ) 0xffff )
 
 /** @brief The number of octets that make up an IP address. */
-#define socketMAX_IP_ADDRESS_OCTETS              4U
+#define socketMAX_IP_ADDRESS_OCTETS				 4U
 
 /** @brief A block time of 0 simply means "don't block". */
-#define socketDONT_BLOCK                         ( ( TickType_t ) 0 )
+#define socketDONT_BLOCK						 ( ( TickType_t ) 0 )
 
 /** @brief TCP timer period in milliseconds. */
 #if ( ( ipconfigUSE_TCP == 1 ) && !defined( ipTCP_TIMER_PERIOD_MS ) )
-    #define ipTCP_TIMER_PERIOD_MS    ( 1000U )
+	#define ipTCP_TIMER_PERIOD_MS    ( 1000U )
 #endif
 
 /* Some helper macro's for defining the 20/80 % limits of uxLittleSpace / uxEnoughSpace. */
-#define sock20_PERCENT     20U  /**< 20% of the defined limit. */
-#define sock80_PERCENT     80U  /**< 80% of the defined limit. */
-#define sock100_PERCENT    100U /**< 100% of the defined limit. */
+#define sock20_PERCENT	   20U  /**< 20% of the defined limit. */
+#define sock80_PERCENT	   80U  /**< 80% of the defined limit. */
+#define sock100_PERCENT	   100U /**< 100% of the defined limit. */
 
 #if ( ipconfigUSE_CALLBACKS != 0 )
-    static portINLINE ipDECL_CAST_PTR_FUNC_FOR_TYPE( F_TCP_UDP_Handler_t )
-    {
-        return ( F_TCP_UDP_Handler_t * ) pvArgument;
-    }
-    static portINLINE ipDECL_CAST_CONST_PTR_FUNC_FOR_TYPE( F_TCP_UDP_Handler_t )
-    {
-        return ( const F_TCP_UDP_Handler_t * ) pvArgument;
-    }
+	static portINLINE ipDECL_CAST_PTR_FUNC_FOR_TYPE( F_TCP_UDP_Handler_t )
+	{
+		return ( F_TCP_UDP_Handler_t * ) pvArgument;
+	}
+	static portINLINE ipDECL_CAST_CONST_PTR_FUNC_FOR_TYPE( F_TCP_UDP_Handler_t )
+	{
+		return ( const F_TCP_UDP_Handler_t * ) pvArgument;
+	}
 #endif
 
 
@@ -122,7 +115,7 @@
  */
 static portINLINE ipDECL_CAST_PTR_FUNC_FOR_TYPE( NetworkBufferDescriptor_t )
 {
-    return ( NetworkBufferDescriptor_t * ) pvArgument;
+	return ( NetworkBufferDescriptor_t * ) pvArgument;
 }
 
 
@@ -133,7 +126,7 @@ static portINLINE ipDECL_CAST_PTR_FUNC_FOR_TYPE( NetworkBufferDescriptor_t )
  */
 static portINLINE ipDECL_CAST_PTR_FUNC_FOR_TYPE( StreamBuffer_t )
 {
-    return ( StreamBuffer_t * ) pvArgument;
+	return ( StreamBuffer_t * ) pvArgument;
 }
 /*-----------------------------------------------------------*/
 
@@ -149,40 +142,40 @@ static uint16_t prvGetPrivatePortNumber( BaseType_t xProtocol );
  * xWantedItemValue.  If there is no such list item return NULL.
  */
 static const ListItem_t * pxListFindListItemWithValue( const List_t * pxList,
-                                                       TickType_t xWantedItemValue );
+													   TickType_t xWantedItemValue );
 
 /*
  * Return pdTRUE only if pxSocket is valid and bound, as far as can be
  * determined.
  */
 static BaseType_t prvValidSocket( const FreeRTOS_Socket_t * pxSocket,
-                                  BaseType_t xProtocol,
-                                  BaseType_t xIsBound );
+								  BaseType_t xProtocol,
+								  BaseType_t xIsBound );
 
 /*
  * Internal function prvSockopt_so_buffer(): sets FREERTOS_SO_SNDBUF or
  * FREERTOS_SO_RCVBUF properties of a socket.
  */
 static BaseType_t prvSockopt_so_buffer( FreeRTOS_Socket_t * pxSocket,
-                                        int32_t lOptionName,
-                                        const void * pvOptionValue );
+										int32_t lOptionName,
+										const void * pvOptionValue );
 
 /*
  * Before creating a socket, check the validity of the parameters used
  * and find the size of the socket space, which is different for UDP and TCP
  */
 static BaseType_t prvDetermineSocketSize( BaseType_t xDomain,
-                                          BaseType_t xType,
-                                          BaseType_t xProtocol,
-                                          size_t * pxSocketSize );
+										  BaseType_t xType,
+										  BaseType_t xProtocol,
+										  size_t * pxSocketSize );
 
 #if ( ipconfigUSE_TCP == 1 )
 
 /*
  * Create a txStream or a rxStream, depending on the parameter 'xIsInputStream'
  */
-    static StreamBuffer_t * prvTCPCreateStream( FreeRTOS_Socket_t * pxSocket,
-                                                BaseType_t xIsInputStream );
+	static StreamBuffer_t * prvTCPCreateStream( FreeRTOS_Socket_t * pxSocket,
+												BaseType_t xIsInputStream );
 #endif /* ipconfigUSE_TCP == 1 */
 
 #if ( ipconfigUSE_TCP == 1 )
@@ -191,8 +184,8 @@ static BaseType_t prvDetermineSocketSize( BaseType_t xDomain,
  * Called from FreeRTOS_send(): some checks which will be done before
  * sending a TCP packed.
  */
-    static int32_t prvTCPSendCheck( FreeRTOS_Socket_t * pxSocket,
-                                    size_t uxDataLength );
+	static int32_t prvTCPSendCheck( FreeRTOS_Socket_t * pxSocket,
+									size_t uxDataLength );
 #endif /* ipconfigUSE_TCP */
 
 #if ( ipconfigUSE_TCP == 1 )
@@ -200,7 +193,7 @@ static BaseType_t prvDetermineSocketSize( BaseType_t xDomain,
 /*
  * When a child socket gets closed, make sure to update the child-count of the parent
  */
-    static void prvTCPSetSocketCount( FreeRTOS_Socket_t const * pxSocketToDelete );
+	static void prvTCPSetSocketCount( FreeRTOS_Socket_t const * pxSocketToDelete );
 #endif /* ipconfigUSE_TCP == 1 */
 
 #if ( ipconfigUSE_TCP == 1 )
@@ -209,8 +202,8 @@ static BaseType_t prvDetermineSocketSize( BaseType_t xDomain,
  * Called from FreeRTOS_connect(): make some checks and if allowed, send a
  * message to the IP-task to start connecting to a remote socket
  */
-    static BaseType_t prvTCPConnectStart( FreeRTOS_Socket_t * pxSocket,
-                                          struct freertos_sockaddr const * pxAddress );
+	static BaseType_t prvTCPConnectStart( FreeRTOS_Socket_t * pxSocket,
+										  struct freertos_sockaddr const * pxAddress );
 #endif /* ipconfigUSE_TCP */
 
 #if ( ipconfigUSE_TCP == 1 )
@@ -219,13 +212,13 @@ static BaseType_t prvDetermineSocketSize( BaseType_t xDomain,
  * Check if it makes any sense to wait for a connect event.
  * It may return: -EINPROGRESS, -EAGAIN, or 0 for OK.
  */
-    static BaseType_t bMayConnect( FreeRTOS_Socket_t const * pxSocket );
+	static BaseType_t bMayConnect( FreeRTOS_Socket_t const * pxSocket );
 #endif /* ipconfigUSE_TCP */
 
 #if ( ipconfigSUPPORT_SELECT_FUNCTION == 1 )
 
 /* Executed by the IP-task, it will check all sockets belonging to a set */
-    static void prvFindSelectedSocket( SocketSelect_t * pxSocketSet );
+	static void prvFindSelectedSocket( SocketSelect_t * pxSocketSet );
 
 #endif /* ipconfigSUPPORT_SELECT_FUNCTION == 1 */
 /*-----------------------------------------------------------*/
@@ -242,7 +235,7 @@ List_t xBoundUDPSocketsList;
  *         Accesses to this list must be protected by critical sections of
  *         some kind.
  */
-    List_t xBoundTCPSocketsList;
+	List_t xBoundTCPSocketsList;
 
 #endif /* ipconfigUSE_TCP == 1 */
 
@@ -259,31 +252,31 @@ List_t xBoundUDPSocketsList;
  *         is returned.
  */
 static BaseType_t prvValidSocket( const FreeRTOS_Socket_t * pxSocket,
-                                  BaseType_t xProtocol,
-                                  BaseType_t xIsBound )
+								  BaseType_t xProtocol,
+								  BaseType_t xIsBound )
 {
-    BaseType_t xReturn;
+	BaseType_t xReturn;
 
-    if( ( pxSocket == NULL ) || ( pxSocket == FREERTOS_INVALID_SOCKET ) )
-    {
-        xReturn = pdFALSE;
-    }
-    else if( ( xIsBound != pdFALSE ) && !socketSOCKET_IS_BOUND( pxSocket ) )
-    {
-        /* The caller expects the socket to be bound, but it isn't. */
-        xReturn = pdFALSE;
-    }
-    else if( pxSocket->ucProtocol != ( uint8_t ) xProtocol )
-    {
-        /* Socket has a wrong type (UDP != TCP). */
-        xReturn = pdFALSE;
-    }
-    else
-    {
-        xReturn = pdTRUE;
-    }
+	if( ( pxSocket == NULL ) || ( pxSocket == FREERTOS_INVALID_SOCKET ) )
+	{
+		xReturn = pdFALSE;
+	}
+	else if( ( xIsBound != pdFALSE ) && !socketSOCKET_IS_BOUND( pxSocket ) )
+	{
+		/* The caller expects the socket to be bound, but it isn't. */
+		xReturn = pdFALSE;
+	}
+	else if( pxSocket->ucProtocol != ( uint8_t ) xProtocol )
+	{
+		/* Socket has a wrong type (UDP != TCP). */
+		xReturn = pdFALSE;
+	}
+	else
+	{
+		xReturn = pdTRUE;
+	}
 
-    return xReturn;
+	return xReturn;
 }
 /*-----------------------------------------------------------*/
 
@@ -292,13 +285,13 @@ static BaseType_t prvValidSocket( const FreeRTOS_Socket_t * pxSocket,
  */
 void vNetworkSocketsInit( void )
 {
-    vListInitialise( &xBoundUDPSocketsList );
+	vListInitialise( &xBoundUDPSocketsList );
 
-    #if ( ipconfigUSE_TCP == 1 )
-        {
-            vListInitialise( &xBoundTCPSocketsList );
-        }
-    #endif /* ipconfigUSE_TCP == 1 */
+	#if ( ipconfigUSE_TCP == 1 )
+		{
+			vListInitialise( &xBoundTCPSocketsList );
+		}
+	#endif /* ipconfigUSE_TCP == 1 */
 }
 /*-----------------------------------------------------------*/
 
@@ -315,68 +308,68 @@ void vNetworkSocketsInit( void )
  *         correctly, else pdFAIL.
  */
 static BaseType_t prvDetermineSocketSize( BaseType_t xDomain,
-                                          BaseType_t xType,
-                                          BaseType_t xProtocol,
-                                          size_t * pxSocketSize )
+										  BaseType_t xType,
+										  BaseType_t xProtocol,
+										  size_t * pxSocketSize )
 {
-    BaseType_t xReturn = pdPASS;
-    FreeRTOS_Socket_t const * pxSocket = NULL;
+	BaseType_t xReturn = pdPASS;
+	FreeRTOS_Socket_t const * pxSocket = NULL;
 
-    /* Asserts must not appear before it has been determined that the network
-     * task is ready - otherwise the asserts will fail. */
-    if( xIPIsNetworkTaskReady() == pdFALSE )
-    {
-        xReturn = pdFAIL;
-    }
-    else
-    {
-        /* Only Ethernet is currently supported. */
-        configASSERT( xDomain == FREERTOS_AF_INET );
+	/* Asserts must not appear before it has been determined that the network
+	 * task is ready - otherwise the asserts will fail. */
+	if( xIPIsNetworkTaskReady() == pdFALSE )
+	{
+		xReturn = pdFAIL;
+	}
+	else
+	{
+		/* Only Ethernet is currently supported. */
+		configASSERT( xDomain == FREERTOS_AF_INET );
 
-        /* Check if the UDP socket-list has been initialised. */
-        configASSERT( listLIST_IS_INITIALISED( &xBoundUDPSocketsList ) );
-        #if ( ipconfigUSE_TCP == 1 )
-            {
-                /* Check if the TCP socket-list has been initialised. */
-                configASSERT( listLIST_IS_INITIALISED( &xBoundTCPSocketsList ) );
-            }
-        #endif /* ipconfigUSE_TCP == 1 */
+		/* Check if the UDP socket-list has been initialised. */
+		configASSERT( listLIST_IS_INITIALISED( &xBoundUDPSocketsList ) );
+		#if ( ipconfigUSE_TCP == 1 )
+			{
+				/* Check if the TCP socket-list has been initialised. */
+				configASSERT( listLIST_IS_INITIALISED( &xBoundTCPSocketsList ) );
+			}
+		#endif /* ipconfigUSE_TCP == 1 */
 
-        if( xProtocol == FREERTOS_IPPROTO_UDP )
-        {
-            if( xType != FREERTOS_SOCK_DGRAM )
-            {
-                xReturn = pdFAIL;
-                configASSERT( xReturn == pdPASS );
-            }
+		if( xProtocol == FREERTOS_IPPROTO_UDP )
+		{
+			if( xType != FREERTOS_SOCK_DGRAM )
+			{
+				xReturn = pdFAIL;
+				configASSERT( xReturn == pdPASS );
+			}
 
-            /* In case a UDP socket is created, do not allocate space for TCP data. */
-            *pxSocketSize = ( sizeof( *pxSocket ) - sizeof( pxSocket->u ) ) + sizeof( pxSocket->u.xUDP );
-        }
+			/* In case a UDP socket is created, do not allocate space for TCP data. */
+			*pxSocketSize = ( sizeof( *pxSocket ) - sizeof( pxSocket->u ) ) + sizeof( pxSocket->u.xUDP );
+		}
 
-        #if ( ipconfigUSE_TCP == 1 )
-            else if( xProtocol == FREERTOS_IPPROTO_TCP )
-            {
-                if( xType != FREERTOS_SOCK_STREAM )
-                {
-                    xReturn = pdFAIL;
-                    configASSERT( xReturn == pdPASS );
-                }
+		#if ( ipconfigUSE_TCP == 1 )
+			else if( xProtocol == FREERTOS_IPPROTO_TCP )
+			{
+				if( xType != FREERTOS_SOCK_STREAM )
+				{
+					xReturn = pdFAIL;
+					configASSERT( xReturn == pdPASS );
+				}
 
-                *pxSocketSize = ( sizeof( *pxSocket ) - sizeof( pxSocket->u ) ) + sizeof( pxSocket->u.xTCP );
-            }
-        #endif /* ipconfigUSE_TCP == 1 */
-        else
-        {
-            xReturn = pdFAIL;
-            configASSERT( xReturn == pdPASS );
-        }
-    }
+				*pxSocketSize = ( sizeof( *pxSocket ) - sizeof( pxSocket->u ) ) + sizeof( pxSocket->u.xTCP );
+			}
+		#endif /* ipconfigUSE_TCP == 1 */
+		else
+		{
+			xReturn = pdFAIL;
+			configASSERT( xReturn == pdPASS );
+		}
+	}
 
-    /* In case configASSERT() is not used */
-    ( void ) xDomain;
-    ( void ) pxSocket; /* Was only used for sizeof. */
-    return xReturn;
+	/* In case configASSERT() is not used */
+	( void ) xDomain;
+	( void ) pxSocket; /* Was only used for sizeof. */
+	return xReturn;
 }
 /*-----------------------------------------------------------*/
 
@@ -391,120 +384,120 @@ static BaseType_t prvDetermineSocketSize( BaseType_t xDomain,
  *         a parameter error, otherwise a valid socket.
  */
 Socket_t FreeRTOS_socket( BaseType_t xDomain,
-                          BaseType_t xType,
-                          BaseType_t xProtocol )
+						  BaseType_t xType,
+						  BaseType_t xProtocol )
 {
-    FreeRTOS_Socket_t * pxSocket;
+	FreeRTOS_Socket_t * pxSocket;
 
 /* Note that this value will be over-written by the call to prvDetermineSocketSize. */
-    size_t uxSocketSize = 1;
-    EventGroupHandle_t xEventGroup;
-    Socket_t xReturn;
+	size_t uxSocketSize = 1;
+	EventGroupHandle_t xEventGroup;
+	Socket_t xReturn;
 
-    if( prvDetermineSocketSize( xDomain, xType, xProtocol, &uxSocketSize ) == pdFAIL )
-    {
-        xReturn = FREERTOS_INVALID_SOCKET;
-    }
-    else
-    {
-        /* Allocate the structure that will hold the socket information.  The
-         * size depends on the type of socket: UDP sockets need less space.  A
-         * define 'pvPortMallocSocket' will used to allocate the necessary space.
-         * By default it points to the FreeRTOS function 'pvPortMalloc()'. */
-        pxSocket = ipCAST_PTR_TO_TYPE_PTR( FreeRTOS_Socket_t, pvPortMallocSocket( uxSocketSize ) );
+	if( prvDetermineSocketSize( xDomain, xType, xProtocol, &uxSocketSize ) == pdFAIL )
+	{
+		xReturn = FREERTOS_INVALID_SOCKET;
+	}
+	else
+	{
+		/* Allocate the structure that will hold the socket information.  The
+		 * size depends on the type of socket: UDP sockets need less space.  A
+		 * define 'pvPortMallocSocket' will used to allocate the necessary space.
+		 * By default it points to the FreeRTOS function 'pvPortMalloc()'. */
+		pxSocket = ipCAST_PTR_TO_TYPE_PTR( FreeRTOS_Socket_t, pvPortMallocSocket( uxSocketSize ) );
 
-        if( pxSocket == NULL )
-        {
-            xReturn = FREERTOS_INVALID_SOCKET;
-            iptraceFAILED_TO_CREATE_SOCKET();
-        }
-        else
-        {
-            xEventGroup = xEventGroupCreate();
+		if( pxSocket == NULL )
+		{
+			xReturn = FREERTOS_INVALID_SOCKET;
+			iptraceFAILED_TO_CREATE_SOCKET();
+		}
+		else
+		{
+			xEventGroup = xEventGroupCreate();
 
-            if( xEventGroup == NULL )
-            {
-                vPortFreeSocket( pxSocket );
-                xReturn = FREERTOS_INVALID_SOCKET;
-                iptraceFAILED_TO_CREATE_EVENT_GROUP();
-            }
-            else
-            {
-                if( xProtocol == FREERTOS_IPPROTO_UDP )
-                {
-                    iptraceMEM_STATS_CREATE( tcpSOCKET_UDP, pxSocket, uxSocketSize + sizeof( StaticEventGroup_t ) );
-                }
-                else
-                {
-                    /* Lint wants at least a comment, in case the macro is empty. */
-                    iptraceMEM_STATS_CREATE( tcpSOCKET_TCP, pxSocket, uxSocketSize + sizeof( StaticEventGroup_t ) );
-                }
+			if( xEventGroup == NULL )
+			{
+				vPortFreeSocket( pxSocket );
+				xReturn = FREERTOS_INVALID_SOCKET;
+				iptraceFAILED_TO_CREATE_EVENT_GROUP();
+			}
+			else
+			{
+				if( xProtocol == FREERTOS_IPPROTO_UDP )
+				{
+					iptraceMEM_STATS_CREATE( tcpSOCKET_UDP, pxSocket, uxSocketSize + sizeof( StaticEventGroup_t ) );
+				}
+				else
+				{
+					/* Lint wants at least a comment, in case the macro is empty. */
+					iptraceMEM_STATS_CREATE( tcpSOCKET_TCP, pxSocket, uxSocketSize + sizeof( StaticEventGroup_t ) );
+				}
 
-                /* Clear the entire space to avoid nulling individual entries. */
-                ( void ) memset( pxSocket, 0, uxSocketSize );
+				/* Clear the entire space to avoid nulling individual entries. */
+				( void ) memset( pxSocket, 0, uxSocketSize );
 
-                pxSocket->xEventGroup = xEventGroup;
+				pxSocket->xEventGroup = xEventGroup;
 
-                /* Initialise the socket's members.  The semaphore will be created
-                 * if the socket is bound to an address, for now the pointer to the
-                 * semaphore is just set to NULL to show it has not been created. */
-                if( xProtocol == FREERTOS_IPPROTO_UDP )
-                {
-                    vListInitialise( &( pxSocket->u.xUDP.xWaitingPacketsList ) );
+				/* Initialise the socket's members.  The semaphore will be created
+				 * if the socket is bound to an address, for now the pointer to the
+				 * semaphore is just set to NULL to show it has not been created. */
+				if( xProtocol == FREERTOS_IPPROTO_UDP )
+				{
+					vListInitialise( &( pxSocket->u.xUDP.xWaitingPacketsList ) );
 
-                    #if ( ipconfigUDP_MAX_RX_PACKETS > 0U )
-                        {
-                            pxSocket->u.xUDP.uxMaxPackets = ( UBaseType_t ) ipconfigUDP_MAX_RX_PACKETS;
-                        }
-                    #endif /* ipconfigUDP_MAX_RX_PACKETS > 0 */
-                }
+					#if ( ipconfigUDP_MAX_RX_PACKETS > 0U )
+						{
+							pxSocket->u.xUDP.uxMaxPackets = ( UBaseType_t ) ipconfigUDP_MAX_RX_PACKETS;
+						}
+					#endif /* ipconfigUDP_MAX_RX_PACKETS > 0 */
+				}
 
-                vListInitialiseItem( &( pxSocket->xBoundSocketListItem ) );
-                listSET_LIST_ITEM_OWNER( &( pxSocket->xBoundSocketListItem ), ipPOINTER_CAST( void *, pxSocket ) );
+				vListInitialiseItem( &( pxSocket->xBoundSocketListItem ) );
+				listSET_LIST_ITEM_OWNER( &( pxSocket->xBoundSocketListItem ), ipPOINTER_CAST( void *, pxSocket ) );
 
-                pxSocket->xReceiveBlockTime = ipconfigSOCK_DEFAULT_RECEIVE_BLOCK_TIME;
-                pxSocket->xSendBlockTime = ipconfigSOCK_DEFAULT_SEND_BLOCK_TIME;
-                pxSocket->ucSocketOptions = ( uint8_t ) FREERTOS_SO_UDPCKSUM_OUT;
-                pxSocket->ucProtocol = ( uint8_t ) xProtocol; /* protocol: UDP or TCP */
+				pxSocket->xReceiveBlockTime = ipconfigSOCK_DEFAULT_RECEIVE_BLOCK_TIME;
+				pxSocket->xSendBlockTime = ipconfigSOCK_DEFAULT_SEND_BLOCK_TIME;
+				pxSocket->ucSocketOptions = ( uint8_t ) FREERTOS_SO_UDPCKSUM_OUT;
+				pxSocket->ucProtocol = ( uint8_t ) xProtocol; /* protocol: UDP or TCP */
 
-                #if ( ipconfigUSE_TCP == 1 )
-                    {
-                        if( xProtocol == FREERTOS_IPPROTO_TCP )
-                        {
-                            /* StreamSize is expressed in number of bytes */
-                            /* Round up buffer sizes to nearest multiple of MSS */
-                            pxSocket->u.xTCP.usCurMSS = ( uint16_t ) ipconfigTCP_MSS;
-                            pxSocket->u.xTCP.usInitMSS = ( uint16_t ) ipconfigTCP_MSS;
-                            pxSocket->u.xTCP.uxRxStreamSize = ( size_t ) ipconfigTCP_RX_BUFFER_LENGTH;
-                            pxSocket->u.xTCP.uxTxStreamSize = ( size_t ) FreeRTOS_round_up( ipconfigTCP_TX_BUFFER_LENGTH, ipconfigTCP_MSS );
-                            /* Use half of the buffer size of the TCP windows */
-                            #if ( ipconfigUSE_TCP_WIN == 1 )
-                                {
-                                    pxSocket->u.xTCP.uxRxWinSize = FreeRTOS_max_uint32( 1UL, ( uint32_t ) ( pxSocket->u.xTCP.uxRxStreamSize / 2U ) / ipconfigTCP_MSS );
-                                    pxSocket->u.xTCP.uxTxWinSize = FreeRTOS_max_uint32( 1UL, ( uint32_t ) ( pxSocket->u.xTCP.uxTxStreamSize / 2U ) / ipconfigTCP_MSS );
-                                }
-                            #else
-                                {
-                                    pxSocket->u.xTCP.uxRxWinSize = 1U;
-                                    pxSocket->u.xTCP.uxTxWinSize = 1U;
-                                }
-                            #endif
+				#if ( ipconfigUSE_TCP == 1 )
+					{
+						if( xProtocol == FREERTOS_IPPROTO_TCP )
+						{
+							/* StreamSize is expressed in number of bytes */
+							/* Round up buffer sizes to nearest multiple of MSS */
+							pxSocket->u.xTCP.usCurMSS = ( uint16_t ) ipconfigTCP_MSS;
+							pxSocket->u.xTCP.usInitMSS = ( uint16_t ) ipconfigTCP_MSS;
+							pxSocket->u.xTCP.uxRxStreamSize = ( size_t ) ipconfigTCP_RX_BUFFER_LENGTH;
+							pxSocket->u.xTCP.uxTxStreamSize = ( size_t ) FreeRTOS_round_up( ipconfigTCP_TX_BUFFER_LENGTH, ipconfigTCP_MSS );
+							/* Use half of the buffer size of the TCP windows */
+							#if ( ipconfigUSE_TCP_WIN == 1 )
+								{
+									pxSocket->u.xTCP.uxRxWinSize = FreeRTOS_max_uint32( 1UL, ( uint32_t ) ( pxSocket->u.xTCP.uxRxStreamSize / 2U ) / ipconfigTCP_MSS );
+									pxSocket->u.xTCP.uxTxWinSize = FreeRTOS_max_uint32( 1UL, ( uint32_t ) ( pxSocket->u.xTCP.uxTxStreamSize / 2U ) / ipconfigTCP_MSS );
+								}
+							#else
+								{
+									pxSocket->u.xTCP.uxRxWinSize = 1U;
+									pxSocket->u.xTCP.uxTxWinSize = 1U;
+								}
+							#endif
 
-                            /* The above values are just defaults, and can be overridden by
-                             * calling FreeRTOS_setsockopt().  No buffers will be allocated until a
-                             * socket is connected and data is exchanged. */
-                        }
-                    }
-                #endif /* ipconfigUSE_TCP == 1 */
-                xReturn = pxSocket;
-            }
-        }
-    }
+							/* The above values are just defaults, and can be overridden by
+							 * calling FreeRTOS_setsockopt().  No buffers will be allocated until a
+							 * socket is connected and data is exchanged. */
+						}
+					}
+				#endif /* ipconfigUSE_TCP == 1 */
+				xReturn = pxSocket;
+			}
+		}
+	}
 
-    /* Remove compiler warnings in the case the configASSERT() is not defined. */
-    ( void ) xDomain;
+	/* Remove compiler warnings in the case the configASSERT() is not defined. */
+	( void ) xDomain;
 
-    return xReturn;
+	return xReturn;
 }
 /*-----------------------------------------------------------*/
 
@@ -515,31 +508,31 @@ Socket_t FreeRTOS_socket( BaseType_t xDomain,
  *
  * @return The new socket set which was created, or NULL when allocation has failed.
  */
-    SocketSet_t FreeRTOS_CreateSocketSet( void )
-    {
-        SocketSelect_t * pxSocketSet;
+	SocketSet_t FreeRTOS_CreateSocketSet( void )
+	{
+		SocketSelect_t * pxSocketSet;
 
-        pxSocketSet = ipCAST_PTR_TO_TYPE_PTR( SocketSelect_t, pvPortMalloc( sizeof( *pxSocketSet ) ) );
+		pxSocketSet = ipCAST_PTR_TO_TYPE_PTR( SocketSelect_t, pvPortMalloc( sizeof( *pxSocketSet ) ) );
 
-        if( pxSocketSet != NULL )
-        {
-            ( void ) memset( pxSocketSet, 0, sizeof( *pxSocketSet ) );
-            pxSocketSet->xSelectGroup = xEventGroupCreate();
+		if( pxSocketSet != NULL )
+		{
+			( void ) memset( pxSocketSet, 0, sizeof( *pxSocketSet ) );
+			pxSocketSet->xSelectGroup = xEventGroupCreate();
 
-            if( pxSocketSet->xSelectGroup == NULL )
-            {
-                vPortFree( pxSocketSet );
-                pxSocketSet = NULL;
-            }
-            else
-            {
-                /* Lint wants at least a comment, in case the macro is empty. */
-                iptraceMEM_STATS_CREATE( tcpSOCKET_SET, pxSocketSet, sizeof( *pxSocketSet ) + sizeof( StaticEventGroup_t ) );
-            }
-        }
+			if( pxSocketSet->xSelectGroup == NULL )
+			{
+				vPortFree( pxSocketSet );
+				pxSocketSet = NULL;
+			}
+			else
+			{
+				/* Lint wants at least a comment, in case the macro is empty. */
+				iptraceMEM_STATS_CREATE( tcpSOCKET_SET, pxSocketSet, sizeof( *pxSocketSet ) + sizeof( StaticEventGroup_t ) );
+			}
+		}
 
-        return ( SocketSet_t ) pxSocketSet;
-    }
+		return ( SocketSet_t ) pxSocketSet;
+	}
 
 #endif /* ipconfigSUPPORT_SELECT_FUNCTION == 1 */
 /*-----------------------------------------------------------*/
@@ -551,16 +544,16 @@ Socket_t FreeRTOS_socket( BaseType_t xDomain,
  *
  * @param[in] xSocketSet: The socket set being deleted.
  */
-    void FreeRTOS_DeleteSocketSet( SocketSet_t xSocketSet )
-    {
-        SocketSelect_t * pxSocketSet = ( SocketSelect_t * ) xSocketSet;
+	void FreeRTOS_DeleteSocketSet( SocketSet_t xSocketSet )
+	{
+		SocketSelect_t * pxSocketSet = ( SocketSelect_t * ) xSocketSet;
 
 
-        iptraceMEM_STATS_DELETE( pxSocketSet );
+		iptraceMEM_STATS_DELETE( pxSocketSet );
 
-        vEventGroupDelete( pxSocketSet->xSelectGroup );
-        vPortFree( pxSocketSet );
-    }
+		vEventGroupDelete( pxSocketSet->xSelectGroup );
+		vPortFree( pxSocketSet );
+	}
 
 #endif /* ipconfigSUPPORT_SELECT_FUNCTION == 1 */
 /*-----------------------------------------------------------*/
@@ -575,31 +568,31 @@ Socket_t FreeRTOS_socket( BaseType_t xDomain,
  * @param[in] xBitsToSet: The event bits to set, a combination of the values defined
  *                        in 'eSelectEvent_t', for read, write, exception, etc.
  */
-    void FreeRTOS_FD_SET( Socket_t xSocket,
-                          SocketSet_t xSocketSet,
-                          EventBits_t xBitsToSet )
-    {
-        FreeRTOS_Socket_t * pxSocket = ( FreeRTOS_Socket_t * ) xSocket;
-        SocketSelect_t * pxSocketSet = ( SocketSelect_t * ) xSocketSet;
+	void FreeRTOS_FD_SET( Socket_t xSocket,
+						  SocketSet_t xSocketSet,
+						  EventBits_t xBitsToSet )
+	{
+		FreeRTOS_Socket_t * pxSocket = ( FreeRTOS_Socket_t * ) xSocket;
+		SocketSelect_t * pxSocketSet = ( SocketSelect_t * ) xSocketSet;
 
 
-        configASSERT( pxSocket != NULL );
-        configASSERT( xSocketSet != NULL );
+		configASSERT( pxSocket != NULL );
+		configASSERT( xSocketSet != NULL );
 
-        /* Make sure we're not adding bits which are reserved for internal use,
-         * such as eSELECT_CALL_IP */
-        pxSocket->xSelectBits |= xBitsToSet & ( ( EventBits_t ) eSELECT_ALL );
+		/* Make sure we're not adding bits which are reserved for internal use,
+		 * such as eSELECT_CALL_IP */
+		pxSocket->xSelectBits |= xBitsToSet & ( ( EventBits_t ) eSELECT_ALL );
 
-        if( ( pxSocket->xSelectBits & ( ( EventBits_t ) eSELECT_ALL ) ) != ( EventBits_t ) 0U )
-        {
-            /* Adding a socket to a socket set. */
-            pxSocket->pxSocketSet = ( SocketSelect_t * ) xSocketSet;
+		if( ( pxSocket->xSelectBits & ( ( EventBits_t ) eSELECT_ALL ) ) != ( EventBits_t ) 0U )
+		{
+			/* Adding a socket to a socket set. */
+			pxSocket->pxSocketSet = ( SocketSelect_t * ) xSocketSet;
 
-            /* Now have the IP-task call vSocketSelect() to see if the set contains
-             * any sockets which are 'ready' and set the proper bits. */
-            prvFindSelectedSocket( pxSocketSet );
-        }
-    }
+			/* Now have the IP-task call vSocketSelect() to see if the set contains
+			 * any sockets which are 'ready' and set the proper bits. */
+			prvFindSelectedSocket( pxSocketSet );
+		}
+	}
 
 #endif /* ipconfigSUPPORT_SELECT_FUNCTION == 1 */
 /*-----------------------------------------------------------*/
@@ -616,27 +609,27 @@ Socket_t FreeRTOS_socket( BaseType_t xDomain,
  *                corresponding bit will be cleared. See 'eSelectEvent_t' for
  *                the possible values.
  */
-    void FreeRTOS_FD_CLR( Socket_t xSocket,
-                          SocketSet_t xSocketSet,
-                          EventBits_t xBitsToClear )
-    {
-        FreeRTOS_Socket_t * pxSocket = ( FreeRTOS_Socket_t * ) xSocket;
+	void FreeRTOS_FD_CLR( Socket_t xSocket,
+						  SocketSet_t xSocketSet,
+						  EventBits_t xBitsToClear )
+	{
+		FreeRTOS_Socket_t * pxSocket = ( FreeRTOS_Socket_t * ) xSocket;
 
-        configASSERT( pxSocket != NULL );
-        configASSERT( xSocketSet != NULL );
+		configASSERT( pxSocket != NULL );
+		configASSERT( xSocketSet != NULL );
 
-        pxSocket->xSelectBits &= ~( xBitsToClear & ( ( EventBits_t ) eSELECT_ALL ) );
+		pxSocket->xSelectBits &= ~( xBitsToClear & ( ( EventBits_t ) eSELECT_ALL ) );
 
-        if( ( pxSocket->xSelectBits & ( ( EventBits_t ) eSELECT_ALL ) ) != ( EventBits_t ) 0U )
-        {
-            pxSocket->pxSocketSet = ( SocketSelect_t * ) xSocketSet;
-        }
-        else
-        {
-            /* disconnect it from the socket set */
-            pxSocket->pxSocketSet = NULL;
-        }
-    }
+		if( ( pxSocket->xSelectBits & ( ( EventBits_t ) eSELECT_ALL ) ) != ( EventBits_t ) 0U )
+		{
+			pxSocket->pxSocketSet = ( SocketSelect_t * ) xSocketSet;
+		}
+		else
+		{
+			/* disconnect it from the socket set */
+			pxSocket->pxSocketSet = NULL;
+		}
+	}
 
 
 #endif /* ipconfigSUPPORT_SELECT_FUNCTION == 1 */
@@ -654,28 +647,28 @@ Socket_t FreeRTOS_socket( BaseType_t xDomain,
  *
  * @return If the socket belongs to the socket set: the event bits, otherwise zero.
  */
-    EventBits_t FreeRTOS_FD_ISSET( Socket_t xSocket,
-                                   SocketSet_t xSocketSet )
-    {
-        EventBits_t xReturn;
-        const FreeRTOS_Socket_t * pxSocket = ( const FreeRTOS_Socket_t * ) xSocket;
+	EventBits_t FreeRTOS_FD_ISSET( Socket_t xSocket,
+								   SocketSet_t xSocketSet )
+	{
+		EventBits_t xReturn;
+		const FreeRTOS_Socket_t * pxSocket = ( const FreeRTOS_Socket_t * ) xSocket;
 
-        configASSERT( pxSocket != NULL );
-        configASSERT( xSocketSet != NULL );
+		configASSERT( pxSocket != NULL );
+		configASSERT( xSocketSet != NULL );
 
-        if( xSocketSet == ( SocketSet_t ) pxSocket->pxSocketSet )
-        {
-            /* Make sure we're not adding bits which are reserved for internal
-             * use. */
-            xReturn = pxSocket->xSocketBits & ( ( EventBits_t ) eSELECT_ALL );
-        }
-        else
-        {
-            xReturn = 0;
-        }
+		if( xSocketSet == ( SocketSet_t ) pxSocket->pxSocketSet )
+		{
+			/* Make sure we're not adding bits which are reserved for internal
+			 * use. */
+			xReturn = pxSocket->xSocketBits & ( ( EventBits_t ) eSELECT_ALL );
+		}
+		else
+		{
+			xReturn = 0;
+		}
 
-        return xReturn;
-    }
+		return xReturn;
+	}
 
 
 #endif /* ipconfigSUPPORT_SELECT_FUNCTION == 1 */
@@ -695,58 +688,58 @@ Socket_t FreeRTOS_socket( BaseType_t xDomain,
  *
  * @return The socket which might have triggered the event bit.
  */
-    BaseType_t FreeRTOS_select( SocketSet_t xSocketSet,
-                                TickType_t xBlockTimeTicks )
-    {
-        TimeOut_t xTimeOut;
-        TickType_t xRemainingTime;
-        SocketSelect_t * pxSocketSet = ( SocketSelect_t * ) xSocketSet;
-        EventBits_t uxResult;
+	BaseType_t FreeRTOS_select( SocketSet_t xSocketSet,
+								TickType_t xBlockTimeTicks )
+	{
+		TimeOut_t xTimeOut;
+		TickType_t xRemainingTime;
+		SocketSelect_t * pxSocketSet = ( SocketSelect_t * ) xSocketSet;
+		EventBits_t uxResult;
 
-        configASSERT( xSocketSet != NULL );
+		configASSERT( xSocketSet != NULL );
 
-        /* Only in the first round, check for non-blocking */
-        xRemainingTime = xBlockTimeTicks;
+		/* Only in the first round, check for non-blocking */
+		xRemainingTime = xBlockTimeTicks;
 
-        /* Fetch the current time */
-        vTaskSetTimeOutState( &xTimeOut );
+		/* Fetch the current time */
+		vTaskSetTimeOutState( &xTimeOut );
 
-        for( ; ; )
-        {
-            /* Find a socket which might have triggered the bit
-             * This function might return immediately or block for a limited time */
-            uxResult = xEventGroupWaitBits( pxSocketSet->xSelectGroup, ( ( EventBits_t ) eSELECT_ALL ), pdFALSE, pdFALSE, xRemainingTime );
+		for( ; ; )
+		{
+			/* Find a socket which might have triggered the bit
+			 * This function might return immediately or block for a limited time */
+			uxResult = xEventGroupWaitBits( pxSocketSet->xSelectGroup, ( ( EventBits_t ) eSELECT_ALL ), pdFALSE, pdFALSE, xRemainingTime );
 
-            #if ( ipconfigSUPPORT_SIGNALS != 0 )
-                {
-                    if( ( uxResult & ( ( EventBits_t ) eSELECT_INTR ) ) != 0U )
-                    {
-                        ( void ) xEventGroupClearBits( pxSocketSet->xSelectGroup, ( EventBits_t ) eSELECT_INTR );
-                        FreeRTOS_debug_printf( ( "FreeRTOS_select: interrupted\n" ) );
-                        break;
-                    }
-                }
-            #endif /* ipconfigSUPPORT_SIGNALS */
+			#if ( ipconfigSUPPORT_SIGNALS != 0 )
+				{
+					if( ( uxResult & ( ( EventBits_t ) eSELECT_INTR ) ) != 0U )
+					{
+						( void ) xEventGroupClearBits( pxSocketSet->xSelectGroup, ( EventBits_t ) eSELECT_INTR );
+						FreeRTOS_debug_printf( ( "FreeRTOS_select: interrupted\n" ) );
+						break;
+					}
+				}
+			#endif /* ipconfigSUPPORT_SIGNALS */
 
-            /* Have the IP-task find the socket which had an event */
-            prvFindSelectedSocket( pxSocketSet );
+			/* Have the IP-task find the socket which had an event */
+			prvFindSelectedSocket( pxSocketSet );
 
-            uxResult = xEventGroupGetBits( pxSocketSet->xSelectGroup );
+			uxResult = xEventGroupGetBits( pxSocketSet->xSelectGroup );
 
-            if( uxResult != 0U )
-            {
-                break;
-            }
+			if( uxResult != 0U )
+			{
+				break;
+			}
 
-            /* Has the timeout been reached? */
-            if( xTaskCheckForTimeOut( &xTimeOut, &xRemainingTime ) != pdFALSE )
-            {
-                break;
-            }
-        }
+			/* Has the timeout been reached? */
+			if( xTaskCheckForTimeOut( &xTimeOut, &xRemainingTime ) != pdFALSE )
+			{
+				break;
+			}
+		}
 
-        return ( BaseType_t ) uxResult;
-    }
+		return ( BaseType_t ) uxResult;
+	}
 
 
 #endif /* ipconfigSUPPORT_SELECT_FUNCTION */
@@ -760,52 +753,52 @@ Socket_t FreeRTOS_socket( BaseType_t xDomain,
  *
  * @param[in] pxSocketSet: The socket set being asked to check.
  */
-    static void prvFindSelectedSocket( SocketSelect_t * pxSocketSet )
-    {
-        IPStackEvent_t xSelectEvent;
+	static void prvFindSelectedSocket( SocketSelect_t * pxSocketSet )
+	{
+		IPStackEvent_t xSelectEvent;
 
-        #if ( ipconfigSELECT_USES_NOTIFY != 0 )
-            SocketSelectMessage_t xSelectMessage;
-        #endif
+		#if ( ipconfigSELECT_USES_NOTIFY != 0 )
+			SocketSelectMessage_t xSelectMessage;
+		#endif
 
-        xSelectEvent.eEventType = eSocketSelectEvent;
-        #if ( ipconfigSELECT_USES_NOTIFY != 0 )
-            {
-                xSelectMessage.pxSocketSet = pxSocketSet;
-                xSelectMessage.xTaskhandle = xTaskGetCurrentTaskHandle();
-                xSelectEvent.pvData = &( xSelectMessage );
-            }
-        #else
-            {
-                xSelectEvent.pvData = pxSocketSet;
+		xSelectEvent.eEventType = eSocketSelectEvent;
+		#if ( ipconfigSELECT_USES_NOTIFY != 0 )
+			{
+				xSelectMessage.pxSocketSet = pxSocketSet;
+				xSelectMessage.xTaskhandle = xTaskGetCurrentTaskHandle();
+				xSelectEvent.pvData = &( xSelectMessage );
+			}
+		#else
+			{
+				xSelectEvent.pvData = pxSocketSet;
 
-                /* while the IP-task works on the request, the API will block on
-                 * 'eSELECT_CALL_IP'.  So clear it first. */
-                ( void ) xEventGroupClearBits( pxSocketSet->xSelectGroup, ( BaseType_t ) eSELECT_CALL_IP );
-            }
-        #endif /* if ( ipconfigSELECT_USES_NOTIFY != 0 ) */
+				/* while the IP-task works on the request, the API will block on
+				 * 'eSELECT_CALL_IP'.  So clear it first. */
+				( void ) xEventGroupClearBits( pxSocketSet->xSelectGroup, ( BaseType_t ) eSELECT_CALL_IP );
+			}
+		#endif /* if ( ipconfigSELECT_USES_NOTIFY != 0 ) */
 
-        /* Now send the socket select event */
-        if( xSendEventStructToIPTask( &xSelectEvent, ( TickType_t ) portMAX_DELAY ) == pdFAIL )
-        {
-            /* Oops, we failed to wake-up the IP task. No use to wait for it. */
-            FreeRTOS_debug_printf( ( "prvFindSelectedSocket: failed\n" ) );
-        }
-        else
-        {
-            /* As soon as the IP-task is ready, it will set 'eSELECT_CALL_IP' to
-             * wakeup the calling API */
-            #if ( ipconfigSELECT_USES_NOTIFY != 0 )
-                {
-                    ( void ) ulTaskNotifyTake( pdFALSE, portMAX_DELAY );
-                }
-            #else
-                {
-                    ( void ) xEventGroupWaitBits( pxSocketSet->xSelectGroup, ( BaseType_t ) eSELECT_CALL_IP, pdTRUE, pdFALSE, portMAX_DELAY );
-                }
-            #endif
-        }
-    }
+		/* Now send the socket select event */
+		if( xSendEventStructToIPTask( &xSelectEvent, ( TickType_t ) portMAX_DELAY ) == pdFAIL )
+		{
+			/* Oops, we failed to wake-up the IP task. No use to wait for it. */
+			FreeRTOS_debug_printf( ( "prvFindSelectedSocket: failed\n" ) );
+		}
+		else
+		{
+			/* As soon as the IP-task is ready, it will set 'eSELECT_CALL_IP' to
+			 * wakeup the calling API */
+			#if ( ipconfigSELECT_USES_NOTIFY != 0 )
+				{
+					( void ) ulTaskNotifyTake( pdFALSE, portMAX_DELAY );
+				}
+			#else
+				{
+					( void ) xEventGroupWaitBits( pxSocketSet->xSelectGroup, ( BaseType_t ) eSELECT_CALL_IP, pdTRUE, pdFALSE, portMAX_DELAY );
+				}
+			#endif
+		}
+	}
 
 
 #endif /* ipconfigSUPPORT_SELECT_FUNCTION == 1 */
@@ -831,193 +824,193 @@ Socket_t FreeRTOS_socket( BaseType_t xDomain,
  *         'FreeRTOS_errno_TCP.h'.
  */
 int32_t FreeRTOS_recvfrom( Socket_t xSocket,
-                           void * pvBuffer,
-                           size_t uxBufferLength,
-                           BaseType_t xFlags,
-                           struct freertos_sockaddr * pxSourceAddress,
-                           socklen_t * pxSourceAddressLength )
+						   void * pvBuffer,
+						   size_t uxBufferLength,
+						   BaseType_t xFlags,
+						   struct freertos_sockaddr * pxSourceAddress,
+						   socklen_t * pxSourceAddressLength )
 {
-    BaseType_t lPacketCount;
-    NetworkBufferDescriptor_t * pxNetworkBuffer;
-    const void * pvCopySource;
-    FreeRTOS_Socket_t const * pxSocket = xSocket;
-    TickType_t xRemainingTime = ( TickType_t ) 0; /* Obsolete assignment, but some compilers output a warning if its not done. */
-    BaseType_t xTimed = pdFALSE;
-    TimeOut_t xTimeOut;
-    int32_t lReturn;
-    EventBits_t xEventBits = ( EventBits_t ) 0;
-    size_t uxPayloadOffset;
-    size_t uxPayloadLength;
+	BaseType_t lPacketCount;
+	NetworkBufferDescriptor_t * pxNetworkBuffer;
+	const void * pvCopySource;
+	FreeRTOS_Socket_t const * pxSocket = xSocket;
+	TickType_t xRemainingTime = ( TickType_t ) 0; /* Obsolete assignment, but some compilers output a warning if its not done. */
+	BaseType_t xTimed = pdFALSE;
+	TimeOut_t xTimeOut;
+	int32_t lReturn;
+	EventBits_t xEventBits = ( EventBits_t ) 0;
+	size_t uxPayloadOffset;
+	size_t uxPayloadLength;
 
-    if( prvValidSocket( pxSocket, FREERTOS_IPPROTO_UDP, pdTRUE ) == pdFALSE )
-    {
-        lReturn = -pdFREERTOS_ERRNO_EINVAL;
-    }
-    else
-    {
-        lPacketCount = ( BaseType_t ) listCURRENT_LIST_LENGTH( &( pxSocket->u.xUDP.xWaitingPacketsList ) );
+	if( prvValidSocket( pxSocket, FREERTOS_IPPROTO_UDP, pdTRUE ) == pdFALSE )
+	{
+		lReturn = -pdFREERTOS_ERRNO_EINVAL;
+	}
+	else
+	{
+		lPacketCount = ( BaseType_t ) listCURRENT_LIST_LENGTH( &( pxSocket->u.xUDP.xWaitingPacketsList ) );
 
-        /* The function prototype is designed to maintain the expected Berkeley
-         * sockets standard, but this implementation does not use all the parameters. */
-        ( void ) pxSourceAddressLength;
+		/* The function prototype is designed to maintain the expected Berkeley
+		 * sockets standard, but this implementation does not use all the parameters. */
+		( void ) pxSourceAddressLength;
 
-        while( lPacketCount == 0 )
-        {
-            if( xTimed == pdFALSE )
-            {
-                /* Check to see if the socket is non blocking on the first
-                 * iteration.  */
-                xRemainingTime = pxSocket->xReceiveBlockTime;
+		while( lPacketCount == 0 )
+		{
+			if( xTimed == pdFALSE )
+			{
+				/* Check to see if the socket is non blocking on the first
+				 * iteration.  */
+				xRemainingTime = pxSocket->xReceiveBlockTime;
 
-                if( xRemainingTime == ( TickType_t ) 0 )
-                {
-                    #if ( ipconfigSUPPORT_SIGNALS != 0 )
-                        {
-                            /* Just check for the interrupt flag. */
-                            xEventBits = xEventGroupWaitBits( pxSocket->xEventGroup, ( EventBits_t ) eSOCKET_INTR,
-                                                              pdTRUE /*xClearOnExit*/, pdFALSE /*xWaitAllBits*/, socketDONT_BLOCK );
-                        }
-                    #endif /* ipconfigSUPPORT_SIGNALS */
-                    break;
-                }
+				if( xRemainingTime == ( TickType_t ) 0 )
+				{
+					#if ( ipconfigSUPPORT_SIGNALS != 0 )
+						{
+							/* Just check for the interrupt flag. */
+							xEventBits = xEventGroupWaitBits( pxSocket->xEventGroup, ( EventBits_t ) eSOCKET_INTR,
+															  pdTRUE /*xClearOnExit*/, pdFALSE /*xWaitAllBits*/, socketDONT_BLOCK );
+						}
+					#endif /* ipconfigSUPPORT_SIGNALS */
+					break;
+				}
 
-                if( ( ( ( UBaseType_t ) xFlags ) & ( ( UBaseType_t ) FREERTOS_MSG_DONTWAIT ) ) != 0U )
-                {
-                    break;
-                }
+				if( ( ( ( UBaseType_t ) xFlags ) & ( ( UBaseType_t ) FREERTOS_MSG_DONTWAIT ) ) != 0U )
+				{
+					break;
+				}
 
-                /* To ensure this part only executes once. */
-                xTimed = pdTRUE;
+				/* To ensure this part only executes once. */
+				xTimed = pdTRUE;
 
-                /* Fetch the current time. */
-                vTaskSetTimeOutState( &xTimeOut );
-            }
+				/* Fetch the current time. */
+				vTaskSetTimeOutState( &xTimeOut );
+			}
 
-            /* Wait for arrival of data.  While waiting, the IP-task may set the
-             * 'eSOCKET_RECEIVE' bit in 'xEventGroup', if it receives data for this
-             * socket, thus unblocking this API call. */
-            xEventBits = xEventGroupWaitBits( pxSocket->xEventGroup, ( ( EventBits_t ) eSOCKET_RECEIVE ) | ( ( EventBits_t ) eSOCKET_INTR ),
-                                              pdTRUE /*xClearOnExit*/, pdFALSE /*xWaitAllBits*/, xRemainingTime );
+			/* Wait for arrival of data.  While waiting, the IP-task may set the
+			 * 'eSOCKET_RECEIVE' bit in 'xEventGroup', if it receives data for this
+			 * socket, thus unblocking this API call. */
+			xEventBits = xEventGroupWaitBits( pxSocket->xEventGroup, ( ( EventBits_t ) eSOCKET_RECEIVE ) | ( ( EventBits_t ) eSOCKET_INTR ),
+											  pdTRUE /*xClearOnExit*/, pdFALSE /*xWaitAllBits*/, xRemainingTime );
 
-            #if ( ipconfigSUPPORT_SIGNALS != 0 )
-                {
-                    if( ( xEventBits & ( EventBits_t ) eSOCKET_INTR ) != 0U )
-                    {
-                        if( ( xEventBits & ( EventBits_t ) eSOCKET_RECEIVE ) != 0U )
-                        {
-                            /* Shouldn't have cleared the eSOCKET_RECEIVE flag. */
-                            ( void ) xEventGroupSetBits( pxSocket->xEventGroup, ( EventBits_t ) eSOCKET_RECEIVE );
-                        }
+			#if ( ipconfigSUPPORT_SIGNALS != 0 )
+				{
+					if( ( xEventBits & ( EventBits_t ) eSOCKET_INTR ) != 0U )
+					{
+						if( ( xEventBits & ( EventBits_t ) eSOCKET_RECEIVE ) != 0U )
+						{
+							/* Shouldn't have cleared the eSOCKET_RECEIVE flag. */
+							( void ) xEventGroupSetBits( pxSocket->xEventGroup, ( EventBits_t ) eSOCKET_RECEIVE );
+						}
 
-                        break;
-                    }
-                }
-            #else /* if ( ipconfigSUPPORT_SIGNALS != 0 ) */
-                {
-                    ( void ) xEventBits;
-                }
-            #endif /* ipconfigSUPPORT_SIGNALS */
+						break;
+					}
+				}
+			#else /* if ( ipconfigSUPPORT_SIGNALS != 0 ) */
+				{
+					( void ) xEventBits;
+				}
+			#endif /* ipconfigSUPPORT_SIGNALS */
 
-            lPacketCount = ( BaseType_t ) listCURRENT_LIST_LENGTH( &( pxSocket->u.xUDP.xWaitingPacketsList ) );
+			lPacketCount = ( BaseType_t ) listCURRENT_LIST_LENGTH( &( pxSocket->u.xUDP.xWaitingPacketsList ) );
 
-            if( lPacketCount != 0 )
-            {
-                break;
-            }
+			if( lPacketCount != 0 )
+			{
+				break;
+			}
 
-            /* Has the timeout been reached ? */
-            if( xTaskCheckForTimeOut( &xTimeOut, &xRemainingTime ) != pdFALSE )
-            {
-                break;
-            }
-        } /* while( lPacketCount == 0 ) */
+			/* Has the timeout been reached ? */
+			if( xTaskCheckForTimeOut( &xTimeOut, &xRemainingTime ) != pdFALSE )
+			{
+				break;
+			}
+		} /* while( lPacketCount == 0 ) */
 
-        if( lPacketCount != 0 )
-        {
-            taskENTER_CRITICAL();
-            {
-                /* The owner of the list item is the network buffer. */
-                pxNetworkBuffer = ipCAST_PTR_TO_TYPE_PTR( NetworkBufferDescriptor_t, listGET_OWNER_OF_HEAD_ENTRY( &( pxSocket->u.xUDP.xWaitingPacketsList ) ) );
+		if( lPacketCount != 0 )
+		{
+			taskENTER_CRITICAL();
+			{
+				/* The owner of the list item is the network buffer. */
+				pxNetworkBuffer = ipCAST_PTR_TO_TYPE_PTR( NetworkBufferDescriptor_t, listGET_OWNER_OF_HEAD_ENTRY( &( pxSocket->u.xUDP.xWaitingPacketsList ) ) );
 
-                if( ( ( UBaseType_t ) xFlags & ( UBaseType_t ) FREERTOS_MSG_PEEK ) == 0U )
-                {
-                    /* Remove the network buffer from the list of buffers waiting to
-                     * be processed by the socket. */
-                    ( void ) uxListRemove( &( pxNetworkBuffer->xBufferListItem ) );
-                }
-            }
-            taskEXIT_CRITICAL();
+				if( ( ( UBaseType_t ) xFlags & ( UBaseType_t ) FREERTOS_MSG_PEEK ) == 0U )
+				{
+					/* Remove the network buffer from the list of buffers waiting to
+					 * be processed by the socket. */
+					( void ) uxListRemove( &( pxNetworkBuffer->xBufferListItem ) );
+				}
+			}
+			taskEXIT_CRITICAL();
 
-            uxPayloadOffset = ipUDP_PAYLOAD_OFFSET_IPv4;
-            #if ( ipconfigUSE_IPv6 != 0 )
-                {
-                    UDPPacket_t * pxUDPPacket = ipPOINTER_CAST( UDPPacket_t *, pxNetworkBuffer->pucEthernetBuffer );
+			uxPayloadOffset = ipUDP_PAYLOAD_OFFSET_IPv4;
+			#if ( ipconfigUSE_IPv6 != 0 )
+				{
+					UDPPacket_t * pxUDPPacket = ipPOINTER_CAST( UDPPacket_t *, pxNetworkBuffer->pucEthernetBuffer );
 
-                    if( pxUDPPacket->xEthernetHeader.usFrameType == ipIPv6_FRAME_TYPE )
-                    {
-                        uxPayloadOffset = ipUDP_PAYLOAD_OFFSET_IPv6;
-                    }
-                }
-            #endif
+					if( pxUDPPacket->xEthernetHeader.usFrameType == ipIPv6_FRAME_TYPE )
+					{
+						uxPayloadOffset = ipUDP_PAYLOAD_OFFSET_IPv6;
+					}
+				}
+			#endif
 
-            /* The returned value is the length of the payload data, which is
-             * calculated at the total packet size minus the headers.
-             * The validity of `xDataLength` prvProcessIPPacket has been confirmed
-             * in 'prvProcessIPPacket()'. */
-            uxPayloadLength = pxNetworkBuffer->xDataLength - sizeof( UDPPacket_t );
-            lReturn = ( int32_t ) uxPayloadLength;
+			/* The returned value is the length of the payload data, which is
+			 * calculated at the total packet size minus the headers.
+			 * The validity of `xDataLength` prvProcessIPPacket has been confirmed
+			 * in 'prvProcessIPPacket()'. */
+			uxPayloadLength = pxNetworkBuffer->xDataLength - sizeof( UDPPacket_t );
+			lReturn = ( int32_t ) uxPayloadLength;
 
-            if( pxSourceAddress != NULL )
-            {
-                pxSourceAddress->sin_port = pxNetworkBuffer->usPort;
-                pxSourceAddress->sin_addr = pxNetworkBuffer->ulIPAddress;
-            }
+			if( pxSourceAddress != NULL )
+			{
+				pxSourceAddress->sin_port = pxNetworkBuffer->usPort;
+				pxSourceAddress->sin_addr = pxNetworkBuffer->ulIPAddress;
+			}
 
-            if( ( ( UBaseType_t ) xFlags & ( UBaseType_t ) FREERTOS_ZERO_COPY ) == 0U )
-            {
-                /* The zero copy flag is not set.  Truncate the length if it won't
-                 * fit in the provided buffer. */
-                if( lReturn > ( int32_t ) uxBufferLength )
-                {
-                    iptraceRECVFROM_DISCARDING_BYTES( ( uxBufferLength - lReturn ) );
-                    lReturn = ( int32_t ) uxBufferLength;
-                }
+			if( ( ( UBaseType_t ) xFlags & ( UBaseType_t ) FREERTOS_ZERO_COPY ) == 0U )
+			{
+				/* The zero copy flag is not set.  Truncate the length if it won't
+				 * fit in the provided buffer. */
+				if( lReturn > ( int32_t ) uxBufferLength )
+				{
+					iptraceRECVFROM_DISCARDING_BYTES( ( uxBufferLength - lReturn ) );
+					lReturn = ( int32_t ) uxBufferLength;
+				}
 
-                /* Copy the received data into the provided buffer, then release the
-                 * network buffer. */
-                pvCopySource = ( const void * ) &( pxNetworkBuffer->pucEthernetBuffer[ uxPayloadOffset ] );
-                ( void ) memcpy( pvBuffer, pvCopySource, ( size_t ) lReturn );
+				/* Copy the received data into the provided buffer, then release the
+				 * network buffer. */
+				pvCopySource = ( const void * ) &( pxNetworkBuffer->pucEthernetBuffer[ uxPayloadOffset ] );
+				( void ) memcpy( pvBuffer, pvCopySource, ( size_t ) lReturn );
 
-                if( ( ( UBaseType_t ) xFlags & ( UBaseType_t ) FREERTOS_MSG_PEEK ) == 0U )
-                {
-                    vReleaseNetworkBufferAndDescriptor( pxNetworkBuffer );
-                }
-            }
-            else
-            {
-                /* The zero copy flag was set.  pvBuffer is not a buffer into which
-                 * the received data can be copied, but a pointer that must be set to
-                 * point to the buffer in which the received data has already been
-                 * placed. */
-                *( ( void ** ) pvBuffer ) = ipPOINTER_CAST( void *, &( pxNetworkBuffer->pucEthernetBuffer[ uxPayloadOffset ] ) );
-            }
-        }
+				if( ( ( UBaseType_t ) xFlags & ( UBaseType_t ) FREERTOS_MSG_PEEK ) == 0U )
+				{
+					vReleaseNetworkBufferAndDescriptor( pxNetworkBuffer );
+				}
+			}
+			else
+			{
+				/* The zero copy flag was set.  pvBuffer is not a buffer into which
+				 * the received data can be copied, but a pointer that must be set to
+				 * point to the buffer in which the received data has already been
+				 * placed. */
+				*( ( void ** ) pvBuffer ) = ipPOINTER_CAST( void *, &( pxNetworkBuffer->pucEthernetBuffer[ uxPayloadOffset ] ) );
+			}
+		}
 
-        #if ( ipconfigSUPPORT_SIGNALS != 0 )
-            else if( ( xEventBits & ( EventBits_t ) eSOCKET_INTR ) != 0U )
-            {
-                lReturn = -pdFREERTOS_ERRNO_EINTR;
-                iptraceRECVFROM_INTERRUPTED();
-            }
-        #endif /* ipconfigSUPPORT_SIGNALS */
-        else
-        {
-            lReturn = -pdFREERTOS_ERRNO_EWOULDBLOCK;
-            iptraceRECVFROM_TIMEOUT();
-        }
-    }
+		#if ( ipconfigSUPPORT_SIGNALS != 0 )
+			else if( ( xEventBits & ( EventBits_t ) eSOCKET_INTR ) != 0U )
+			{
+				lReturn = -pdFREERTOS_ERRNO_EINTR;
+				iptraceRECVFROM_INTERRUPTED();
+			}
+		#endif /* ipconfigSUPPORT_SIGNALS */
+		else
+		{
+			lReturn = -pdFREERTOS_ERRNO_EWOULDBLOCK;
+			iptraceRECVFROM_TIMEOUT();
+		}
+	}
 
-    return lReturn;
+	return lReturn;
 }
 /*-----------------------------------------------------------*/
 
@@ -1038,191 +1031,191 @@ int32_t FreeRTOS_recvfrom( Socket_t xSocket,
  *         has occurred: it can be looked-up in 'FreeRTOS_errno_TCP.h'.
  */
 int32_t FreeRTOS_sendto( Socket_t xSocket,
-                         const void * pvBuffer,
-                         size_t uxTotalDataLength,
-                         BaseType_t xFlags,
-                         const struct freertos_sockaddr * pxDestinationAddress,
-                         socklen_t xDestinationAddressLength )
+						 const void * pvBuffer,
+						 size_t uxTotalDataLength,
+						 BaseType_t xFlags,
+						 const struct freertos_sockaddr * pxDestinationAddress,
+						 socklen_t xDestinationAddressLength )
 {
-    NetworkBufferDescriptor_t * pxNetworkBuffer;
-    void * pvCopyDest;
-    IPStackEvent_t xStackTxEvent = { eStackTxEvent, NULL };
-    TimeOut_t xTimeOut;
-    TickType_t xTicksToWait;
-    int32_t lReturn = 0;
-    FreeRTOS_Socket_t * pxSocket;
+	NetworkBufferDescriptor_t * pxNetworkBuffer;
+	void * pvCopyDest;
+	IPStackEvent_t xStackTxEvent = { eStackTxEvent, NULL };
+	TimeOut_t xTimeOut;
+	TickType_t xTicksToWait;
+	int32_t lReturn = 0;
+	FreeRTOS_Socket_t * pxSocket;
 
 /* The defaults for IPv4. */
-    #if ( ipconfigUSE_IPv6 != 0 )
-        BaseType_t xIsIPV6 = pdFALSE;
-    #endif
-    size_t uxMaxPayloadLength = ipconfigNETWORK_MTU - ( ipSIZE_OF_IPv4_HEADER + ipSIZE_OF_UDP_HEADER );
-    size_t uxPayloadOffset = ipSIZE_OF_ETH_HEADER + ipSIZE_OF_IPv4_HEADER + ipSIZE_OF_UDP_HEADER;
+	#if ( ipconfigUSE_IPv6 != 0 )
+		BaseType_t xIsIPV6 = pdFALSE;
+	#endif
+	size_t uxMaxPayloadLength = ipconfigNETWORK_MTU - ( ipSIZE_OF_IPv4_HEADER + ipSIZE_OF_UDP_HEADER );
+	size_t uxPayloadOffset = ipSIZE_OF_ETH_HEADER + ipSIZE_OF_IPv4_HEADER + ipSIZE_OF_UDP_HEADER;
 
-    #if ( ipconfigUSE_IPv6 != 0 )
-        struct freertos_sockaddr6 * pxDestinationAddress_IPv6 = NULL;
-    #endif
+	#if ( ipconfigUSE_IPv6 != 0 )
+		struct freertos_sockaddr6 * pxDestinationAddress_IPv6 = NULL;
+	#endif
 
-    pxSocket = ( FreeRTOS_Socket_t * ) xSocket;
+	pxSocket = ( FreeRTOS_Socket_t * ) xSocket;
 
-    #if ( ipconfigUSE_IPv6 != 0 )
-        if( pxDestinationAddress->sin_family == ( uint8_t ) FREERTOS_AF_INET6 )
-        {
-            xIsIPV6 = pdTRUE;
-            uxMaxPayloadLength = ipconfigNETWORK_MTU - ( ipSIZE_OF_IPv6_HEADER + ipSIZE_OF_UDP_HEADER );
-            uxPayloadOffset = ipSIZE_OF_ETH_HEADER + ipSIZE_OF_IPv6_HEADER + ipSIZE_OF_UDP_HEADER;
-            pxDestinationAddress_IPv6 = ipPOINTER_CAST( struct freertos_sockaddr6 *, pxDestinationAddress );
-        }
-    #endif
+	#if ( ipconfigUSE_IPv6 != 0 )
+		if( pxDestinationAddress->sin_family == ( uint8_t ) FREERTOS_AF_INET6 )
+		{
+			xIsIPV6 = pdTRUE;
+			uxMaxPayloadLength = ipconfigNETWORK_MTU - ( ipSIZE_OF_IPv6_HEADER + ipSIZE_OF_UDP_HEADER );
+			uxPayloadOffset = ipSIZE_OF_ETH_HEADER + ipSIZE_OF_IPv6_HEADER + ipSIZE_OF_UDP_HEADER;
+			pxDestinationAddress_IPv6 = ipPOINTER_CAST( struct freertos_sockaddr6 *, pxDestinationAddress );
+		}
+	#endif
 
-    /* The function prototype is designed to maintain the expected Berkeley
-     * sockets standard, but this implementation does not use all the
-     * parameters. */
-    ( void ) xDestinationAddressLength;
-    configASSERT( pvBuffer != NULL );
+	/* The function prototype is designed to maintain the expected Berkeley
+	 * sockets standard, but this implementation does not use all the
+	 * parameters. */
+	( void ) xDestinationAddressLength;
+	configASSERT( pvBuffer != NULL );
 
-    if( uxTotalDataLength <= ( size_t ) uxMaxPayloadLength )
-    {
-        /* If the socket is not already bound to an address, bind it now.
-         * Passing NULL as the address parameter tells FreeRTOS_bind() to select
-         * the address to bind to. */
-        if( socketSOCKET_IS_BOUND( pxSocket ) ||
-            ( FreeRTOS_bind( xSocket, NULL, 0U ) == 0 ) )
-        {
-            xTicksToWait = pxSocket->xSendBlockTime;
+	if( uxTotalDataLength <= ( size_t ) uxMaxPayloadLength )
+	{
+		/* If the socket is not already bound to an address, bind it now.
+		 * Passing NULL as the address parameter tells FreeRTOS_bind() to select
+		 * the address to bind to. */
+		if( socketSOCKET_IS_BOUND( pxSocket ) ||
+			( FreeRTOS_bind( xSocket, NULL, 0U ) == 0 ) )
+		{
+			xTicksToWait = pxSocket->xSendBlockTime;
 
-            #if ( ipconfigUSE_CALLBACKS != 0 )
-                {
-                    if( xIsCallingFromIPTask() != pdFALSE )
-                    {
-                        /* If this send function is called from within a call-back
-                         * handler it may not block, otherwise chances would be big to
-                         * get a deadlock: the IP-task waiting for itself. */
-                        xTicksToWait = ( TickType_t ) 0;
-                    }
-                }
-            #endif /* ipconfigUSE_CALLBACKS */
+			#if ( ipconfigUSE_CALLBACKS != 0 )
+				{
+					if( xIsCallingFromIPTask() != pdFALSE )
+					{
+						/* If this send function is called from within a call-back
+						 * handler it may not block, otherwise chances would be big to
+						 * get a deadlock: the IP-task waiting for itself. */
+						xTicksToWait = ( TickType_t ) 0;
+					}
+				}
+			#endif /* ipconfigUSE_CALLBACKS */
 
-            if( ( ( UBaseType_t ) xFlags & ( UBaseType_t ) FREERTOS_MSG_DONTWAIT ) != 0U )
-            {
-                xTicksToWait = ( TickType_t ) 0;
-            }
+			if( ( ( UBaseType_t ) xFlags & ( UBaseType_t ) FREERTOS_MSG_DONTWAIT ) != 0U )
+			{
+				xTicksToWait = ( TickType_t ) 0;
+			}
 
-            if( ( ( UBaseType_t ) xFlags & ( UBaseType_t ) FREERTOS_ZERO_COPY ) == 0U )
-            {
-                /* Zero copy is not set, so obtain a network buffer into
-                 * which the payload will be copied. */
-                vTaskSetTimeOutState( &xTimeOut );
+			if( ( ( UBaseType_t ) xFlags & ( UBaseType_t ) FREERTOS_ZERO_COPY ) == 0U )
+			{
+				/* Zero copy is not set, so obtain a network buffer into
+				 * which the payload will be copied. */
+				vTaskSetTimeOutState( &xTimeOut );
 
-                /* Block until a buffer becomes available, or until a
-                 * timeout has been reached */
-                pxNetworkBuffer = pxGetNetworkBufferWithDescriptor( uxPayloadOffset + uxTotalDataLength, xTicksToWait );
+				/* Block until a buffer becomes available, or until a
+				 * timeout has been reached */
+				pxNetworkBuffer = pxGetNetworkBufferWithDescriptor( uxPayloadOffset + uxTotalDataLength, xTicksToWait );
 
-                if( pxNetworkBuffer != NULL )
-                {
-                    pvCopyDest = ( void * ) &( pxNetworkBuffer->pucEthernetBuffer[ uxPayloadOffset ] );
-                    ( void ) memcpy( pvCopyDest, pvBuffer, uxTotalDataLength );
-                    pxNetworkBuffer->pxEndPoint = NULL;
+				if( pxNetworkBuffer != NULL )
+				{
+					pvCopyDest = ( void * ) &( pxNetworkBuffer->pucEthernetBuffer[ uxPayloadOffset ] );
+					( void ) memcpy( pvCopyDest, pvBuffer, uxTotalDataLength );
+					pxNetworkBuffer->pxEndPoint = NULL;
 
-                    if( xTaskCheckForTimeOut( &xTimeOut, &xTicksToWait ) == pdTRUE )
-                    {
-                        /* The entire block time has been used up. */
-                        xTicksToWait = ( TickType_t ) 0;
-                    }
-                }
-            }
-            else
-            {
-                /* When zero copy is used, pvBuffer is a pointer to the
-                 * payload of a buffer that has already been obtained from the
-                 * stack.  Obtain the network buffer pointer from the buffer. */
-                pxNetworkBuffer = pxUDPPayloadBuffer_to_NetworkBuffer( pvBuffer );
-            }
+					if( xTaskCheckForTimeOut( &xTimeOut, &xTicksToWait ) == pdTRUE )
+					{
+						/* The entire block time has been used up. */
+						xTicksToWait = ( TickType_t ) 0;
+					}
+				}
+			}
+			else
+			{
+				/* When zero copy is used, pvBuffer is a pointer to the
+				 * payload of a buffer that has already been obtained from the
+				 * stack.  Obtain the network buffer pointer from the buffer. */
+				pxNetworkBuffer = pxUDPPayloadBuffer_to_NetworkBuffer( pvBuffer );
+			}
 
-            if( pxNetworkBuffer != NULL )
-            {
-                UDPPacket_t * pxUDPPacket = ipPOINTER_CAST( UDPPacket_t *, pxNetworkBuffer->pucEthernetBuffer );
-                #if ( ipconfigUSE_IPv6 != 0 )
-                    UDPPacket_IPv6_t * pxUDPPacket_IPv6 = ipPOINTER_CAST( UDPPacket_IPv6_t *, pxNetworkBuffer->pucEthernetBuffer );
-                #endif
+			if( pxNetworkBuffer != NULL )
+			{
+				UDPPacket_t * pxUDPPacket = ipPOINTER_CAST( UDPPacket_t *, pxNetworkBuffer->pucEthernetBuffer );
+				#if ( ipconfigUSE_IPv6 != 0 )
+					UDPPacket_IPv6_t * pxUDPPacket_IPv6 = ipPOINTER_CAST( UDPPacket_IPv6_t *, pxNetworkBuffer->pucEthernetBuffer );
+				#endif
 
-                pxNetworkBuffer->xDataLength = uxTotalDataLength + uxPayloadOffset;
-                pxNetworkBuffer->usPort = pxDestinationAddress->sin_port;
-                pxNetworkBuffer->usBoundPort = ( uint16_t ) socketGET_SOCKET_PORT( pxSocket );
+				pxNetworkBuffer->xDataLength = uxTotalDataLength + uxPayloadOffset;
+				pxNetworkBuffer->usPort = pxDestinationAddress->sin_port;
+				pxNetworkBuffer->usBoundPort = ( uint16_t ) socketGET_SOCKET_PORT( pxSocket );
 
-                #if ( ipconfigUSE_IPv6 != 0 )
-                    if( xIsIPV6 != 0 )
-                    {
-                        pxNetworkBuffer->ulIPAddress = 0UL;
-                        /* lint When xIsIPV6 it true, pxDestinationAddress_IPv6 is initialised. */
-                        configASSERT( pxDestinationAddress_IPv6 != NULL );
-                        ( void ) memcpy( pxUDPPacket_IPv6->xIPHeader.xDestinationAddress.ucBytes, pxDestinationAddress_IPv6->sin_addrv6.ucBytes, ipSIZE_OF_IPv6_ADDRESS ); /*lint !e644 Variable 'pxDestinationAddress_IPv6' (line 797) may not have been initialized [MISRA 2012 Rule 9.1, mandatory]). */
-                        ( void ) memcpy( pxNetworkBuffer->xIPv6_Address.ucBytes, pxDestinationAddress_IPv6->sin_addrv6.ucBytes, ipSIZE_OF_IPv6_ADDRESS );
-                        pxUDPPacket->xEthernetHeader.usFrameType = ipIPv6_FRAME_TYPE;
-                    }
-                    else
-                #endif /* if ( ipconfigUSE_IPv6 != 0 ) */
-                {
-                    pxNetworkBuffer->ulIPAddress = pxDestinationAddress->sin_addr;
-                    /* Map the UDP packet onto the start of the frame. */
-                    pxUDPPacket->xEthernetHeader.usFrameType = ipIPv4_FRAME_TYPE;
-                }
+				#if ( ipconfigUSE_IPv6 != 0 )
+					if( xIsIPV6 != 0 )
+					{
+						pxNetworkBuffer->ulIPAddress = 0UL;
+						/* lint When xIsIPV6 it true, pxDestinationAddress_IPv6 is initialised. */
+						configASSERT( pxDestinationAddress_IPv6 != NULL );
+						( void ) memcpy( pxUDPPacket_IPv6->xIPHeader.xDestinationAddress.ucBytes, pxDestinationAddress_IPv6->sin_addrv6.ucBytes, ipSIZE_OF_IPv6_ADDRESS ); /*lint !e644 Variable 'pxDestinationAddress_IPv6' (line 797) may not have been initialized [MISRA 2012 Rule 9.1, mandatory]). */
+						( void ) memcpy( pxNetworkBuffer->xIPv6_Address.ucBytes, pxDestinationAddress_IPv6->sin_addrv6.ucBytes, ipSIZE_OF_IPv6_ADDRESS );
+						pxUDPPacket->xEthernetHeader.usFrameType = ipIPv6_FRAME_TYPE;
+					}
+					else
+				#endif /* if ( ipconfigUSE_IPv6 != 0 ) */
+				{
+					pxNetworkBuffer->ulIPAddress = pxDestinationAddress->sin_addr;
+					/* Map the UDP packet onto the start of the frame. */
+					pxUDPPacket->xEthernetHeader.usFrameType = ipIPv4_FRAME_TYPE;
+				}
 
-                /* The socket options are passed to the IP layer in the
-                 * space that will eventually get used by the Ethernet header. */
-                pxNetworkBuffer->pucEthernetBuffer[ ipSOCKET_OPTIONS_OFFSET ] = pxSocket->ucSocketOptions;
+				/* The socket options are passed to the IP layer in the
+				 * space that will eventually get used by the Ethernet header. */
+				pxNetworkBuffer->pucEthernetBuffer[ ipSOCKET_OPTIONS_OFFSET ] = pxSocket->ucSocketOptions;
 
-                /* Tell the networking task that the packet needs sending. */
-                xStackTxEvent.pvData = pxNetworkBuffer;
+				/* Tell the networking task that the packet needs sending. */
+				xStackTxEvent.pvData = pxNetworkBuffer;
 
-                /* Ask the IP-task to send this packet */
-                if( xSendEventStructToIPTask( &xStackTxEvent, xTicksToWait ) == pdPASS )
-                {
-                    /* The packet was successfully sent to the IP task. */
-                    lReturn = ( int32_t ) uxTotalDataLength;
-                    #if ( ipconfigUSE_CALLBACKS == 1 )
-                        {
-                            if( ipconfigIS_VALID_PROG_ADDRESS( pxSocket->u.xUDP.pxHandleSent ) )
-                            {
-                                pxSocket->u.xUDP.pxHandleSent( xSocket, uxTotalDataLength );
-                            }
-                        }
-                    #endif /* ipconfigUSE_CALLBACKS */
-                }
-                else
-                {
-                    /* If the buffer was allocated in this function, release
-                     * it. */
-                    if( ( ( UBaseType_t ) xFlags & ( UBaseType_t ) FREERTOS_ZERO_COPY ) == 0U )
-                    {
-                        vReleaseNetworkBufferAndDescriptor( pxNetworkBuffer );
-                    }
+				/* Ask the IP-task to send this packet */
+				if( xSendEventStructToIPTask( &xStackTxEvent, xTicksToWait ) == pdPASS )
+				{
+					/* The packet was successfully sent to the IP task. */
+					lReturn = ( int32_t ) uxTotalDataLength;
+					#if ( ipconfigUSE_CALLBACKS == 1 )
+						{
+							if( ipconfigIS_VALID_PROG_ADDRESS( pxSocket->u.xUDP.pxHandleSent ) )
+							{
+								pxSocket->u.xUDP.pxHandleSent( xSocket, uxTotalDataLength );
+							}
+						}
+					#endif /* ipconfigUSE_CALLBACKS */
+				}
+				else
+				{
+					/* If the buffer was allocated in this function, release
+					 * it. */
+					if( ( ( UBaseType_t ) xFlags & ( UBaseType_t ) FREERTOS_ZERO_COPY ) == 0U )
+					{
+						vReleaseNetworkBufferAndDescriptor( pxNetworkBuffer );
+					}
 
-                    iptraceSTACK_TX_EVENT_LOST( ipSTACK_TX_EVENT );
-                }
-            }
-            else
-            {
-                /* If errno was available, errno would be set to
-                 * FREERTOS_ENOPKTS.  As it is, the function must return the
-                 * number of transmitted bytes, so the calling function knows
-                 * how	much data was actually sent. */
-                iptraceNO_BUFFER_FOR_SENDTO();
-            }
-        }
-        else
-        {
-            /* No comment. */
-            iptraceSENDTO_SOCKET_NOT_BOUND();
-        }
-    }
-    else
-    {
-        /* The data is longer than the available buffer space. */
-        iptraceSENDTO_DATA_TOO_LONG();
-    }
+					iptraceSTACK_TX_EVENT_LOST( ipSTACK_TX_EVENT );
+				}
+			}
+			else
+			{
+				/* If errno was available, errno would be set to
+				 * FREERTOS_ENOPKTS.  As it is, the function must return the
+				 * number of transmitted bytes, so the calling function knows
+				 * how	much data was actually sent. */
+				iptraceNO_BUFFER_FOR_SENDTO();
+			}
+		}
+		else
+		{
+			/* No comment. */
+			iptraceSENDTO_SOCKET_NOT_BOUND();
+		}
+	}
+	else
+	{
+		/* The data is longer than the available buffer space. */
+		iptraceSENDTO_DATA_TOO_LONG();
+	}
 
-    return lReturn;
+	return lReturn;
 } /* Tested */
 /*-----------------------------------------------------------*/
 
@@ -1244,90 +1237,90 @@ int32_t FreeRTOS_sendto( Socket_t xSocket,
  *         If some error occurred, then a negative value is returned.
  */
 BaseType_t FreeRTOS_bind( Socket_t xSocket,
-                          struct freertos_sockaddr const * pxAddress,
-                          socklen_t xAddressLength )
+						  struct freertos_sockaddr const * pxAddress,
+						  socklen_t xAddressLength )
 {
-    IPStackEvent_t xBindEvent;
-    FreeRTOS_Socket_t * pxSocket = ( FreeRTOS_Socket_t * ) xSocket;
-    BaseType_t xReturn = 0;
+	IPStackEvent_t xBindEvent;
+	FreeRTOS_Socket_t * pxSocket = ( FreeRTOS_Socket_t * ) xSocket;
+	BaseType_t xReturn = 0;
 
-    ( void ) xAddressLength;
+	( void ) xAddressLength;
 
-    configASSERT( xIsCallingFromIPTask() == pdFALSE );
+	configASSERT( xIsCallingFromIPTask() == pdFALSE );
 
-    if( ( pxSocket == NULL ) || ( pxSocket == FREERTOS_INVALID_SOCKET ) )
-    {
-        xReturn = -pdFREERTOS_ERRNO_EINVAL;
-    }
+	if( ( pxSocket == NULL ) || ( pxSocket == FREERTOS_INVALID_SOCKET ) )
+	{
+		xReturn = -pdFREERTOS_ERRNO_EINVAL;
+	}
 
-    /* Once a socket is bound to a port, it can not be bound to a different
-     * port number */
-    else if( socketSOCKET_IS_BOUND( pxSocket ) )
-    {
-        /* The socket is already bound. */
-        FreeRTOS_debug_printf( ( "vSocketBind: Socket already bound to %d\n", pxSocket->usLocalPort ) );
-        xReturn = -pdFREERTOS_ERRNO_EINVAL;
-    }
-    else
-    {
-        /* Prepare a messages to the IP-task in order to perform the binding.
-         * The desired port number will be passed in usLocalPort. */
-        xBindEvent.eEventType = eSocketBindEvent;
-        xBindEvent.pvData = xSocket;
-        #if ( ipconfigUSE_IPv6 != 0 )
-            {
-                pxSocket->bits.bIsIPv6 = pdFALSE_UNSIGNED;
-            }
-        #endif /* ipconfigUSE_IPv6 */
+	/* Once a socket is bound to a port, it can not be bound to a different
+	 * port number */
+	else if( socketSOCKET_IS_BOUND( pxSocket ) )
+	{
+		/* The socket is already bound. */
+		FreeRTOS_debug_printf( ( "vSocketBind: Socket already bound to %d\n", pxSocket->usLocalPort ) );
+		xReturn = -pdFREERTOS_ERRNO_EINVAL;
+	}
+	else
+	{
+		/* Prepare a messages to the IP-task in order to perform the binding.
+		 * The desired port number will be passed in usLocalPort. */
+		xBindEvent.eEventType = eSocketBindEvent;
+		xBindEvent.pvData = xSocket;
+		#if ( ipconfigUSE_IPv6 != 0 )
+			{
+				pxSocket->bits.bIsIPv6 = pdFALSE_UNSIGNED;
+			}
+		#endif /* ipconfigUSE_IPv6 */
 
-        if( pxAddress != NULL )
-        {
-            #if ( ipconfigUSE_IPv6 != 0 )
-                if( pxAddress->sin_family == ( uint8_t ) FREERTOS_AF_INET6 )
-                {
-                    struct freertos_sockaddr6 * pxAddress_IPv6 = ipPOINTER_CAST( struct freertos_sockaddr6 *, pxAddress );
+		if( pxAddress != NULL )
+		{
+			#if ( ipconfigUSE_IPv6 != 0 )
+				if( pxAddress->sin_family == ( uint8_t ) FREERTOS_AF_INET6 )
+				{
+					struct freertos_sockaddr6 * pxAddress_IPv6 = ipPOINTER_CAST( struct freertos_sockaddr6 *, pxAddress );
 
-                    ( void ) memcpy( pxSocket->xLocalAddress_IPv6.ucBytes, pxAddress_IPv6->sin_addrv6.ucBytes, sizeof( pxSocket->xLocalAddress_IPv6.ucBytes ) );
-                    pxSocket->bits.bIsIPv6 = pdTRUE_UNSIGNED;
-                }
-                else
-            #endif
-            {
-                pxSocket->ulLocalAddress = FreeRTOS_ntohl( pxAddress->sin_addr );
-            }
+					( void ) memcpy( pxSocket->xLocalAddress_IPv6.ucBytes, pxAddress_IPv6->sin_addrv6.ucBytes, sizeof( pxSocket->xLocalAddress_IPv6.ucBytes ) );
+					pxSocket->bits.bIsIPv6 = pdTRUE_UNSIGNED;
+				}
+				else
+			#endif
+			{
+				pxSocket->ulLocalAddress = FreeRTOS_ntohl( pxAddress->sin_addr );
+			}
 
-            pxSocket->usLocalPort = FreeRTOS_ntohs( pxAddress->sin_port );
-        }
-        else
-        {
-            /* Caller wants to bind to a random port number. */
-            pxSocket->usLocalPort = 0U;
-            pxSocket->ulLocalAddress = 0UL;
-        }
+			pxSocket->usLocalPort = FreeRTOS_ntohs( pxAddress->sin_port );
+		}
+		else
+		{
+			/* Caller wants to bind to a random port number. */
+			pxSocket->usLocalPort = 0U;
+			pxSocket->ulLocalAddress = 0UL;
+		}
 
-        /* portMAX_DELAY is used as a the time-out parameter, as binding *must*
-         * succeed before the socket can be used.  _RB_ The use of an infinite
-         * block time needs be changed as it could result in the task hanging. */
-        if( xSendEventStructToIPTask( &xBindEvent, ( TickType_t ) portMAX_DELAY ) == pdFAIL )
-        {
-            /* Failed to wake-up the IP-task, no use to wait for it */
-            FreeRTOS_debug_printf( ( "FreeRTOS_bind: send event failed\n" ) );
-            xReturn = -pdFREERTOS_ERRNO_ECANCELED;
-        }
-        else
-        {
-            /* The IP-task will set the 'eSOCKET_BOUND' bit when it has done its
-             * job. */
-            ( void ) xEventGroupWaitBits( pxSocket->xEventGroup, ( EventBits_t ) eSOCKET_BOUND, pdTRUE /*xClearOnExit*/, pdFALSE /*xWaitAllBits*/, portMAX_DELAY );
+		/* portMAX_DELAY is used as a the time-out parameter, as binding *must*
+		 * succeed before the socket can be used.  _RB_ The use of an infinite
+		 * block time needs be changed as it could result in the task hanging. */
+		if( xSendEventStructToIPTask( &xBindEvent, ( TickType_t ) portMAX_DELAY ) == pdFAIL )
+		{
+			/* Failed to wake-up the IP-task, no use to wait for it */
+			FreeRTOS_debug_printf( ( "FreeRTOS_bind: send event failed\n" ) );
+			xReturn = -pdFREERTOS_ERRNO_ECANCELED;
+		}
+		else
+		{
+			/* The IP-task will set the 'eSOCKET_BOUND' bit when it has done its
+			 * job. */
+			( void ) xEventGroupWaitBits( pxSocket->xEventGroup, ( EventBits_t ) eSOCKET_BOUND, pdTRUE /*xClearOnExit*/, pdFALSE /*xWaitAllBits*/, portMAX_DELAY );
 
-            if( !socketSOCKET_IS_BOUND( pxSocket ) )
-            {
-                xReturn = -pdFREERTOS_ERRNO_EINVAL;
-            }
-        }
-    }
+			if( !socketSOCKET_IS_BOUND( pxSocket ) )
+			{
+				xReturn = -pdFREERTOS_ERRNO_EINVAL;
+			}
+		}
+	}
 
-    return xReturn;
+	return xReturn;
 }
 /*-----------------------------------------------------------*/
 
@@ -1345,162 +1338,162 @@ BaseType_t FreeRTOS_bind( Socket_t xSocket,
  *         Or else, an error code is returned.
  */
 BaseType_t vSocketBind( FreeRTOS_Socket_t * pxSocket,
-                        struct freertos_sockaddr * pxBindAddress,
-                        size_t uxAddressLength,
-                        BaseType_t xInternal )
+						struct freertos_sockaddr * pxBindAddress,
+						size_t uxAddressLength,
+						BaseType_t xInternal )
 {
-    BaseType_t xReturn = 0; /* In Berkeley sockets, 0 means pass for bind(). */
-    List_t * pxSocketList;
-    struct freertos_sockaddr * pxAddress = pxBindAddress;
+	BaseType_t xReturn = 0; /* In Berkeley sockets, 0 means pass for bind(). */
+	List_t * pxSocketList;
+	struct freertos_sockaddr * pxAddress = pxBindAddress;
 
-    #if ( ipconfigALLOW_SOCKET_SEND_WITHOUT_BIND == 1 )
-        struct freertos_sockaddr xAddress;
-    #endif /* ipconfigALLOW_SOCKET_SEND_WITHOUT_BIND */
+	#if ( ipconfigALLOW_SOCKET_SEND_WITHOUT_BIND == 1 )
+		struct freertos_sockaddr xAddress;
+	#endif /* ipconfigALLOW_SOCKET_SEND_WITHOUT_BIND */
 
-    #if ( ipconfigUSE_TCP == 1 )
-        if( pxSocket->ucProtocol == ( uint8_t ) FREERTOS_IPPROTO_TCP )
-        {
-            pxSocketList = &xBoundTCPSocketsList;
-        }
-        else
-    #endif /* ipconfigUSE_TCP == 1 */
-    {
-        pxSocketList = &xBoundUDPSocketsList;
-    }
+	#if ( ipconfigUSE_TCP == 1 )
+		if( pxSocket->ucProtocol == ( uint8_t ) FREERTOS_IPPROTO_TCP )
+		{
+			pxSocketList = &xBoundTCPSocketsList;
+		}
+		else
+	#endif /* ipconfigUSE_TCP == 1 */
+	{
+		pxSocketList = &xBoundUDPSocketsList;
+	}
 
-    /* The function prototype is designed to maintain the expected Berkeley
-     * sockets standard, but this implementation does not use all the parameters. */
-    ( void ) uxAddressLength;
+	/* The function prototype is designed to maintain the expected Berkeley
+	 * sockets standard, but this implementation does not use all the parameters. */
+	( void ) uxAddressLength;
 
-    configASSERT( pxSocket != NULL );
-    configASSERT( pxSocket != FREERTOS_INVALID_SOCKET );
+	configASSERT( pxSocket != NULL );
+	configASSERT( pxSocket != FREERTOS_INVALID_SOCKET );
 
-    #if ( ipconfigALLOW_SOCKET_SEND_WITHOUT_BIND == 1 )
-        {
-            /* pxAddress will be NULL if sendto() was called on a socket without the
-             * socket being bound to an address.  In this case, automatically allocate
-             * an address to the socket.  There is a small chance that the allocated
-             * port will already be in use - if that is the case, then the check below
-             * [pxListFindListItemWithValue()] will result in an error being returned. */
-            if( pxAddress == NULL )
-            {
-                pxAddress = &xAddress;
-                /* Put the port to zero to be assigned later. */
-                pxAddress->sin_port = 0U;
-            }
-        }
-    #endif /* ipconfigALLOW_SOCKET_SEND_WITHOUT_BIND == 1 */
+	#if ( ipconfigALLOW_SOCKET_SEND_WITHOUT_BIND == 1 )
+		{
+			/* pxAddress will be NULL if sendto() was called on a socket without the
+			 * socket being bound to an address.  In this case, automatically allocate
+			 * an address to the socket.  There is a small chance that the allocated
+			 * port will already be in use - if that is the case, then the check below
+			 * [pxListFindListItemWithValue()] will result in an error being returned. */
+			if( pxAddress == NULL )
+			{
+				pxAddress = &xAddress;
+				/* Put the port to zero to be assigned later. */
+				pxAddress->sin_port = 0U;
+			}
+		}
+	#endif /* ipconfigALLOW_SOCKET_SEND_WITHOUT_BIND == 1 */
 
-    /* Sockets must be bound before calling FreeRTOS_sendto() if
-    * ipconfigALLOW_SOCKET_SEND_WITHOUT_BIND is not set to 1. */
-    configASSERT( pxAddress != NULL );
+	/* Sockets must be bound before calling FreeRTOS_sendto() if
+	* ipconfigALLOW_SOCKET_SEND_WITHOUT_BIND is not set to 1. */
+	configASSERT( pxAddress != NULL );
 
-    #if ( ipconfigALLOW_SOCKET_SEND_WITHOUT_BIND == 1 )
-        /* pxAddress is not NULL, no testing needed. */
-    #else
-        if( pxAddress != NULL )
-    #endif
-    {
-        /* Add a do-while loop to facilitate use of 'break' statements. */
-        do
-        {
-            if( pxAddress->sin_port == 0U )
-            {
-                pxAddress->sin_port = prvGetPrivatePortNumber( ( BaseType_t ) pxSocket->ucProtocol );
+	#if ( ipconfigALLOW_SOCKET_SEND_WITHOUT_BIND == 1 )
+		/* pxAddress is not NULL, no testing needed. */
+	#else
+		if( pxAddress != NULL )
+	#endif
+	{
+		/* Add a do-while loop to facilitate use of 'break' statements. */
+		do
+		{
+			if( pxAddress->sin_port == 0U )
+			{
+				pxAddress->sin_port = prvGetPrivatePortNumber( ( BaseType_t ) pxSocket->ucProtocol );
 
-                if( pxAddress->sin_port == ( uint16_t ) 0U )
-                {
-                    xReturn = -pdFREERTOS_ERRNO_EADDRNOTAVAIL;
-                    break;
-                }
-            }
+				if( pxAddress->sin_port == ( uint16_t ) 0U )
+				{
+					xReturn = -pdFREERTOS_ERRNO_EADDRNOTAVAIL;
+					break;
+				}
+			}
 
-            /* If vSocketBind() is called from the API FreeRTOS_bind() it has been
-             * confirmed that the socket was not yet bound to a port.  If it is called
-             * from the IP-task, no such check is necessary. */
+			/* If vSocketBind() is called from the API FreeRTOS_bind() it has been
+			 * confirmed that the socket was not yet bound to a port.  If it is called
+			 * from the IP-task, no such check is necessary. */
 
-            /* Check to ensure the port is not already in use.  If the bind is
-             * called internally, a port MAY be used by more than one socket. */
-            if( ( ( xInternal == pdFALSE ) || ( pxSocket->ucProtocol != ( uint8_t ) FREERTOS_IPPROTO_TCP ) ) &&
-                ( pxListFindListItemWithValue( pxSocketList, ( TickType_t ) pxAddress->sin_port ) != NULL ) )
-            {
-                FreeRTOS_debug_printf( ( "vSocketBind: %sP port %d in use\n",
-                                         ( pxSocket->ucProtocol == ( uint8_t ) FREERTOS_IPPROTO_TCP ) ? "TC" : "UD",
-                                         FreeRTOS_ntohs( pxAddress->sin_port ) ) );
-                xReturn = -pdFREERTOS_ERRNO_EADDRINUSE;
-            }
-            else
-            {
-                /* Allocate the port number to the socket.
-                 * This macro will set 'xBoundSocketListItem->xItemValue' */
-                socketSET_SOCKET_PORT( pxSocket, pxAddress->sin_port );
+			/* Check to ensure the port is not already in use.  If the bind is
+			 * called internally, a port MAY be used by more than one socket. */
+			if( ( ( xInternal == pdFALSE ) || ( pxSocket->ucProtocol != ( uint8_t ) FREERTOS_IPPROTO_TCP ) ) &&
+				( pxListFindListItemWithValue( pxSocketList, ( TickType_t ) pxAddress->sin_port ) != NULL ) )
+			{
+				FreeRTOS_debug_printf( ( "vSocketBind: %sP port %d in use\n",
+										 ( pxSocket->ucProtocol == ( uint8_t ) FREERTOS_IPPROTO_TCP ) ? "TC" : "UD",
+										 FreeRTOS_ntohs( pxAddress->sin_port ) ) );
+				xReturn = -pdFREERTOS_ERRNO_EADDRINUSE;
+			}
+			else
+			{
+				/* Allocate the port number to the socket.
+				 * This macro will set 'xBoundSocketListItem->xItemValue' */
+				socketSET_SOCKET_PORT( pxSocket, pxAddress->sin_port );
 
-                /* And also store it in a socket field 'usLocalPort' in host-byte-order,
-                 * mostly used for logging and debugging purposes */
-                pxSocket->usLocalPort = FreeRTOS_ntohs( pxAddress->sin_port );
-                #if ( ipconfigUSE_IPv6 != 0 )
-                    if( pxAddress->sin_family == ( uint8_t ) FREERTOS_AF_INET6 )
-                    {
-                        struct freertos_sockaddr6 * pxAddress_IPv6 = ipPOINTER_CAST( struct freertos_sockaddr6 *, pxAddress );
-                        pxSocket->ulLocalAddress = 0UL;
-                        ( void ) memcpy( pxSocket->xLocalAddress_IPv6.ucBytes, pxAddress_IPv6->sin_addrv6.ucBytes, sizeof( pxSocket->xLocalAddress_IPv6.ucBytes ) );
-                    }
-                    else
-                #endif /* ipconfigUSE_IPv6 */
-                {
-                    if( pxAddress->sin_addr != FREERTOS_INADDR_ANY )
-                    {
-                        pxSocket->pxEndPoint = FreeRTOS_FindEndPointOnIP_IPv4( pxAddress->sin_addr, 7 );
-                    }
-                }
+				/* And also store it in a socket field 'usLocalPort' in host-byte-order,
+				 * mostly used for logging and debugging purposes */
+				pxSocket->usLocalPort = FreeRTOS_ntohs( pxAddress->sin_port );
+				#if ( ipconfigUSE_IPv6 != 0 )
+					if( pxAddress->sin_family == ( uint8_t ) FREERTOS_AF_INET6 )
+					{
+						struct freertos_sockaddr6 * pxAddress_IPv6 = ipPOINTER_CAST( struct freertos_sockaddr6 *, pxAddress );
+						pxSocket->ulLocalAddress = 0UL;
+						( void ) memcpy( pxSocket->xLocalAddress_IPv6.ucBytes, pxAddress_IPv6->sin_addrv6.ucBytes, sizeof( pxSocket->xLocalAddress_IPv6.ucBytes ) );
+					}
+					else
+				#endif /* ipconfigUSE_IPv6 */
+				{
+					if( pxAddress->sin_addr != FREERTOS_INADDR_ANY )
+					{
+						pxSocket->pxEndPoint = FreeRTOS_FindEndPointOnIP_IPv4( pxAddress->sin_addr, 7 );
+					}
+				}
 
-                if( pxSocket->pxEndPoint != NULL )
-                {
-                    pxSocket->ulLocalAddress = FreeRTOS_ntohl( pxSocket->pxEndPoint->ipv4_settings.ulIPAddress );
-                }
-                else
-                {
-                    pxSocket->ulLocalAddress = 0UL;
-                }
+				if( pxSocket->pxEndPoint != NULL )
+				{
+					pxSocket->ulLocalAddress = FreeRTOS_ntohl( pxSocket->pxEndPoint->ipv4_settings.ulIPAddress );
+				}
+				else
+				{
+					pxSocket->ulLocalAddress = 0UL;
+				}
 
-                /* Add the socket to the list of bound ports. */
-                {
-                    /* If the network driver can iterate through 'xBoundUDPSocketsList',
-                     * by calling xPortHasUDPSocket() then the IP-task must temporarily
-                     * suspend the scheduler to keep the list in a consistent state. */
-                    #if ( ipconfigETHERNET_DRIVER_FILTERS_PACKETS == 1 )
-                        {
-                            vTaskSuspendAll();
-                        }
-                    #endif /* ipconfigETHERNET_DRIVER_FILTERS_PACKETS */
+				/* Add the socket to the list of bound ports. */
+				{
+					/* If the network driver can iterate through 'xBoundUDPSocketsList',
+					 * by calling xPortHasUDPSocket() then the IP-task must temporarily
+					 * suspend the scheduler to keep the list in a consistent state. */
+					#if ( ipconfigETHERNET_DRIVER_FILTERS_PACKETS == 1 )
+						{
+							vTaskSuspendAll();
+						}
+					#endif /* ipconfigETHERNET_DRIVER_FILTERS_PACKETS */
 
-                    /* Add the socket to 'xBoundUDPSocketsList' or 'xBoundTCPSocketsList' */
-                    vListInsertEnd( pxSocketList, &( pxSocket->xBoundSocketListItem ) );
+					/* Add the socket to 'xBoundUDPSocketsList' or 'xBoundTCPSocketsList' */
+					vListInsertEnd( pxSocketList, &( pxSocket->xBoundSocketListItem ) );
 
-                    #if ( ipconfigETHERNET_DRIVER_FILTERS_PACKETS == 1 )
-                        {
-                            ( void ) xTaskResumeAll();
-                        }
-                    #endif /* ipconfigETHERNET_DRIVER_FILTERS_PACKETS */
-                }
-            }
-        } while( ipFALSE_BOOL );
-    }
+					#if ( ipconfigETHERNET_DRIVER_FILTERS_PACKETS == 1 )
+						{
+							( void ) xTaskResumeAll();
+						}
+					#endif /* ipconfigETHERNET_DRIVER_FILTERS_PACKETS */
+				}
+			}
+		} while( ipFALSE_BOOL );
+	}
 
-    #if ( ipconfigALLOW_SOCKET_SEND_WITHOUT_BIND == 0 )
-        else
-        {
-            xReturn = -pdFREERTOS_ERRNO_EADDRNOTAVAIL;
-            FreeRTOS_debug_printf( ( "vSocketBind: Socket no addr\n" ) );
-        }
-    #endif
+	#if ( ipconfigALLOW_SOCKET_SEND_WITHOUT_BIND == 0 )
+		else
+		{
+			xReturn = -pdFREERTOS_ERRNO_EADDRNOTAVAIL;
+			FreeRTOS_debug_printf( ( "vSocketBind: Socket no addr\n" ) );
+		}
+	#endif
 
-    if( xReturn != 0 )
-    {
-        iptraceBIND_FAILED( xSocket, ( FreeRTOS_ntohs( pxAddress->sin_port ) ) );
-    }
+	if( xReturn != 0 )
+	{
+		iptraceBIND_FAILED( xSocket, ( FreeRTOS_ntohs( pxAddress->sin_port ) ) );
+	}
 
-    return xReturn;
+	return xReturn;
 } /* Tested */
 /*-----------------------------------------------------------*/
 
@@ -1521,51 +1514,51 @@ BaseType_t vSocketBind( FreeRTOS_Socket_t * pxSocket,
  */
 BaseType_t FreeRTOS_closesocket( Socket_t xSocket )
 {
-    BaseType_t xResult;
+	BaseType_t xResult;
 
-    #if ( ipconfigUSE_TCP == 1 ) && ( ipconfigUSE_CALLBACKS == 1 )
-        FreeRTOS_Socket_t * pxSocket = ( FreeRTOS_Socket_t * ) xSocket;
-    #endif
-    IPStackEvent_t xCloseEvent;
-    xCloseEvent.eEventType = eSocketCloseEvent;
-    xCloseEvent.pvData = xSocket;
+	#if ( ipconfigUSE_TCP == 1 ) && ( ipconfigUSE_CALLBACKS == 1 )
+		FreeRTOS_Socket_t * pxSocket = ( FreeRTOS_Socket_t * ) xSocket;
+	#endif
+	IPStackEvent_t xCloseEvent;
+	xCloseEvent.eEventType = eSocketCloseEvent;
+	xCloseEvent.pvData = xSocket;
 
-    if( ( xSocket == NULL ) || ( xSocket == FREERTOS_INVALID_SOCKET ) )
-    {
-        xResult = 0;
-    }
-    else
-    {
-        #if ( ( ipconfigUSE_TCP == 1 ) && ( ipconfigUSE_CALLBACKS == 1 ) )
-            {
-                if( pxSocket->ucProtocol == ( uint8_t ) FREERTOS_IPPROTO_TCP )
-                {
-                    /* Make sure that IP-task won't call the user callback's anymore */
-                    pxSocket->u.xTCP.pxHandleConnected = NULL;
-                    pxSocket->u.xTCP.pxHandleReceive = NULL;
-                    pxSocket->u.xTCP.pxHandleSent = NULL;
-                }
-            }
-        #endif /* ( ( ipconfigUSE_TCP == 1 ) && ( ipconfigUSE_CALLBACKS == 1 ) ) */
+	if( ( xSocket == NULL ) || ( xSocket == FREERTOS_INVALID_SOCKET ) )
+	{
+		xResult = 0;
+	}
+	else
+	{
+		#if ( ( ipconfigUSE_TCP == 1 ) && ( ipconfigUSE_CALLBACKS == 1 ) )
+			{
+				if( pxSocket->ucProtocol == ( uint8_t ) FREERTOS_IPPROTO_TCP )
+				{
+					/* Make sure that IP-task won't call the user callback's anymore */
+					pxSocket->u.xTCP.pxHandleConnected = NULL;
+					pxSocket->u.xTCP.pxHandleReceive = NULL;
+					pxSocket->u.xTCP.pxHandleSent = NULL;
+				}
+			}
+		#endif /* ( ( ipconfigUSE_TCP == 1 ) && ( ipconfigUSE_CALLBACKS == 1 ) ) */
 
-        /* Let the IP task close the socket to keep it synchronised	with the
-         * packet handling. */
+		/* Let the IP task close the socket to keep it synchronised	with the
+		 * packet handling. */
 
-        /* Note when changing the time-out value below, it must be checked who is calling
-         * this function. If it is called by the IP-task, a deadlock could occur.
-         * The IP-task would only call it in case of a user call-back */
-        if( xSendEventStructToIPTask( &xCloseEvent, ( TickType_t ) 0 ) == pdFAIL )
-        {
-            FreeRTOS_debug_printf( ( "FreeRTOS_closesocket: failed\n" ) );
-            xResult = -1;
-        }
-        else
-        {
-            xResult = 1;
-        }
-    }
+		/* Note when changing the time-out value below, it must be checked who is calling
+		 * this function. If it is called by the IP-task, a deadlock could occur.
+		 * The IP-task would only call it in case of a user call-back */
+		if( xSendEventStructToIPTask( &xCloseEvent, ( TickType_t ) 0 ) == pdFAIL )
+		{
+			FreeRTOS_debug_printf( ( "FreeRTOS_closesocket: failed\n" ) );
+			xResult = -1;
+		}
+		else
+		{
+			xResult = 1;
+		}
+	}
 
-    return xResult;
+	return xResult;
 }
 
 /**
@@ -1578,161 +1571,161 @@ BaseType_t FreeRTOS_closesocket( Socket_t xSocket )
  */
 void * vSocketClose( FreeRTOS_Socket_t * pxSocket )
 {
-    NetworkBufferDescriptor_t * pxNetworkBuffer;
+	NetworkBufferDescriptor_t * pxNetworkBuffer;
 
-    #if ( ipconfigUSE_TCP == 1 )
-        {
-            /* For TCP: clean up a little more. */
-            if( pxSocket->ucProtocol == ( uint8_t ) FREERTOS_IPPROTO_TCP )
-            {
-                #if ( ipconfigUSE_TCP_WIN == 1 )
-                    {
-                        if( pxSocket->u.xTCP.pxAckMessage != NULL )
-                        {
-                            vReleaseNetworkBufferAndDescriptor( pxSocket->u.xTCP.pxAckMessage );
-                        }
+	#if ( ipconfigUSE_TCP == 1 )
+		{
+			/* For TCP: clean up a little more. */
+			if( pxSocket->ucProtocol == ( uint8_t ) FREERTOS_IPPROTO_TCP )
+			{
+				#if ( ipconfigUSE_TCP_WIN == 1 )
+					{
+						if( pxSocket->u.xTCP.pxAckMessage != NULL )
+						{
+							vReleaseNetworkBufferAndDescriptor( pxSocket->u.xTCP.pxAckMessage );
+						}
 
-                        /* Free the resources which were claimed by the tcpWin member */
-                        vTCPWindowDestroy( &pxSocket->u.xTCP.xTCPWindow );
-                    }
-                #endif /* ipconfigUSE_TCP_WIN */
+						/* Free the resources which were claimed by the tcpWin member */
+						vTCPWindowDestroy( &pxSocket->u.xTCP.xTCPWindow );
+					}
+				#endif /* ipconfigUSE_TCP_WIN */
 
-                /* Free the input and output streams */
-                if( pxSocket->u.xTCP.rxStream != NULL )
-                {
-                    iptraceMEM_STATS_DELETE( pxSocket->u.xTCP.rxStream );
-                    vPortFreeLarge( pxSocket->u.xTCP.rxStream );
-                }
+				/* Free the input and output streams */
+				if( pxSocket->u.xTCP.rxStream != NULL )
+				{
+					iptraceMEM_STATS_DELETE( pxSocket->u.xTCP.rxStream );
+					vPortFreeLarge( pxSocket->u.xTCP.rxStream );
+				}
 
-                if( pxSocket->u.xTCP.txStream != NULL )
-                {
-                    iptraceMEM_STATS_DELETE( pxSocket->u.xTCP.txStream );
-                    vPortFreeLarge( pxSocket->u.xTCP.txStream );
-                }
+				if( pxSocket->u.xTCP.txStream != NULL )
+				{
+					iptraceMEM_STATS_DELETE( pxSocket->u.xTCP.txStream );
+					vPortFreeLarge( pxSocket->u.xTCP.txStream );
+				}
 
-                /* In case this is a child socket, make sure the child-count of the
-                 * parent socket is decreased. */
-                prvTCPSetSocketCount( pxSocket );
-            }
-        }
-    #endif /* ipconfigUSE_TCP == 1 */
+				/* In case this is a child socket, make sure the child-count of the
+				 * parent socket is decreased. */
+				prvTCPSetSocketCount( pxSocket );
+			}
+		}
+	#endif /* ipconfigUSE_TCP == 1 */
 
-    /* Socket must be unbound first, to ensure no more packets are queued on
-     * it. */
-    if( socketSOCKET_IS_BOUND( pxSocket ) )
-    {
-        /* If the network driver can iterate through 'xBoundUDPSocketsList',
-         * by calling xPortHasUDPSocket(), then the IP-task must temporarily
-         * suspend the scheduler to keep the list in a consistent state. */
-        #if ( ipconfigETHERNET_DRIVER_FILTERS_PACKETS == 1 )
-            {
-                vTaskSuspendAll();
-            }
-        #endif /* ipconfigETHERNET_DRIVER_FILTERS_PACKETS */
+	/* Socket must be unbound first, to ensure no more packets are queued on
+	 * it. */
+	if( socketSOCKET_IS_BOUND( pxSocket ) )
+	{
+		/* If the network driver can iterate through 'xBoundUDPSocketsList',
+		 * by calling xPortHasUDPSocket(), then the IP-task must temporarily
+		 * suspend the scheduler to keep the list in a consistent state. */
+		#if ( ipconfigETHERNET_DRIVER_FILTERS_PACKETS == 1 )
+			{
+				vTaskSuspendAll();
+			}
+		#endif /* ipconfigETHERNET_DRIVER_FILTERS_PACKETS */
 
-        ( void ) uxListRemove( &( pxSocket->xBoundSocketListItem ) );
+		( void ) uxListRemove( &( pxSocket->xBoundSocketListItem ) );
 
-        #if ( ipconfigETHERNET_DRIVER_FILTERS_PACKETS == 1 )
-            {
-                ( void ) xTaskResumeAll();
-            }
-        #endif /* ipconfigETHERNET_DRIVER_FILTERS_PACKETS */
-    }
+		#if ( ipconfigETHERNET_DRIVER_FILTERS_PACKETS == 1 )
+			{
+				( void ) xTaskResumeAll();
+			}
+		#endif /* ipconfigETHERNET_DRIVER_FILTERS_PACKETS */
+	}
 
-    /* Now the socket is not bound the list of waiting packets can be
-     * drained. */
-    if( pxSocket->ucProtocol == ( uint8_t ) FREERTOS_IPPROTO_UDP )
-    {
-        while( listCURRENT_LIST_LENGTH( &( pxSocket->u.xUDP.xWaitingPacketsList ) ) > 0U )
-        {
-            pxNetworkBuffer = ipCAST_PTR_TO_TYPE_PTR( NetworkBufferDescriptor_t, listGET_OWNER_OF_HEAD_ENTRY( &( pxSocket->u.xUDP.xWaitingPacketsList ) ) );
-            ( void ) uxListRemove( &( pxNetworkBuffer->xBufferListItem ) );
-            vReleaseNetworkBufferAndDescriptor( pxNetworkBuffer );
-        }
-    }
+	/* Now the socket is not bound the list of waiting packets can be
+	 * drained. */
+	if( pxSocket->ucProtocol == ( uint8_t ) FREERTOS_IPPROTO_UDP )
+	{
+		while( listCURRENT_LIST_LENGTH( &( pxSocket->u.xUDP.xWaitingPacketsList ) ) > 0U )
+		{
+			pxNetworkBuffer = ipCAST_PTR_TO_TYPE_PTR( NetworkBufferDescriptor_t, listGET_OWNER_OF_HEAD_ENTRY( &( pxSocket->u.xUDP.xWaitingPacketsList ) ) );
+			( void ) uxListRemove( &( pxNetworkBuffer->xBufferListItem ) );
+			vReleaseNetworkBufferAndDescriptor( pxNetworkBuffer );
+		}
+	}
 
-    if( pxSocket->xEventGroup != NULL )
-    {
-        vEventGroupDelete( pxSocket->xEventGroup );
-    }
+	if( pxSocket->xEventGroup != NULL )
+	{
+		vEventGroupDelete( pxSocket->xEventGroup );
+	}
 
-    #if ( ipconfigUSE_TCP == 1 ) && ( ipconfigHAS_DEBUG_PRINTF != 0 )
-        {
-            if( pxSocket->ucProtocol == ( uint8_t ) FREERTOS_IPPROTO_TCP )
-            {
-                FreeRTOS_debug_printf( ( "FreeRTOS_closesocket[%s]: buffers %lu socks %lu\n",
-                                         prvSocketProps( pxSocket ),
-                                         uxGetNumberOfFreeNetworkBuffers(),
-                                         listCURRENT_LIST_LENGTH( &xBoundTCPSocketsList ) ) );
-            }
-        }
-    #endif /* ( ipconfigUSE_TCP == 1 ) && ( ipconfigHAS_DEBUG_PRINTF != 0 ) */
+	#if ( ipconfigUSE_TCP == 1 ) && ( ipconfigHAS_DEBUG_PRINTF != 0 )
+		{
+			if( pxSocket->ucProtocol == ( uint8_t ) FREERTOS_IPPROTO_TCP )
+			{
+				FreeRTOS_debug_printf( ( "FreeRTOS_closesocket[%s]: buffers %lu socks %lu\n",
+										 prvSocketProps( pxSocket ),
+										 uxGetNumberOfFreeNetworkBuffers(),
+										 listCURRENT_LIST_LENGTH( &xBoundTCPSocketsList ) ) );
+			}
+		}
+	#endif /* ( ipconfigUSE_TCP == 1 ) && ( ipconfigHAS_DEBUG_PRINTF != 0 ) */
 
-    /* And finally, after all resources have been freed, free the socket space */
-    iptraceMEM_STATS_DELETE( pxSocket );
-    vPortFreeSocket( pxSocket );
+	/* And finally, after all resources have been freed, free the socket space */
+	iptraceMEM_STATS_DELETE( pxSocket );
+	vPortFreeSocket( pxSocket );
 
-    return NULL;
+	return NULL;
 } /* Tested */
 /*-----------------------------------------------------------*/
 
 #if ( ( ipconfigHAS_DEBUG_PRINTF != 0 ) || ( ipconfigHAS_PRINTF != 0 ) )
 
-    const char * prvSocketProps( FreeRTOS_Socket_t * pxSocket )
-    {
-        static char pucReturn[ 92 ];
+	const char * prvSocketProps( FreeRTOS_Socket_t * pxSocket )
+	{
+		static char pucReturn[ 92 ];
 
-        /* For debugging purposes only: show some propoerties of a socket:
-         * IP-addresses and port numbers. */
-        #if ipconfigUSE_TCP == 1
-            if( pxSocket->ucProtocol == ( uint8_t ) FREERTOS_IPPROTO_TCP )
-            {
-                #if ( ipconfigUSE_IPv6 != 0 )
-                    if( pxSocket->bits.bIsIPv6 != pdFALSE_UNSIGNED )
-                    {
-                        ( void ) snprintf( pucReturn, sizeof( pucReturn ), "%pip port %u to %pip port %u", /*lint !e586 function 'snprintf' is deprecated. [MISRA 2012 Rule 21.6, required]. */
-                                           pxSocket->xLocalAddress_IPv6.ucBytes,
-                                           pxSocket->usLocalPort,
-                                           pxSocket->u.xTCP.xRemoteIP_IPv6.ucBytes,
-                                           pxSocket->u.xTCP.usRemotePort );
-                    }
-                    else
-                #endif /* ipconfigUSE_IPv6 */
-                {
-                    ( void ) snprintf( pucReturn, sizeof( pucReturn ), "%lxip port %u to %lxip port %u", /*lint !e586 function 'snprintf' is deprecated. [MISRA 2012 Rule 21.6, required]. */
-                                       pxSocket->ulLocalAddress,
-                                       pxSocket->usLocalPort,
-                                       pxSocket->u.xTCP.ulRemoteIP,
-                                       pxSocket->u.xTCP.usRemotePort );
-                }
-            }
-            else
-        #endif /* if ipconfigUSE_TCP == 1 */
+		/* For debugging purposes only: show some properties of a socket:
+		 * IP-addresses and port numbers. */
+		#if ipconfigUSE_TCP == 1
+			if( pxSocket->ucProtocol == ( uint8_t ) FREERTOS_IPPROTO_TCP )
+			{
+				#if ( ipconfigUSE_IPv6 != 0 )
+					if( pxSocket->bits.bIsIPv6 != pdFALSE_UNSIGNED )
+					{
+						( void ) snprintf( pucReturn, sizeof( pucReturn ), "%pip port %u to %pip port %u", /*lint !e586 function 'snprintf' is deprecated. [MISRA 2012 Rule 21.6, required]. */
+										   pxSocket->xLocalAddress_IPv6.ucBytes,
+										   pxSocket->usLocalPort,
+										   pxSocket->u.xTCP.xRemoteIP_IPv6.ucBytes,
+										   pxSocket->u.xTCP.usRemotePort );
+					}
+					else
+				#endif /* ipconfigUSE_IPv6 */
+				{
+					( void ) snprintf( pucReturn, sizeof( pucReturn ), "%lxip port %u to %lxip port %u", /*lint !e586 function 'snprintf' is deprecated. [MISRA 2012 Rule 21.6, required]. */
+									   pxSocket->ulLocalAddress,
+									   pxSocket->usLocalPort,
+									   pxSocket->u.xTCP.ulRemoteIP,
+									   pxSocket->u.xTCP.usRemotePort );
+				}
+			}
+			else
+		#endif /* if ipconfigUSE_TCP == 1 */
 
-        if( pxSocket->ucProtocol == ( uint8_t ) FREERTOS_IPPROTO_UDP )
-        {
-            #if ( ipconfigUSE_IPv6 != 0 )
-                if( pxSocket->bits.bIsIPv6 != pdFALSE_UNSIGNED )
-                {
-                    ( void ) snprintf( pucReturn, sizeof( pucReturn ), "%pip port %u", /*lint !e586 function 'snprintf' is deprecated. [MISRA 2012 Rule 21.6, required]. */
-                                       pxSocket->xLocalAddress_IPv6.ucBytes,
-                                       pxSocket->usLocalPort );
-                }
-                else
-            #endif /* ipconfigUSE_IPv6 */
-            {
-                ( void ) snprintf( pucReturn, sizeof( pucReturn ), "%lxip port %u", /*lint !e586 function 'snprintf' is deprecated. [MISRA 2012 Rule 21.6, required]. */
-                                   pxSocket->ulLocalAddress,
-                                   pxSocket->usLocalPort );
-            }
-        }
-        else
-        {
-            /* Protocol not handled. */
-        }
+		if( pxSocket->ucProtocol == ( uint8_t ) FREERTOS_IPPROTO_UDP )
+		{
+			#if ( ipconfigUSE_IPv6 != 0 )
+				if( pxSocket->bits.bIsIPv6 != pdFALSE_UNSIGNED )
+				{
+					( void ) snprintf( pucReturn, sizeof( pucReturn ), "%pip port %u", /*lint !e586 function 'snprintf' is deprecated. [MISRA 2012 Rule 21.6, required]. */
+									   pxSocket->xLocalAddress_IPv6.ucBytes,
+									   pxSocket->usLocalPort );
+				}
+				else
+			#endif /* ipconfigUSE_IPv6 */
+			{
+				( void ) snprintf( pucReturn, sizeof( pucReturn ), "%lxip port %u", /*lint !e586 function 'snprintf' is deprecated. [MISRA 2012 Rule 21.6, required]. */
+								   pxSocket->ulLocalAddress,
+								   pxSocket->usLocalPort );
+			}
+		}
+		else
+		{
+			/* Protocol not handled. */
+		}
 
-        return pucReturn;
-    }
+		return pucReturn;
+	}
 #endif /* ( ( ipconfigHAS_DEBUG_PRINTF != 0 ) || ( ipconfigHAS_PRINTF != 0 ) ) */
 /*-----------------------------------------------------------*/
 
@@ -1745,38 +1738,40 @@ void * vSocketClose( FreeRTOS_Socket_t * pxSocket )
  *
  * @param[in] pxSocketToDelete: The socket being closed.
  */
-    static void prvTCPSetSocketCount( FreeRTOS_Socket_t const * pxSocketToDelete )
-    {
-        const ListItem_t * pxIterator;
-        const ListItem_t * pxEnd = listGET_END_MARKER( &xBoundTCPSocketsList );
-        FreeRTOS_Socket_t * pxOtherSocket;
-        uint16_t usLocalPort = pxSocketToDelete->usLocalPort;
+	static void prvTCPSetSocketCount( FreeRTOS_Socket_t const * pxSocketToDelete )
+	{
+		const ListItem_t * pxIterator;
+		const ListItem_t * pxEnd = listGET_END_MARKER( &xBoundTCPSocketsList );
+		FreeRTOS_Socket_t * pxOtherSocket;
+		uint16_t usLocalPort = pxSocketToDelete->usLocalPort;
 
-        for( pxIterator = listGET_NEXT( pxEnd );
-             pxIterator != pxEnd;
-             pxIterator = listGET_NEXT( pxIterator ) )
-        {
-            pxOtherSocket = ipCAST_PTR_TO_TYPE_PTR( FreeRTOS_Socket_t, listGET_LIST_ITEM_OWNER( pxIterator ) );
+		for( pxIterator = listGET_NEXT( pxEnd );
+			 pxIterator != pxEnd;
+			 pxIterator = listGET_NEXT( pxIterator ) )
+		{
+			pxOtherSocket = ipCAST_PTR_TO_TYPE_PTR( FreeRTOS_Socket_t, listGET_LIST_ITEM_OWNER( pxIterator ) );
 
-            if( ( pxOtherSocket->u.xTCP.ucTCPState == ( uint8_t ) eTCP_LISTEN ) &&
-                ( pxOtherSocket->usLocalPort == usLocalPort ) &&
-                ( pxOtherSocket->u.xTCP.usChildCount != 0U ) )
-            {
-                pxOtherSocket->u.xTCP.usChildCount--;
-                FreeRTOS_debug_printf( ( "Lost: Socket %u now has %u / %u child%s\n",
-                                         pxOtherSocket->usLocalPort,
-                                         pxOtherSocket->u.xTCP.usChildCount,
-                                         pxOtherSocket->u.xTCP.usBacklog,
-                                         ( pxOtherSocket->u.xTCP.usChildCount == 1U ) ? "" : "ren" ) );
-                break;
-            }
-        }
-    }
+			if( ( pxOtherSocket->u.xTCP.ucTCPState == ( uint8_t ) eTCP_LISTEN ) &&
+				( pxOtherSocket->usLocalPort == usLocalPort ) &&
+				( pxOtherSocket->u.xTCP.usChildCount != 0U ) )
+			{
+				pxOtherSocket->u.xTCP.usChildCount--;
+				FreeRTOS_debug_printf( ( "Lost: Socket %u now has %u / %u child%s\n",
+										 pxOtherSocket->usLocalPort,
+										 pxOtherSocket->u.xTCP.usChildCount,
+										 pxOtherSocket->u.xTCP.usBacklog,
+										 ( pxOtherSocket->u.xTCP.usChildCount == 1U ) ? "" : "ren" ) );
+				break;
+			}
+		}
+	}
 
 
 #endif /* ipconfigUSE_TCP == 1 */
 
 /*-----------------------------------------------------------*/
+
+#if ( ipconfigUSE_TCP == 1 )
 
 /**
  * @brief Set the value of receive/send buffer after some preliminary checks.
@@ -1789,46 +1784,47 @@ void * vSocketClose( FreeRTOS_Socket_t * pxSocket )
  * @return If there is no error, then 0 is returned. Or a negative errno
  *         value is returned.
  */
-static BaseType_t prvSockopt_so_buffer( FreeRTOS_Socket_t * pxSocket,
-                                        int32_t lOptionName,
-                                        const void * pvOptionValue )
-{
-    uint32_t ulNewValue;
-    BaseType_t xReturn;
+	static BaseType_t prvSockopt_so_buffer( FreeRTOS_Socket_t * pxSocket,
+											int32_t lOptionName,
+											const void * pvOptionValue )
+	{
+		uint32_t ulNewValue;
+		BaseType_t xReturn;
 
-    if( pxSocket->ucProtocol != ( uint8_t ) FREERTOS_IPPROTO_TCP )
-    {
-        FreeRTOS_debug_printf( ( "Set SO_%sBUF: wrong socket type\n",
-                                 ( lOptionName == FREERTOS_SO_SNDBUF ) ? "SND" : "RCV" ) );
-        xReturn = -pdFREERTOS_ERRNO_EINVAL;
-    }
-    else if( ( ( lOptionName == FREERTOS_SO_SNDBUF ) && ( pxSocket->u.xTCP.txStream != NULL ) ) ||
-             ( ( lOptionName == FREERTOS_SO_RCVBUF ) && ( pxSocket->u.xTCP.rxStream != NULL ) ) )
-    {
-        FreeRTOS_debug_printf( ( "Set SO_%sBUF: buffer already created\n",
-                                 ( lOptionName == FREERTOS_SO_SNDBUF ) ? "SND" : "RCV" ) );
-        xReturn = -pdFREERTOS_ERRNO_EINVAL;
-    }
-    else
-    {
-        ulNewValue = *( ipPOINTER_CAST( const uint32_t *, pvOptionValue ) );
+		if( pxSocket->ucProtocol != ( uint8_t ) FREERTOS_IPPROTO_TCP )
+		{
+			FreeRTOS_debug_printf( ( "Set SO_%sBUF: wrong socket type\n",
+									 ( lOptionName == FREERTOS_SO_SNDBUF ) ? "SND" : "RCV" ) );
+			xReturn = -pdFREERTOS_ERRNO_EINVAL;
+		}
+		else if( ( ( lOptionName == FREERTOS_SO_SNDBUF ) && ( pxSocket->u.xTCP.txStream != NULL ) ) ||
+				 ( ( lOptionName == FREERTOS_SO_RCVBUF ) && ( pxSocket->u.xTCP.rxStream != NULL ) ) )
+		{
+			FreeRTOS_debug_printf( ( "Set SO_%sBUF: buffer already created\n",
+									 ( lOptionName == FREERTOS_SO_SNDBUF ) ? "SND" : "RCV" ) );
+			xReturn = -pdFREERTOS_ERRNO_EINVAL;
+		}
+		else
+		{
+			ulNewValue = *( ipPOINTER_CAST( const uint32_t *, pvOptionValue ) );
 
-        if( lOptionName == FREERTOS_SO_SNDBUF )
-        {
-            /* Round up to nearest MSS size */
-            ulNewValue = FreeRTOS_round_up( ulNewValue, ( uint32_t ) pxSocket->u.xTCP.usInitMSS );
-            pxSocket->u.xTCP.uxTxStreamSize = ulNewValue;
-        }
-        else
-        {
-            pxSocket->u.xTCP.uxRxStreamSize = ulNewValue;
-        }
+			if( lOptionName == FREERTOS_SO_SNDBUF )
+			{
+				/* Round up to nearest MSS size */
+				ulNewValue = FreeRTOS_round_up( ulNewValue, ( uint32_t ) pxSocket->u.xTCP.usInitMSS );
+				pxSocket->u.xTCP.uxTxStreamSize = ulNewValue;
+			}
+			else
+			{
+				pxSocket->u.xTCP.uxRxStreamSize = ulNewValue;
+			}
 
-        xReturn = 0;
-    }
+			xReturn = 0;
+		}
 
-    return xReturn;
-}
+		return xReturn;
+	}
+#endif /* ipconfigUSE_TCP == 1 */
 /*-----------------------------------------------------------*/
 
 /* FreeRTOS_setsockopt calls itself, but in a very limited way,
@@ -1849,367 +1845,367 @@ static BaseType_t prvSockopt_so_buffer( FreeRTOS_Socket_t * pxSocket,
  *         an error code is returned.
  */
 BaseType_t FreeRTOS_setsockopt( Socket_t xSocket,
-                                int32_t lLevel,
-                                int32_t lOptionName,
-                                const void * pvOptionValue,
-                                size_t uxOptionLength )
+								int32_t lLevel,
+								int32_t lOptionName,
+								const void * pvOptionValue,
+								size_t uxOptionLength )
 {
 /* The standard Berkeley function returns 0 for success. */
-    BaseType_t xReturn = -pdFREERTOS_ERRNO_EINVAL;
-    FreeRTOS_Socket_t * pxSocket;
+	BaseType_t xReturn = -pdFREERTOS_ERRNO_EINVAL;
+	FreeRTOS_Socket_t * pxSocket;
 
-    pxSocket = ( FreeRTOS_Socket_t * ) xSocket;
+	pxSocket = ( FreeRTOS_Socket_t * ) xSocket;
 
-    /* The function prototype is designed to maintain the expected Berkeley
-     * sockets standard, but this implementation does not use all the parameters. */
-    ( void ) lLevel;
-    ( void ) uxOptionLength;
+	/* The function prototype is designed to maintain the expected Berkeley
+	 * sockets standard, but this implementation does not use all the parameters. */
+	( void ) lLevel;
+	( void ) uxOptionLength;
 
-    if( ( pxSocket == NULL ) || ( pxSocket == FREERTOS_INVALID_SOCKET ) )
-    {
-        xReturn = -pdFREERTOS_ERRNO_EINVAL;
-        return xReturn;
-    }
+	if( ( pxSocket == NULL ) || ( pxSocket == FREERTOS_INVALID_SOCKET ) )
+	{
+		xReturn = -pdFREERTOS_ERRNO_EINVAL;
+		return xReturn;
+	}
 
-    switch( lOptionName )
-    {
-        case FREERTOS_SO_RCVTIMEO:
-            /* Receive time out. */
-            pxSocket->xReceiveBlockTime = *( ( const TickType_t * ) pvOptionValue );
-            xReturn = 0;
-            break;
+	switch( lOptionName )
+	{
+		case FREERTOS_SO_RCVTIMEO:
+			/* Receive time out. */
+			pxSocket->xReceiveBlockTime = *( ( const TickType_t * ) pvOptionValue );
+			xReturn = 0;
+			break;
 
-        case FREERTOS_SO_SNDTIMEO:
-            pxSocket->xSendBlockTime = *( ( const TickType_t * ) pvOptionValue );
+		case FREERTOS_SO_SNDTIMEO:
+			pxSocket->xSendBlockTime = *( ( const TickType_t * ) pvOptionValue );
 
-            if( pxSocket->ucProtocol == ( uint8_t ) FREERTOS_IPPROTO_UDP )
-            {
-                /* The send time out is capped for the reason stated in the
-                 * comments where ipconfigUDP_MAX_SEND_BLOCK_TIME_TICKS is defined
-                 * in FreeRTOSIPConfig.h (assuming an official configuration file
-                 * is being used. */
-                if( pxSocket->xSendBlockTime > ipconfigUDP_MAX_SEND_BLOCK_TIME_TICKS )
-                {
-                    pxSocket->xSendBlockTime = ipconfigUDP_MAX_SEND_BLOCK_TIME_TICKS;
-                }
-            }
-            else
-            {
-                /* For TCP socket, it isn't necessary to limit the blocking time
-                 * because	the FreeRTOS_send() function does not wait for a network
-                 * buffer to become available. */
-            }
+			if( pxSocket->ucProtocol == ( uint8_t ) FREERTOS_IPPROTO_UDP )
+			{
+				/* The send time out is capped for the reason stated in the
+				 * comments where ipconfigUDP_MAX_SEND_BLOCK_TIME_TICKS is defined
+				 * in FreeRTOSIPConfig.h (assuming an official configuration file
+				 * is being used. */
+				if( pxSocket->xSendBlockTime > ipconfigUDP_MAX_SEND_BLOCK_TIME_TICKS )
+				{
+					pxSocket->xSendBlockTime = ipconfigUDP_MAX_SEND_BLOCK_TIME_TICKS;
+				}
+			}
+			else
+			{
+				/* For TCP socket, it isn't necessary to limit the blocking time
+				 * because	the FreeRTOS_send() function does not wait for a network
+				 * buffer to become available. */
+			}
 
-            xReturn = 0;
-            break;
+			xReturn = 0;
+			break;
 
-            #if ( ipconfigUDP_MAX_RX_PACKETS > 0U )
-                case FREERTOS_SO_UDP_MAX_RX_PACKETS:
+			#if ( ipconfigUDP_MAX_RX_PACKETS > 0U )
+				case FREERTOS_SO_UDP_MAX_RX_PACKETS:
 
-                    if( pxSocket->ucProtocol != ( uint8_t ) FREERTOS_IPPROTO_UDP )
-                    {
-                        break; /* will return -pdFREERTOS_ERRNO_EINVAL */
-                    }
+					if( pxSocket->ucProtocol != ( uint8_t ) FREERTOS_IPPROTO_UDP )
+					{
+						break; /* will return -pdFREERTOS_ERRNO_EINVAL */
+					}
 
-                    pxSocket->u.xUDP.uxMaxPackets = *( ( const UBaseType_t * ) pvOptionValue );
-                    xReturn = 0;
-                    break;
-            #endif /* ipconfigUDP_MAX_RX_PACKETS */
+					pxSocket->u.xUDP.uxMaxPackets = *( ( const UBaseType_t * ) pvOptionValue );
+					xReturn = 0;
+					break;
+			#endif /* ipconfigUDP_MAX_RX_PACKETS */
 
-        case FREERTOS_SO_UDPCKSUM_OUT:
+		case FREERTOS_SO_UDPCKSUM_OUT:
 
-            /* Turn calculating of the UDP checksum on/off for this socket. If pvOptionValue
-             * is anything else than NULL, the checksum generation will be turned on. */
+			/* Turn calculating of the UDP checksum on/off for this socket. If pvOptionValue
+			 * is anything else than NULL, the checksum generation will be turned on. */
 
-            if( pvOptionValue == NULL )
-            {
-                pxSocket->ucSocketOptions &= ~( ( uint8_t ) FREERTOS_SO_UDPCKSUM_OUT );
-            }
-            else
-            {
-                pxSocket->ucSocketOptions |= ( uint8_t ) FREERTOS_SO_UDPCKSUM_OUT;
-            }
+			if( pvOptionValue == NULL )
+			{
+				pxSocket->ucSocketOptions &= ~( ( uint8_t ) FREERTOS_SO_UDPCKSUM_OUT );
+			}
+			else
+			{
+				pxSocket->ucSocketOptions |= ( uint8_t ) FREERTOS_SO_UDPCKSUM_OUT;
+			}
 
-            xReturn = 0;
-            break;
+			xReturn = 0;
+			break;
 
-            #if ( ipconfigUSE_CALLBACKS == 1 )
-                #if ( ipconfigUSE_TCP == 1 )
-                    case FREERTOS_SO_TCP_CONN_HANDLER: /* Set a callback for (dis)connection events */
-                    case FREERTOS_SO_TCP_RECV_HANDLER: /* Install a callback for receiving TCP data. Supply pointer to 'F_TCP_UDP_Handler_t' (see below) */
-                    case FREERTOS_SO_TCP_SENT_HANDLER: /* Install a callback for sending TCP data. Supply pointer to 'F_TCP_UDP_Handler_t' (see below) */
-                #endif /* ipconfigUSE_TCP */
-                case FREERTOS_SO_UDP_RECV_HANDLER:     /* Install a callback for receiving UDP data. Supply pointer to 'F_TCP_UDP_Handler_t' (see below) */
-                case FREERTOS_SO_UDP_SENT_HANDLER:     /* Install a callback for sending UDP data. Supply pointer to 'F_TCP_UDP_Handler_t' (see below) */
-                   {
-                       #if ( ipconfigUSE_TCP == 1 )
-                           {
-                               UBaseType_t uxProtocol;
+			#if ( ipconfigUSE_CALLBACKS == 1 )
+				#if ( ipconfigUSE_TCP == 1 )
+					case FREERTOS_SO_TCP_CONN_HANDLER: /* Set a callback for (dis)connection events */
+					case FREERTOS_SO_TCP_RECV_HANDLER: /* Install a callback for receiving TCP data. Supply pointer to 'F_TCP_UDP_Handler_t' (see below) */
+					case FREERTOS_SO_TCP_SENT_HANDLER: /* Install a callback for sending TCP data. Supply pointer to 'F_TCP_UDP_Handler_t' (see below) */
+				#endif /* ipconfigUSE_TCP */
+				case FREERTOS_SO_UDP_RECV_HANDLER:     /* Install a callback for receiving UDP data. Supply pointer to 'F_TCP_UDP_Handler_t' (see below) */
+				case FREERTOS_SO_UDP_SENT_HANDLER:     /* Install a callback for sending UDP data. Supply pointer to 'F_TCP_UDP_Handler_t' (see below) */
+				   {
+					   #if ( ipconfigUSE_TCP == 1 )
+						   {
+							   UBaseType_t uxProtocol;
 
-                               if( ( lOptionName == FREERTOS_SO_UDP_RECV_HANDLER ) ||
-                                   ( lOptionName == FREERTOS_SO_UDP_SENT_HANDLER ) )
-                               {
-                                   uxProtocol = ( UBaseType_t ) FREERTOS_IPPROTO_UDP;
-                               }
-                               else
-                               {
-                                   uxProtocol = ( UBaseType_t ) FREERTOS_IPPROTO_TCP;
-                               }
+							   if( ( lOptionName == FREERTOS_SO_UDP_RECV_HANDLER ) ||
+								   ( lOptionName == FREERTOS_SO_UDP_SENT_HANDLER ) )
+							   {
+								   uxProtocol = ( UBaseType_t ) FREERTOS_IPPROTO_UDP;
+							   }
+							   else
+							   {
+								   uxProtocol = ( UBaseType_t ) FREERTOS_IPPROTO_TCP;
+							   }
 
-                               if( pxSocket->ucProtocol != ( uint8_t ) uxProtocol )
-                               {
-                                   break; /* will return -pdFREERTOS_ERRNO_EINVAL */
-                               }
-                           }
-                       #else /* if ( ipconfigUSE_TCP == 1 ) */
-                           {
-                               /* No need to check if the socket has the right
-                                * protocol, because only UDP socket can be created. */
-                           }
-                       #endif /* ipconfigUSE_TCP */
+							   if( pxSocket->ucProtocol != ( uint8_t ) uxProtocol )
+							   {
+								   break; /* will return -pdFREERTOS_ERRNO_EINVAL */
+							   }
+						   }
+					   #else /* if ( ipconfigUSE_TCP == 1 ) */
+						   {
+							   /* No need to check if the socket has the right
+							    * protocol, because only UDP socket can be created. */
+						   }
+					   #endif /* ipconfigUSE_TCP */
 
-                       switch( lOptionName )
-                       {
-                           #if ipconfigUSE_TCP == 1
-                               case FREERTOS_SO_TCP_CONN_HANDLER:
-                                   pxSocket->u.xTCP.pxHandleConnected = ipCAST_CONST_PTR_TO_CONST_TYPE_PTR( F_TCP_UDP_Handler_t, pvOptionValue )->pxOnTCPConnected;
-                                   break;
+					   switch( lOptionName )
+					   {
+						   #if ipconfigUSE_TCP == 1
+							   case FREERTOS_SO_TCP_CONN_HANDLER:
+								   pxSocket->u.xTCP.pxHandleConnected = ipCAST_CONST_PTR_TO_CONST_TYPE_PTR( F_TCP_UDP_Handler_t, pvOptionValue )->pxOnTCPConnected;
+								   break;
 
-                               case FREERTOS_SO_TCP_RECV_HANDLER:
-                                   pxSocket->u.xTCP.pxHandleReceive = ipCAST_CONST_PTR_TO_CONST_TYPE_PTR( F_TCP_UDP_Handler_t, pvOptionValue )->pxOnTCPReceive;
-                                   break;
+							   case FREERTOS_SO_TCP_RECV_HANDLER:
+								   pxSocket->u.xTCP.pxHandleReceive = ipCAST_CONST_PTR_TO_CONST_TYPE_PTR( F_TCP_UDP_Handler_t, pvOptionValue )->pxOnTCPReceive;
+								   break;
 
-                               case FREERTOS_SO_TCP_SENT_HANDLER:
-                                   pxSocket->u.xTCP.pxHandleSent = ipCAST_CONST_PTR_TO_CONST_TYPE_PTR( F_TCP_UDP_Handler_t, pvOptionValue )->pxOnTCPSent;
-                                   break;
-                           #endif /* ipconfigUSE_TCP */
-                           case FREERTOS_SO_UDP_RECV_HANDLER:
-                               pxSocket->u.xUDP.pxHandleReceive = ipCAST_CONST_PTR_TO_CONST_TYPE_PTR( F_TCP_UDP_Handler_t, pvOptionValue )->pxOnUDPReceive;
-                               break;
+							   case FREERTOS_SO_TCP_SENT_HANDLER:
+								   pxSocket->u.xTCP.pxHandleSent = ipCAST_CONST_PTR_TO_CONST_TYPE_PTR( F_TCP_UDP_Handler_t, pvOptionValue )->pxOnTCPSent;
+								   break;
+						   #endif /* ipconfigUSE_TCP */
+						   case FREERTOS_SO_UDP_RECV_HANDLER:
+							   pxSocket->u.xUDP.pxHandleReceive = ipCAST_CONST_PTR_TO_CONST_TYPE_PTR( F_TCP_UDP_Handler_t, pvOptionValue )->pxOnUDPReceive;
+							   break;
 
-                           case FREERTOS_SO_UDP_SENT_HANDLER:
-                               pxSocket->u.xUDP.pxHandleSent = ipCAST_CONST_PTR_TO_CONST_TYPE_PTR( F_TCP_UDP_Handler_t, pvOptionValue )->pxOnUDPSent;
-                               break;
+						   case FREERTOS_SO_UDP_SENT_HANDLER:
+							   pxSocket->u.xUDP.pxHandleSent = ipCAST_CONST_PTR_TO_CONST_TYPE_PTR( F_TCP_UDP_Handler_t, pvOptionValue )->pxOnUDPSent;
+							   break;
 
-                           default:
-                               /* Should it throw an error here? */
-                               break;
-                       }
-                   }
+						   default:
+							   /* Should it throw an error here? */
+							   break;
+					   }
+				   }
 
-                    xReturn = 0;
-                    break;
-            #endif /* ipconfigUSE_CALLBACKS */
+					xReturn = 0;
+					break;
+			#endif /* ipconfigUSE_CALLBACKS */
 
-            #if ( ipconfigUSE_TCP != 0 )
-                #if ( ipconfigSOCKET_HAS_USER_SEMAPHORE != 0 )
+			#if ( ipconfigUSE_TCP != 0 )
+				#if ( ipconfigSOCKET_HAS_USER_SEMAPHORE != 0 )
 
-                    /* Each socket has a semaphore on which the using task normally
-                     * sleeps. */
-                    case FREERTOS_SO_SET_SEMAPHORE:
-                       {
-                           pxSocket->pxUserSemaphore = *( ipPOINTER_CAST( SemaphoreHandle_t *, pvOptionValue ) );
-                       }
-                        xReturn = 0;
-                        break;
-                #endif /* ipconfigSOCKET_HAS_USER_SEMAPHORE */
+					/* Each socket has a semaphore on which the using task normally
+					 * sleeps. */
+					case FREERTOS_SO_SET_SEMAPHORE:
+					   {
+						   pxSocket->pxUserSemaphore = *( ipPOINTER_CAST( SemaphoreHandle_t *, pvOptionValue ) );
+					   }
+						xReturn = 0;
+						break;
+				#endif /* ipconfigSOCKET_HAS_USER_SEMAPHORE */
 
-                #if ( ipconfigSOCKET_HAS_USER_WAKE_CALLBACK != 0 )
-                    case FREERTOS_SO_WAKEUP_CALLBACK:
+				#if ( ipconfigSOCKET_HAS_USER_WAKE_CALLBACK != 0 )
+					case FREERTOS_SO_WAKEUP_CALLBACK:
 
-                        /* Each socket can have a callback function that is executed
-                         * when there is an event the socket's owner might want to
-                         * process. */
-                        /* The type cast of the pointer expression "A" to type "B" removes const qualifier from the pointed to type. */
-                        pxSocket->pxUserWakeCallback = ( const SocketWakeupCallback_t ) pvOptionValue;
-                        xReturn = 0;
-                        break;
-                #endif /* ipconfigSOCKET_HAS_USER_WAKE_CALLBACK */
+						/* Each socket can have a callback function that is executed
+						 * when there is an event the socket's owner might want to
+						 * process. */
+						/* The type cast of the pointer expression "A" to type "B" removes const qualifier from the pointed to type. */
+						pxSocket->pxUserWakeCallback = ( const SocketWakeupCallback_t ) pvOptionValue;
+						xReturn = 0;
+						break;
+				#endif /* ipconfigSOCKET_HAS_USER_WAKE_CALLBACK */
 
-                case FREERTOS_SO_SET_LOW_HIGH_WATER:
-                   {
-                       const LowHighWater_t * pxLowHighWater = ipPOINTER_CAST( const LowHighWater_t *, pvOptionValue );
+				case FREERTOS_SO_SET_LOW_HIGH_WATER:
+				   {
+					   const LowHighWater_t * pxLowHighWater = ipPOINTER_CAST( const LowHighWater_t *, pvOptionValue );
 
-                       if( pxSocket->ucProtocol != ( uint8_t ) FREERTOS_IPPROTO_TCP )
-                       {
-                           /* It is not allowed to access 'pxSocket->u.xTCP'. */
-                           FreeRTOS_debug_printf( ( "FREERTOS_SO_SET_LOW_HIGH_WATER: wrong socket type\n" ) );
-                           break; /* will return -pdFREERTOS_ERRNO_EINVAL */
-                       }
+					   if( pxSocket->ucProtocol != ( uint8_t ) FREERTOS_IPPROTO_TCP )
+					   {
+						   /* It is not allowed to access 'pxSocket->u.xTCP'. */
+						   FreeRTOS_debug_printf( ( "FREERTOS_SO_SET_LOW_HIGH_WATER: wrong socket type\n" ) );
+						   break; /* will return -pdFREERTOS_ERRNO_EINVAL */
+					   }
 
-                       if( ( pxLowHighWater->uxLittleSpace >= pxLowHighWater->uxEnoughSpace ) ||
-                           ( pxLowHighWater->uxEnoughSpace > pxSocket->u.xTCP.uxRxStreamSize ) )
-                       {
-                           /* Impossible values. */
-                           FreeRTOS_debug_printf( ( "FREERTOS_SO_SET_LOW_HIGH_WATER: bad values\n" ) );
-                           break; /* will return -pdFREERTOS_ERRNO_EINVAL */
-                       }
+					   if( ( pxLowHighWater->uxLittleSpace >= pxLowHighWater->uxEnoughSpace ) ||
+						   ( pxLowHighWater->uxEnoughSpace > pxSocket->u.xTCP.uxRxStreamSize ) )
+					   {
+						   /* Impossible values. */
+						   FreeRTOS_debug_printf( ( "FREERTOS_SO_SET_LOW_HIGH_WATER: bad values\n" ) );
+						   break; /* will return -pdFREERTOS_ERRNO_EINVAL */
+					   }
 
-                       /* Send a STOP when buffer space drops below 'uxLittleSpace' bytes. */
-                       pxSocket->u.xTCP.uxLittleSpace = pxLowHighWater->uxLittleSpace;
-                       /* Send a GO when buffer space grows above 'uxEnoughSpace' bytes. */
-                       pxSocket->u.xTCP.uxEnoughSpace = pxLowHighWater->uxEnoughSpace;
-                       xReturn = 0;
-                   }
-                   break;
+					   /* Send a STOP when buffer space drops below 'uxLittleSpace' bytes. */
+					   pxSocket->u.xTCP.uxLittleSpace = pxLowHighWater->uxLittleSpace;
+					   /* Send a GO when buffer space grows above 'uxEnoughSpace' bytes. */
+					   pxSocket->u.xTCP.uxEnoughSpace = pxLowHighWater->uxEnoughSpace;
+					   xReturn = 0;
+				   }
+				   break;
 
-                case FREERTOS_SO_SNDBUF: /* Set the size of the send buffer, in units of MSS (TCP only) */
-                case FREERTOS_SO_RCVBUF: /* Set the size of the receive buffer, in units of MSS (TCP only) */
-                    xReturn = prvSockopt_so_buffer( pxSocket, lOptionName, pvOptionValue );
-                    break;
+				case FREERTOS_SO_SNDBUF: /* Set the size of the send buffer, in units of MSS (TCP only) */
+				case FREERTOS_SO_RCVBUF: /* Set the size of the receive buffer, in units of MSS (TCP only) */
+					xReturn = prvSockopt_so_buffer( pxSocket, lOptionName, pvOptionValue );
+					break;
 
-                case FREERTOS_SO_WIN_PROPERTIES: /* Set all buffer and window properties in one call, parameter is pointer to WinProperties_t */
-                   {
-                       const WinProperties_t * pxProps;
+				case FREERTOS_SO_WIN_PROPERTIES: /* Set all buffer and window properties in one call, parameter is pointer to WinProperties_t */
+				   {
+					   const WinProperties_t * pxProps;
 
-                       if( pxSocket->ucProtocol != ( uint8_t ) FREERTOS_IPPROTO_TCP )
-                       {
-                           FreeRTOS_debug_printf( ( "Set SO_WIN_PROP: wrong socket type\n" ) );
-                           break; /* will return -pdFREERTOS_ERRNO_EINVAL */
-                       }
+					   if( pxSocket->ucProtocol != ( uint8_t ) FREERTOS_IPPROTO_TCP )
+					   {
+						   FreeRTOS_debug_printf( ( "Set SO_WIN_PROP: wrong socket type\n" ) );
+						   break; /* will return -pdFREERTOS_ERRNO_EINVAL */
+					   }
 
-                       if( ( pxSocket->u.xTCP.txStream != NULL ) || ( pxSocket->u.xTCP.rxStream != NULL ) )
-                       {
-                           FreeRTOS_debug_printf( ( "Set SO_WIN_PROP: buffer already created\n" ) );
-                           break; /* will return -pdFREERTOS_ERRNO_EINVAL */
-                       }
+					   if( ( pxSocket->u.xTCP.txStream != NULL ) || ( pxSocket->u.xTCP.rxStream != NULL ) )
+					   {
+						   FreeRTOS_debug_printf( ( "Set SO_WIN_PROP: buffer already created\n" ) );
+						   break; /* will return -pdFREERTOS_ERRNO_EINVAL */
+					   }
 
-                       pxProps = ipPOINTER_CAST( const WinProperties_t *, pvOptionValue );
+					   pxProps = ipPOINTER_CAST( const WinProperties_t *, pvOptionValue );
 
-                       xReturn = prvSockopt_so_buffer( pxSocket, FREERTOS_SO_SNDBUF, &( pxProps->lTxBufSize ) );
+					   xReturn = prvSockopt_so_buffer( pxSocket, FREERTOS_SO_SNDBUF, &( pxProps->lTxBufSize ) );
 
-                       if( xReturn != 0 )
-                       {
-                           break; /* will return an error. */
-                       }
+					   if( xReturn != 0 )
+					   {
+						   break; /* will return an error. */
+					   }
 
-                       xReturn = prvSockopt_so_buffer( pxSocket, FREERTOS_SO_RCVBUF, &( pxProps->lRxBufSize ) );
+					   xReturn = prvSockopt_so_buffer( pxSocket, FREERTOS_SO_RCVBUF, &( pxProps->lRxBufSize ) );
 
-                       if( xReturn != 0 )
-                       {
-                           break; /* will return an error. */
-                       }
+					   if( xReturn != 0 )
+					   {
+						   break; /* will return an error. */
+					   }
 
-                       #if ( ipconfigUSE_TCP_WIN == 1 )
-                           {
-                               pxSocket->u.xTCP.uxRxWinSize = ( uint32_t ) pxProps->lRxWinSize; /* Fixed value: size of the TCP reception window */
-                               pxSocket->u.xTCP.uxTxWinSize = ( uint32_t ) pxProps->lTxWinSize; /* Fixed value: size of the TCP transmit window */
-                           }
-                       #else
-                           {
-                               pxSocket->u.xTCP.uxRxWinSize = 1U;
-                               pxSocket->u.xTCP.uxTxWinSize = 1U;
-                           }
-                       #endif
+					   #if ( ipconfigUSE_TCP_WIN == 1 )
+						   {
+							   pxSocket->u.xTCP.uxRxWinSize = ( uint32_t ) pxProps->lRxWinSize; /* Fixed value: size of the TCP reception window */
+							   pxSocket->u.xTCP.uxTxWinSize = ( uint32_t ) pxProps->lTxWinSize; /* Fixed value: size of the TCP transmit window */
+						   }
+					   #else
+						   {
+							   pxSocket->u.xTCP.uxRxWinSize = 1U;
+							   pxSocket->u.xTCP.uxTxWinSize = 1U;
+						   }
+					   #endif
 
-                       /* In case the socket has already initialised its tcpWin,
-                        * adapt the window size parameters */
-                       if( pxSocket->u.xTCP.xTCPWindow.u.bits.bHasInit != pdFALSE_UNSIGNED )
-                       {
-                           pxSocket->u.xTCP.xTCPWindow.xSize.ulRxWindowLength = pxSocket->u.xTCP.uxRxWinSize * pxSocket->u.xTCP.usInitMSS;
-                           pxSocket->u.xTCP.xTCPWindow.xSize.ulTxWindowLength = pxSocket->u.xTCP.uxTxWinSize * pxSocket->u.xTCP.usInitMSS;
-                       }
-                   }
+					   /* In case the socket has already initialised its tcpWin,
+					    * adapt the window size parameters */
+					   if( pxSocket->u.xTCP.xTCPWindow.u.bits.bHasInit != pdFALSE_UNSIGNED )
+					   {
+						   pxSocket->u.xTCP.xTCPWindow.xSize.ulRxWindowLength = pxSocket->u.xTCP.uxRxWinSize * pxSocket->u.xTCP.usInitMSS;
+						   pxSocket->u.xTCP.xTCPWindow.xSize.ulTxWindowLength = pxSocket->u.xTCP.uxTxWinSize * pxSocket->u.xTCP.usInitMSS;
+					   }
+				   }
 
-                    xReturn = 0;
-                    break;
+					xReturn = 0;
+					break;
 
-                case FREERTOS_SO_REUSE_LISTEN_SOCKET: /* If true, the server-socket will turn into a connected socket */
-                   {
-                       if( pxSocket->ucProtocol != ( uint8_t ) FREERTOS_IPPROTO_TCP )
-                       {
-                           break; /* will return -pdFREERTOS_ERRNO_EINVAL */
-                       }
+				case FREERTOS_SO_REUSE_LISTEN_SOCKET: /* If true, the server-socket will turn into a connected socket */
+				   {
+					   if( pxSocket->ucProtocol != ( uint8_t ) FREERTOS_IPPROTO_TCP )
+					   {
+						   break; /* will return -pdFREERTOS_ERRNO_EINVAL */
+					   }
 
-                       if( *( ( const BaseType_t * ) pvOptionValue ) != 0 )
-                       {
-                           pxSocket->u.xTCP.bits.bReuseSocket = pdTRUE_UNSIGNED;
-                       }
-                       else
-                       {
-                           pxSocket->u.xTCP.bits.bReuseSocket = pdFALSE_UNSIGNED;
-                       }
-                   }
-                    xReturn = 0;
-                    break;
+					   if( *( ( const BaseType_t * ) pvOptionValue ) != 0 )
+					   {
+						   pxSocket->u.xTCP.bits.bReuseSocket = pdTRUE_UNSIGNED;
+					   }
+					   else
+					   {
+						   pxSocket->u.xTCP.bits.bReuseSocket = pdFALSE_UNSIGNED;
+					   }
+				   }
+					xReturn = 0;
+					break;
 
-                case FREERTOS_SO_CLOSE_AFTER_SEND: /* As soon as the last byte has been transmitted, finalise the connection */
-                   {
-                       if( pxSocket->ucProtocol != ( uint8_t ) FREERTOS_IPPROTO_TCP )
-                       {
-                           break; /* will return -pdFREERTOS_ERRNO_EINVAL */
-                       }
+				case FREERTOS_SO_CLOSE_AFTER_SEND: /* As soon as the last byte has been transmitted, finalise the connection */
+				   {
+					   if( pxSocket->ucProtocol != ( uint8_t ) FREERTOS_IPPROTO_TCP )
+					   {
+						   break; /* will return -pdFREERTOS_ERRNO_EINVAL */
+					   }
 
-                       if( *( ( const BaseType_t * ) pvOptionValue ) != 0 )
-                       {
-                           pxSocket->u.xTCP.bits.bCloseAfterSend = pdTRUE_UNSIGNED;
-                       }
-                       else
-                       {
-                           pxSocket->u.xTCP.bits.bCloseAfterSend = pdFALSE_UNSIGNED;
-                       }
-                   }
-                    xReturn = 0;
-                    break;
+					   if( *( ( const BaseType_t * ) pvOptionValue ) != 0 )
+					   {
+						   pxSocket->u.xTCP.bits.bCloseAfterSend = pdTRUE_UNSIGNED;
+					   }
+					   else
+					   {
+						   pxSocket->u.xTCP.bits.bCloseAfterSend = pdFALSE_UNSIGNED;
+					   }
+				   }
+					xReturn = 0;
+					break;
 
-                case FREERTOS_SO_SET_FULL_SIZE: /* Refuse to send packets smaller than MSS  */
-                   {
-                       if( pxSocket->ucProtocol != ( uint8_t ) FREERTOS_IPPROTO_TCP )
-                       {
-                           break; /* will return -pdFREERTOS_ERRNO_EINVAL */
-                       }
+				case FREERTOS_SO_SET_FULL_SIZE: /* Refuse to send packets smaller than MSS  */
+				   {
+					   if( pxSocket->ucProtocol != ( uint8_t ) FREERTOS_IPPROTO_TCP )
+					   {
+						   break; /* will return -pdFREERTOS_ERRNO_EINVAL */
+					   }
 
-                       if( *( ( const BaseType_t * ) pvOptionValue ) != 0 )
-                       {
-                           pxSocket->u.xTCP.xTCPWindow.u.bits.bSendFullSize = pdTRUE_UNSIGNED;
-                       }
-                       else
-                       {
-                           pxSocket->u.xTCP.xTCPWindow.u.bits.bSendFullSize = pdFALSE_UNSIGNED;
-                       }
+					   if( *( ( const BaseType_t * ) pvOptionValue ) != 0 )
+					   {
+						   pxSocket->u.xTCP.xTCPWindow.u.bits.bSendFullSize = pdTRUE_UNSIGNED;
+					   }
+					   else
+					   {
+						   pxSocket->u.xTCP.xTCPWindow.u.bits.bSendFullSize = pdFALSE_UNSIGNED;
+					   }
 
-                       if( ( pxSocket->u.xTCP.xTCPWindow.u.bits.bSendFullSize == pdFALSE_UNSIGNED ) &&
-                           ( pxSocket->u.xTCP.ucTCPState >= ( uint8_t ) eESTABLISHED ) &&
-                           ( FreeRTOS_outstanding( pxSocket ) != 0 ) )
-                       {
-                           pxSocket->u.xTCP.usTimeout = 1U; /* to set/clear bSendFullSize */
-                           ( void ) xSendEventToIPTask( eTCPTimerEvent );
-                       }
-                   }
-                    xReturn = 0;
-                    break;
+					   if( ( pxSocket->u.xTCP.xTCPWindow.u.bits.bSendFullSize == pdFALSE_UNSIGNED ) &&
+						   ( pxSocket->u.xTCP.ucTCPState >= ( uint8_t ) eESTABLISHED ) &&
+						   ( FreeRTOS_outstanding( pxSocket ) != 0 ) )
+					   {
+						   pxSocket->u.xTCP.usTimeout = 1U; /* to set/clear bSendFullSize */
+						   ( void ) xSendEventToIPTask( eTCPTimerEvent );
+					   }
+				   }
+					xReturn = 0;
+					break;
 
-                case FREERTOS_SO_STOP_RX: /* Refuse to receive more packets. */
-                   {
-                       if( pxSocket->ucProtocol != ( uint8_t ) FREERTOS_IPPROTO_TCP )
-                       {
-                           break; /* will return -pdFREERTOS_ERRNO_EINVAL */
-                       }
+				case FREERTOS_SO_STOP_RX: /* Refuse to receive more packets. */
+				   {
+					   if( pxSocket->ucProtocol != ( uint8_t ) FREERTOS_IPPROTO_TCP )
+					   {
+						   break; /* will return -pdFREERTOS_ERRNO_EINVAL */
+					   }
 
-                       if( *( ( const BaseType_t * ) pvOptionValue ) != 0 )
-                       {
-                           pxSocket->u.xTCP.bits.bRxStopped = pdTRUE_UNSIGNED;
-                       }
-                       else
-                       {
-                           pxSocket->u.xTCP.bits.bRxStopped = pdFALSE_UNSIGNED;
-                       }
+					   if( *( ( const BaseType_t * ) pvOptionValue ) != 0 )
+					   {
+						   pxSocket->u.xTCP.bits.bRxStopped = pdTRUE_UNSIGNED;
+					   }
+					   else
+					   {
+						   pxSocket->u.xTCP.bits.bRxStopped = pdFALSE_UNSIGNED;
+					   }
 
-                       pxSocket->u.xTCP.bits.bWinChange = pdTRUE_UNSIGNED;
-                       pxSocket->u.xTCP.usTimeout = 1U; /* to set/clear bRxStopped */
-                       ( void ) xSendEventToIPTask( eTCPTimerEvent );
-                   }
-                    xReturn = 0;
-                    break;
-            #endif /* ipconfigUSE_TCP == 1 */
+					   pxSocket->u.xTCP.bits.bWinChange = pdTRUE_UNSIGNED;
+					   pxSocket->u.xTCP.usTimeout = 1U; /* to set/clear bRxStopped */
+					   ( void ) xSendEventToIPTask( eTCPTimerEvent );
+				   }
+					xReturn = 0;
+					break;
+			#endif /* ipconfigUSE_TCP == 1 */
 
-        default:
-            /* No other options are handled. */
-            xReturn = -pdFREERTOS_ERRNO_ENOPROTOOPT;
-            break;
-    }
+		default:
+			/* No other options are handled. */
+			xReturn = -pdFREERTOS_ERRNO_ENOPROTOOPT;
+			break;
+	}
 
-    return xReturn;
+	return xReturn;
 } /* Tested */
 
 /*-----------------------------------------------------------*/
@@ -2224,61 +2220,61 @@ BaseType_t FreeRTOS_setsockopt( Socket_t xSocket,
  */
 static uint16_t prvGetPrivatePortNumber( BaseType_t xProtocol )
 {
-    const uint16_t usEphemeralPortCount =
-        socketAUTO_PORT_ALLOCATION_MAX_NUMBER - ( socketAUTO_PORT_ALLOCATION_START_NUMBER - 1U );
-    uint16_t usIterations = usEphemeralPortCount;
-    uint32_t ulRandomSeed = 0;
-    uint16_t usResult = 0;
-    const List_t * pxList;
+	const uint16_t usEphemeralPortCount =
+		socketAUTO_PORT_ALLOCATION_MAX_NUMBER - ( socketAUTO_PORT_ALLOCATION_START_NUMBER - 1U );
+	uint16_t usIterations = usEphemeralPortCount;
+	uint32_t ulRandomSeed = 0;
+	uint16_t usResult = 0;
+	const List_t * pxList;
 
-    #if ipconfigUSE_TCP == 1
-        if( xProtocol == ( BaseType_t ) FREERTOS_IPPROTO_TCP )
-        {
-            pxList = &xBoundTCPSocketsList;
-        }
-        else
-    #endif
-    {
-        pxList = &xBoundUDPSocketsList;
-    }
+	#if ipconfigUSE_TCP == 1
+		if( xProtocol == ( BaseType_t ) FREERTOS_IPPROTO_TCP )
+		{
+			pxList = &xBoundTCPSocketsList;
+		}
+		else
+	#endif
+	{
+		pxList = &xBoundUDPSocketsList;
+	}
 
-    /* Avoid compiler warnings if ipconfigUSE_TCP is not defined. */
-    ( void ) xProtocol;
+	/* Avoid compiler warnings if ipconfigUSE_TCP is not defined. */
+	( void ) xProtocol;
 
-    /* Find the next available port using the random seed as a starting
-     * point. */
-    do
-    {
-        /* Only proceed if the random number generator succeeded. */
-        if( xApplicationGetRandomNumber( &( ulRandomSeed ) ) == pdFALSE )
-        {
-            break;
-        }
+	/* Find the next available port using the random seed as a starting
+	 * point. */
+	do
+	{
+		/* Only proceed if the random number generator succeeded. */
+		if( xApplicationGetRandomNumber( &( ulRandomSeed ) ) == pdFALSE )
+		{
+			break;
+		}
 
-        /* Map the random to a candidate port. */
-        usResult =
-            socketAUTO_PORT_ALLOCATION_START_NUMBER +
-            ( ( ( uint16_t ) ulRandomSeed ) % usEphemeralPortCount );
+		/* Map the random to a candidate port. */
+		usResult =
+			socketAUTO_PORT_ALLOCATION_START_NUMBER +
+			( ( ( uint16_t ) ulRandomSeed ) % usEphemeralPortCount );
 
-        /* Check if there's already an open socket with the same protocol
-         * and port. */
-        if( NULL == pxListFindListItemWithValue(
-                pxList,
-                ( TickType_t ) FreeRTOS_htons( usResult ) ) )
-        {
-            usResult = FreeRTOS_htons( usResult );
-            break;
-        }
-        else
-        {
-            usResult = 0;
-        }
+		/* Check if there's already an open socket with the same protocol
+		 * and port. */
+		if( NULL == pxListFindListItemWithValue(
+				pxList,
+				( TickType_t ) FreeRTOS_htons( usResult ) ) )
+		{
+			usResult = FreeRTOS_htons( usResult );
+			break;
+		}
+		else
+		{
+			usResult = 0;
+		}
 
-        usIterations--;
-    }
-    while( usIterations > 0U );
+		usIterations--;
+	}
+	while( usIterations > 0U );
 
-    return usResult;
+	return usResult;
 }
 /*-----------------------------------------------------------*/
 
@@ -2292,28 +2288,28 @@ static uint16_t prvGetPrivatePortNumber( BaseType_t xProtocol )
  *         then a NULL is returned.
  */
 static const ListItem_t * pxListFindListItemWithValue( const List_t * pxList,
-                                                       TickType_t xWantedItemValue )
+													   TickType_t xWantedItemValue )
 {
-    const ListItem_t * pxResult = NULL;
+	const ListItem_t * pxResult = NULL;
 
-    if( ( xIPIsNetworkTaskReady() != pdFALSE ) && ( pxList != NULL ) )
-    {
-        const ListItem_t * pxIterator;
-        const ListItem_t * pxEnd = listGET_END_MARKER( pxList );
+	if( ( xIPIsNetworkTaskReady() != pdFALSE ) && ( pxList != NULL ) )
+	{
+		const ListItem_t * pxIterator;
+		const ListItem_t * pxEnd = listGET_END_MARKER( pxList );
 
-        for( pxIterator = listGET_NEXT( pxEnd );
-             pxIterator != pxEnd;
-             pxIterator = listGET_NEXT( pxIterator ) )
-        {
-            if( listGET_LIST_ITEM_VALUE( pxIterator ) == xWantedItemValue )
-            {
-                pxResult = pxIterator;
-                break;
-            }
-        }
-    }
+		for( pxIterator = listGET_NEXT( pxEnd );
+			 pxIterator != pxEnd;
+			 pxIterator = listGET_NEXT( pxIterator ) )
+		{
+			if( listGET_LIST_ITEM_VALUE( pxIterator ) == xWantedItemValue )
+			{
+				pxResult = pxIterator;
+				break;
+			}
+		}
+	}
 
-    return pxResult;
+	return pxResult;
 } /* Tested */
 
 /*-----------------------------------------------------------*/
@@ -2328,23 +2324,23 @@ static const ListItem_t * pxListFindListItemWithValue( const List_t * pxList,
  */
 FreeRTOS_Socket_t * pxUDPSocketLookup( UBaseType_t uxLocalPort )
 {
-    const ListItem_t * pxListItem;
-    FreeRTOS_Socket_t * pxSocket = NULL;
+	const ListItem_t * pxListItem;
+	FreeRTOS_Socket_t * pxSocket = NULL;
 
-    /* Looking up a socket is quite simple, find a match with the local port.
-     *
-     * See if there is a list item associated with the port number on the
-     * list of bound sockets. */
-    pxListItem = pxListFindListItemWithValue( &xBoundUDPSocketsList, ( TickType_t ) uxLocalPort );
+	/* Looking up a socket is quite simple, find a match with the local port.
+	 *
+	 * See if there is a list item associated with the port number on the
+	 * list of bound sockets. */
+	pxListItem = pxListFindListItemWithValue( &xBoundUDPSocketsList, ( TickType_t ) uxLocalPort );
 
-    if( pxListItem != NULL )
-    {
-        /* The owner of the list item is the socket itself. */
-        pxSocket = ipCAST_PTR_TO_TYPE_PTR( FreeRTOS_Socket_t, listGET_LIST_ITEM_OWNER( pxListItem ) );
-        configASSERT( pxSocket != NULL );
-    }
+	if( pxListItem != NULL )
+	{
+		/* The owner of the list item is the socket itself. */
+		pxSocket = ipCAST_PTR_TO_TYPE_PTR( FreeRTOS_Socket_t, listGET_LIST_ITEM_OWNER( pxListItem ) );
+		configASSERT( pxSocket != NULL );
+	}
 
-    return pxSocket;
+	return pxSocket;
 }
 
 /*-----------------------------------------------------------*/
@@ -2365,74 +2361,74 @@ FreeRTOS_Socket_t * pxUDPSocketLookup( UBaseType_t uxLocalPort )
  *         and will have the address stored in the location. Else, NULL is returned.
  */
 const char * FreeRTOS_inet_ntoa( uint32_t ulIPAddress,
-                                 char * pcBuffer )
+								 char * pcBuffer )
 {
-    socklen_t uxNibble;
-    socklen_t uxIndex = 0;
-    const uint8_t * pucAddress = ( const uint8_t * ) &( ulIPAddress );
-    const char * pcResult = pcBuffer;
-    const socklen_t uxSize = 16;
+	socklen_t uxNibble;
+	socklen_t uxIndex = 0;
+	const uint8_t * pucAddress = ( const uint8_t * ) &( ulIPAddress );
+	const char * pcResult = pcBuffer;
+	const socklen_t uxSize = 16;
 
-    for( uxNibble = 0; uxNibble < ipSIZE_OF_IPv4_ADDRESS; uxNibble++ )
-    {
-        uint8_t pucDigits[ sockDIGIT_COUNT ];
-        uint8_t ucValue = pucAddress[ uxNibble ];
-        socklen_t uxSource = ( socklen_t ) sockDIGIT_COUNT - ( socklen_t ) 1U;
-        socklen_t uxNeeded;
+	for( uxNibble = 0; uxNibble < ipSIZE_OF_IPv4_ADDRESS; uxNibble++ )
+	{
+		uint8_t pucDigits[ sockDIGIT_COUNT ];
+		uint8_t ucValue = pucAddress[ uxNibble ];
+		socklen_t uxSource = ( socklen_t ) sockDIGIT_COUNT - ( socklen_t ) 1U;
+		socklen_t uxNeeded;
 
-        for( ; ; )
-        {
-            pucDigits[ uxSource ] = ucValue % ( uint8_t ) 10U;
-            ucValue /= ( uint8_t ) 10U;
+		for( ; ; )
+		{
+			pucDigits[ uxSource ] = ucValue % ( uint8_t ) 10U;
+			ucValue /= ( uint8_t ) 10U;
 
-            if( uxSource == 1U )
-            {
-                break;
-            }
+			if( uxSource == 1U )
+			{
+				break;
+			}
 
-            uxSource--;
-        }
+			uxSource--;
+		}
 
-        pucDigits[ 0 ] = ucValue;
+		pucDigits[ 0 ] = ucValue;
 
-        /* Skip leading zeros. */
-        for( uxSource = 0; uxSource < ( ( socklen_t ) sockDIGIT_COUNT - ( socklen_t ) 1U ); uxSource++ )
-        {
-            if( pucDigits[ uxSource ] != 0U )
-            {
-                break;
-            }
-        }
+		/* Skip leading zeros. */
+		for( uxSource = 0; uxSource < ( ( socklen_t ) sockDIGIT_COUNT - ( socklen_t ) 1U ); uxSource++ )
+		{
+			if( pucDigits[ uxSource ] != 0U )
+			{
+				break;
+			}
+		}
 
-        /* Write e.g. "192.", which is 3 digits and a dot. */
-        uxNeeded = ( ( socklen_t ) sockDIGIT_COUNT - uxSource ) + 1U;
+		/* Write e.g. "192.", which is 3 digits and a dot. */
+		uxNeeded = ( ( socklen_t ) sockDIGIT_COUNT - uxSource ) + 1U;
 
-        if( ( uxIndex + uxNeeded ) > uxSize )
-        {
-            /* The result won't fit. */
-            pcResult = NULL;
-            break;
-        }
+		if( ( uxIndex + uxNeeded ) > uxSize )
+		{
+			/* The result won't fit. */
+			pcResult = NULL;
+			break;
+		}
 
-        for( ; uxSource < ( socklen_t ) sockDIGIT_COUNT; uxSource++ )
-        {
-            pcBuffer[ uxIndex ] = ( char ) ( pucDigits[ uxSource ] + ( char ) '0' );
-            uxIndex++;
-        }
+		for( ; uxSource < ( socklen_t ) sockDIGIT_COUNT; uxSource++ )
+		{
+			pcBuffer[ uxIndex ] = ( char ) ( pucDigits[ uxSource ] + ( char ) '0' );
+			uxIndex++;
+		}
 
-        if( uxNibble < ( ipSIZE_OF_IPv4_ADDRESS - 1U ) )
-        {
-            pcBuffer[ uxIndex ] = '.';
-        }
-        else
-        {
-            pcBuffer[ uxIndex ] = '\0';
-        }
+		if( uxNibble < ( ipSIZE_OF_IPv4_ADDRESS - 1U ) )
+		{
+			pcBuffer[ uxIndex ] = '.';
+		}
+		else
+		{
+			pcBuffer[ uxIndex ] = '\0';
+		}
 
-        uxIndex++;
-    }
+		uxIndex++;
+	}
 
-    return pcResult;
+	return pcResult;
 }
 /*-----------------------------------------------------------*/
 
@@ -2450,29 +2446,29 @@ const char * FreeRTOS_inet_ntoa( uint32_t ulIPAddress,
  * @return If all checks pass, then pdPASS is returned or else pdFAIL is returned.
  */
 BaseType_t FreeRTOS_inet_pton( BaseType_t xAddressFamily,
-                               const char * pcSource,
-                               void * pvDestination )
+							   const char * pcSource,
+							   void * pvDestination )
 {
-    BaseType_t xResult;
+	BaseType_t xResult;
 
-    /* Printable string to struct sockaddr. */
-    switch( xAddressFamily )
-    {
-        case FREERTOS_AF_INET:
-            xResult = FreeRTOS_inet_pton4( pcSource, pvDestination );
-            break;
+	/* Printable string to struct sockaddr. */
+	switch( xAddressFamily )
+	{
+		case FREERTOS_AF_INET:
+			xResult = FreeRTOS_inet_pton4( pcSource, pvDestination );
+			break;
 
-            #if ( ipconfigUSE_IPv6 != 0 )
-                case FREERTOS_AF_INET6:
-                    xResult = FreeRTOS_inet_pton6( pcSource, pvDestination );
-                    break;
-            #endif /* ( ipconfigUSE_IPv6 != 0 ) */
-        default:
-            xResult = -pdFREERTOS_ERRNO_EAFNOSUPPORT;
-            break;
-    }
+			#if ( ipconfigUSE_IPv6 != 0 )
+				case FREERTOS_AF_INET6:
+					xResult = FreeRTOS_inet_pton6( pcSource, pvDestination );
+					break;
+			#endif /* ( ipconfigUSE_IPv6 != 0 ) */
+		default:
+			xResult = -pdFREERTOS_ERRNO_EAFNOSUPPORT;
+			break;
+	}
 
-    return xResult;
+	return xResult;
 }
 /*-----------------------------------------------------------*/
 
@@ -2492,31 +2488,31 @@ BaseType_t FreeRTOS_inet_pton( BaseType_t xAddressFamily,
  *         holding the dotted decimal format of IP-address. Else, a NULL is returned.
  */
 const char * FreeRTOS_inet_ntop( BaseType_t xAddressFamily,
-                                 const void * pvSource,
-                                 char * pcDestination,
-                                 socklen_t uxSize )
+								 const void * pvSource,
+								 char * pcDestination,
+								 socklen_t uxSize )
 {
-    const char * pcResult;
+	const char * pcResult;
 
-    /* Printable struct sockaddr to string. */
-    switch( xAddressFamily )
-    {
-        case FREERTOS_AF_INET4:
-            pcResult = FreeRTOS_inet_ntop4( pvSource, pcDestination, uxSize );
-            break;
+	/* Printable struct sockaddr to string. */
+	switch( xAddressFamily )
+	{
+		case FREERTOS_AF_INET4:
+			pcResult = FreeRTOS_inet_ntop4( pvSource, pcDestination, uxSize );
+			break;
 
-            #if ( ipconfigUSE_IPv6 != 0 )
-                case FREERTOS_AF_INET6:
-                    pcResult = FreeRTOS_inet_ntop6( pvSource, pcDestination, uxSize );
-                    break;
-            #endif /* ( ipconfigUSE_IPv6 != 0 ) */
-        default:
-            /* errno should be set to pdFREERTOS_ERRNO_EAFNOSUPPORT. */
-            pcResult = NULL;
-            break;
-    }
+			#if ( ipconfigUSE_IPv6 != 0 )
+				case FREERTOS_AF_INET6:
+					pcResult = FreeRTOS_inet_ntop6( pvSource, pcDestination, uxSize );
+					break;
+			#endif /* ( ipconfigUSE_IPv6 != 0 ) */
+		default:
+			/* errno should be set to pdFREERTOS_ERRNO_EAFNOSUPPORT. */
+			pcResult = NULL;
+			break;
+	}
 
-    return pcResult;
+	return pcResult;
 }
 /*-----------------------------------------------------------*/
 
@@ -2534,27 +2530,27 @@ const char * FreeRTOS_inet_ntop( BaseType_t xAddressFamily,
  *         pcDestination, else a NULL is returned.
  */
 const char * FreeRTOS_inet_ntop4( const void * pvSource,
-                                  char * pcDestination,
-                                  socklen_t uxSize )
+								  char * pcDestination,
+								  socklen_t uxSize )
 {
-    uint32_t ulIPAddress;
-    void * pvCopyDest;
-    const char * pcReturn;
+	uint32_t ulIPAddress;
+	void * pvCopyDest;
+	const char * pcReturn;
 
-    if( uxSize < 16U )
-    {
-        /* There must be space for "255.255.255.255". */
-        pcReturn = NULL;
-    }
-    else
-    {
-        pvCopyDest = ( void * ) &ulIPAddress;
-        ( void ) memcpy( pvCopyDest, pvSource, sizeof( ulIPAddress ) );
-        ( void ) FreeRTOS_inet_ntoa( ulIPAddress, pcDestination );
-        pcReturn = pcDestination;
-    }
+	if( uxSize < 16U )
+	{
+		/* There must be space for "255.255.255.255". */
+		pcReturn = NULL;
+	}
+	else
+	{
+		pvCopyDest = ( void * ) &ulIPAddress;
+		( void ) memcpy( pvCopyDest, pvSource, sizeof( ulIPAddress ) );
+		( void ) FreeRTOS_inet_ntoa( ulIPAddress, pcDestination );
+		pcReturn = pcDestination;
+	}
 
-    return pcReturn;
+	return pcReturn;
 }
 /*-----------------------------------------------------------*/
 
@@ -2564,132 +2560,132 @@ const char * FreeRTOS_inet_ntop4( const void * pvSource,
  * @brief This function converts a binary IPv6 address to a human readable notation.
  *
  * @param[in] pcSource: The binary address, 16 bytes long..
- * @param[out] pvDestination: The human-readbale ( hexadecimal ) notation of the
+ * @param[out] pvDestination: The human-readable ( hexadecimal ) notation of the
  *                            address.
  * @param[in] uxSize: The size of pvDestination.
  *
  * @return pdPASS if the translation was successful or else pdFAIL.
  */
-    const char * FreeRTOS_inet_ntop6( const void * pvSource,
-                                      char * pcDestination,
-                                      socklen_t uxSize )
-    {
-        BaseType_t xIndex = 0;
-        BaseType_t xZeroStart = -1;
-        BaseType_t xZeroLength = 0;
-        BaseType_t xCurStart = 0;
-        BaseType_t xCurLength = 0;
-        socklen_t uxTargetIndex = 0;
-        const char * pcReturn;
-        const uint16_t * pusAddress = pvSource; /*lint !e9079: conversion from pointer to void to pointer to other type [MISRA 2012 Rule 11.5, advisory]. */
+	const char * FreeRTOS_inet_ntop6( const void * pvSource,
+									  char * pcDestination,
+									  socklen_t uxSize )
+	{
+		BaseType_t xIndex = 0;
+		BaseType_t xZeroStart = -1;
+		BaseType_t xZeroLength = 0;
+		BaseType_t xCurStart = 0;
+		BaseType_t xCurLength = 0;
+		socklen_t uxTargetIndex = 0;
+		const char * pcReturn;
+		const uint16_t * pusAddress = pvSource; /*lint !e9079: conversion from pointer to void to pointer to other type [MISRA 2012 Rule 11.5, advisory]. */
 
-        if( uxSize < 3U )
-        {
-            /* Can not even print :: */
-        }
-        else
-        {
-            /* Look for the longest rtain of zero's 0:0:0... */
-            for( ; xIndex < 8; xIndex++ )
-            {
-                uint16_t usValue = pusAddress[ xIndex ];
+		if( uxSize < 3U )
+		{
+			/* Can not even print :: */
+		}
+		else
+		{
+			/* Look for the longest train of zero's 0:0:0... */
+			for( ; xIndex < 8; xIndex++ )
+			{
+				uint16_t usValue = pusAddress[ xIndex ];
 
-                if( usValue == 0U )
-                {
-                    if( xCurLength == 0 )
-                    {
-                        /* Remember the position of the first zero. */
-                        xCurStart = xIndex;
-                    }
+				if( usValue == 0U )
+				{
+					if( xCurLength == 0 )
+					{
+						/* Remember the position of the first zero. */
+						xCurStart = xIndex;
+					}
 
-                    /* Count consecutive zeros. */
-                    xCurLength++;
-                }
+					/* Count consecutive zeros. */
+					xCurLength++;
+				}
 
-                if( ( usValue != 0U ) || ( xIndex == 7 ) )
-                {
-                    if( ( xCurLength > 1 ) && ( xZeroLength < xCurLength ) )
-                    {
-                        /* Remember the number of consecutive zeros. */
-                        xZeroLength = xCurLength;
-                        /* Remember index where the zero's started. */
-                        xZeroStart = xCurStart;
-                    }
+				if( ( usValue != 0U ) || ( xIndex == 7 ) )
+				{
+					if( ( xCurLength > 1 ) && ( xZeroLength < xCurLength ) )
+					{
+						/* Remember the number of consecutive zeros. */
+						xZeroLength = xCurLength;
+						/* Remember index where the zero's started. */
+						xZeroStart = xCurStart;
+					}
 
-                    xCurLength = 0;
-                }
-            }
+					xCurLength = 0;
+				}
+			}
 
-            for( xIndex = 0; xIndex < 8; )
-            {
-                if( xIndex == xZeroStart )
-                {
-                    xIndex += xZeroLength - 1;
+			for( xIndex = 0; xIndex < 8; )
+			{
+				if( xIndex == xZeroStart )
+				{
+					xIndex += xZeroLength - 1;
 
-                    if( uxTargetIndex >= ( uxSize - 1U ) )
-                    {
-                        break;
-                    }
+					if( uxTargetIndex >= ( uxSize - 1U ) )
+					{
+						break;
+					}
 
-                    pcDestination[ uxTargetIndex ] = ':';
-                    uxTargetIndex++;
+					pcDestination[ uxTargetIndex ] = ':';
+					uxTargetIndex++;
 
-                    if( xIndex == 7 )
-                    {
-                        if( uxTargetIndex >= ( uxSize - 1U ) )
-                        {
-                            break; /*lint !e9011: more than one 'break' terminates loop [MISRA 2012 Rule 15.4, advisory]. */
-                        }
+					if( xIndex == 7 )
+					{
+						if( uxTargetIndex >= ( uxSize - 1U ) )
+						{
+							break; /*lint !e9011: more than one 'break' terminates loop [MISRA 2012 Rule 15.4, advisory]. */
+						}
 
-                        pcDestination[ uxTargetIndex ] = ':';
-                        uxTargetIndex++;
-                    }
-                }
-                else
-                {
-                    BaseType_t xLength;
+						pcDestination[ uxTargetIndex ] = ':';
+						uxTargetIndex++;
+					}
+				}
+				else
+				{
+					BaseType_t xLength;
 
-                    if( xIndex > 0 )
-                    {
-                        if( uxTargetIndex >= ( uxSize - 1U ) )
-                        {
-                            break; /*lint !e9011: more than one 'break' terminates loop [MISRA 2012 Rule 15.4, advisory]. */
-                        }
+					if( xIndex > 0 )
+					{
+						if( uxTargetIndex >= ( uxSize - 1U ) )
+						{
+							break; /*lint !e9011: more than one 'break' terminates loop [MISRA 2012 Rule 15.4, advisory]. */
+						}
 
-                        pcDestination[ uxTargetIndex ] = ':';
-                        uxTargetIndex++;
-                    }
+						pcDestination[ uxTargetIndex ] = ':';
+						uxTargetIndex++;
+					}
 
-                    if( uxTargetIndex >= ( uxSize - 4U ) )
-                    {
-                        break; /*lint !e9011: more than one 'break' terminates loop [MISRA 2012 Rule 15.4, advisory]. */
-                    }
+					if( uxTargetIndex >= ( uxSize - 4U ) )
+					{
+						break; /*lint !e9011: more than one 'break' terminates loop [MISRA 2012 Rule 15.4, advisory]. */
+					}
 
-                    xLength = snprintf( &( pcDestination[ uxTargetIndex ] ), 5, "%x", FreeRTOS_ntohs( pusAddress[ xIndex ] ) ); /*lint !e586 !e534: function 'snprintf' is deprecated. [MISRA 2012 Rule 21.6, required]. */
+					xLength = snprintf( &( pcDestination[ uxTargetIndex ] ), 5, "%x", FreeRTOS_ntohs( pusAddress[ xIndex ] ) ); /*lint !e586 !e534: function 'snprintf' is deprecated. [MISRA 2012 Rule 21.6, required]. */
 
-                    if( xLength > 0 )
-                    {
-                        uxTargetIndex = uxTargetIndex + ( socklen_t ) xLength;
-                    }
-                }
+					if( xLength > 0 )
+					{
+						uxTargetIndex = uxTargetIndex + ( socklen_t ) xLength;
+					}
+				}
 
-                xIndex++;
-            }
-        }
+				xIndex++;
+			}
+		}
 
-        if( xIndex < 8 )
-        {
-            /* Didn't reach the last nnibble: clear the string. */
-            pcReturn = NULL;
-        }
-        else
-        {
-            pcDestination[ uxTargetIndex ] = '\0';
-            pcReturn = pcDestination;
-        }
+		if( xIndex < 8 )
+		{
+			/* Didn't reach the last nibble: clear the string. */
+			pcReturn = NULL;
+		}
+		else
+		{
+			pcDestination[ uxTargetIndex ] = '\0';
+			pcReturn = pcDestination;
+		}
 
-        return pcReturn;
-    }
+		return pcReturn;
+	}
 #endif /* ( ipconfigUSE_IPv6 != 0 ) */
 /*-----------------------------------------------------------*/
 
@@ -2704,101 +2700,101 @@ const char * FreeRTOS_inet_ntop4( const void * pvSource,
  * @return pdPASS if the translation was successful or else pdFAIL.
  */
 BaseType_t FreeRTOS_inet_pton4( const char * pcSource,
-                                void * pvDestination )
+								void * pvDestination )
 {
-    const uint32_t ulDecimalBase = 10U;
-    uint8_t ucOctet[ socketMAX_IP_ADDRESS_OCTETS ];
-    uint32_t ulReturn = 0UL, ulValue;
-    UBaseType_t uxOctetNumber;
-    BaseType_t xResult = pdPASS;
-    const char * pcIPAddress = pcSource;
-    const void * pvCopySource;
+	const uint32_t ulDecimalBase = 10U;
+	uint8_t ucOctet[ socketMAX_IP_ADDRESS_OCTETS ];
+	uint32_t ulReturn = 0UL, ulValue;
+	UBaseType_t uxOctetNumber;
+	BaseType_t xResult = pdPASS;
+	const char * pcIPAddress = pcSource;
+	const void * pvCopySource;
 
-    /* Translate "192.168.2.100" to a 32-bit number, network-endian. */
-    for( uxOctetNumber = 0U; uxOctetNumber < socketMAX_IP_ADDRESS_OCTETS; uxOctetNumber++ )
-    {
-        ulValue = 0UL;
+	/* Translate "192.168.2.100" to a 32-bit number, network-endian. */
+	for( uxOctetNumber = 0U; uxOctetNumber < socketMAX_IP_ADDRESS_OCTETS; uxOctetNumber++ )
+	{
+		ulValue = 0UL;
 
-        while( ( *pcIPAddress >= '0' ) && ( *pcIPAddress <= '9' ) )
-        {
-            BaseType_t xChar;
+		while( ( *pcIPAddress >= '0' ) && ( *pcIPAddress <= '9' ) )
+		{
+			BaseType_t xChar;
 
-            /* Move previous read characters into the next decimal
-             * position. */
-            ulValue *= ulDecimalBase;
+			/* Move previous read characters into the next decimal
+			 * position. */
+			ulValue *= ulDecimalBase;
 
-            /* Add the binary value of the ascii character. */
-            xChar = ( BaseType_t ) pcIPAddress[ 0 ];
-            xChar = xChar - ( BaseType_t ) '0';
-            ulValue += ( uint32_t ) xChar;
+			/* Add the binary value of the ascii character. */
+			xChar = ( BaseType_t ) pcIPAddress[ 0 ];
+			xChar = xChar - ( BaseType_t ) '0';
+			ulValue += ( uint32_t ) xChar;
 
-            /* Move to next character in the string. */
-            pcIPAddress++;
-        }
+			/* Move to next character in the string. */
+			pcIPAddress++;
+		}
 
-        /* Check characters were read. */
-        if( pcIPAddress == pcSource )
-        {
-            xResult = pdFAIL;
-        }
+		/* Check characters were read. */
+		if( pcIPAddress == pcSource )
+		{
+			xResult = pdFAIL;
+		}
 
-        /* Check the value fits in an 8-bit number. */
-        if( ulValue > 0xffUL )
-        {
-            xResult = pdFAIL;
-        }
-        else
-        {
-            ucOctet[ uxOctetNumber ] = ( uint8_t ) ulValue;
+		/* Check the value fits in an 8-bit number. */
+		if( ulValue > 0xffUL )
+		{
+			xResult = pdFAIL;
+		}
+		else
+		{
+			ucOctet[ uxOctetNumber ] = ( uint8_t ) ulValue;
 
-            /* Check the next character is as expected. */
-            if( uxOctetNumber < ( socketMAX_IP_ADDRESS_OCTETS - 1U ) )
-            {
-                if( *pcIPAddress != '.' )
-                {
-                    xResult = pdFAIL;
-                }
-                else
-                {
-                    /* Move past the dot. */
-                    pcIPAddress++;
-                }
-            }
-        }
+			/* Check the next character is as expected. */
+			if( uxOctetNumber < ( socketMAX_IP_ADDRESS_OCTETS - 1U ) )
+			{
+				if( *pcIPAddress != '.' )
+				{
+					xResult = pdFAIL;
+				}
+				else
+				{
+					/* Move past the dot. */
+					pcIPAddress++;
+				}
+			}
+		}
 
-        if( xResult == pdFAIL )
-        {
-            /* No point going on. */
-            break;
-        }
-    }
+		if( xResult == pdFAIL )
+		{
+			/* No point going on. */
+			break;
+		}
+	}
 
-    if( *pcIPAddress != ( char ) 0 )
-    {
-        /* Expected the end of the string. */
-        xResult = pdFAIL;
-    }
+	if( *pcIPAddress != ( char ) 0 )
+	{
+		/* Expected the end of the string. */
+		xResult = pdFAIL;
+	}
 
-    if( uxOctetNumber != socketMAX_IP_ADDRESS_OCTETS )
-    {
-        /* Didn't read enough octets. */
-        xResult = pdFAIL;
-    }
+	if( uxOctetNumber != socketMAX_IP_ADDRESS_OCTETS )
+	{
+		/* Didn't read enough octets. */
+		xResult = pdFAIL;
+	}
 
-    if( xResult == pdPASS )
-    {
-        /* lint: ucOctet has been set because xResult == pdPASS. */
-        ulReturn = FreeRTOS_inet_addr_quick( ucOctet[ 0 ], ucOctet[ 1 ], ucOctet[ 2 ], ucOctet[ 3 ] );
-    }
-    else
-    {
-        ulReturn = 0UL;
-    }
+	if( xResult == pdPASS )
+	{
+		/* lint: ucOctet has been set because xResult == pdPASS. */
+		ulReturn = FreeRTOS_inet_addr_quick( ucOctet[ 0 ], ucOctet[ 1 ], ucOctet[ 2 ], ucOctet[ 3 ] );
+	}
+	else
+	{
+		ulReturn = 0UL;
+	}
 
-    pvCopySource = ( const void * ) &ulReturn;
-    ( void ) memcpy( pvDestination, pvCopySource, sizeof( ulReturn ) );
+	pvCopySource = ( const void * ) &ulReturn;
+	( void ) memcpy( pvDestination, pvCopySource, sizeof( ulReturn ) );
 
-    return xResult;
+	return xResult;
 }
 /*-----------------------------------------------------------*/
 
@@ -2812,12 +2808,12 @@ BaseType_t FreeRTOS_inet_pton4( const char * pcSource,
  */
 uint32_t FreeRTOS_inet_addr( const char * pcIPAddress )
 {
-    uint32_t ulReturn = 0UL;
+	uint32_t ulReturn = 0UL;
 
-    /* inet_pton AF_INET target is a 4-byte 'struct in_addr'. */
-    ( void ) FreeRTOS_inet_pton4( pcIPAddress, &( ulReturn ) );
+	/* inet_pton AF_INET target is a 4-byte 'struct in_addr'. */
+	( void ) FreeRTOS_inet_pton4( pcIPAddress, &( ulReturn ) );
 
-    return ulReturn;
+	return ulReturn;
 }
 /*-----------------------------------------------------------*/
 
@@ -2831,151 +2827,151 @@ uint32_t FreeRTOS_inet_addr( const char * pcIPAddress )
  *
  * @return The 32-bit representation of IP(v4) address.
  */
-    BaseType_t FreeRTOS_inet_pton6( const char * pcSource,
-                                    void * pvDestination )
-    {
-        uint8_t * pucEnd, * pucColon;
-        /*const char *curtok; */
-        char ch;
-        uint32_t ulValue = 0UL;
-        uint8_t ucNew;
-        BaseType_t xResult;
-        BaseType_t xHadDigit;
-        uint8_t * pucTarget = pvDestination; /*lint !e9079: conversion from pointer to void to pointer to other type [MISRA 2012 Rule 11.5, advisory]. */
+	BaseType_t FreeRTOS_inet_pton6( const char * pcSource,
+									void * pvDestination )
+	{
+		uint8_t * pucEnd, * pucColon;
+		/*const char *curtok; */
+		char ch;
+		uint32_t ulValue = 0UL;
+		uint8_t ucNew;
+		BaseType_t xResult;
+		BaseType_t xHadDigit;
+		uint8_t * pucTarget = pvDestination; /*lint !e9079: conversion from pointer to void to pointer to other type [MISRA 2012 Rule 11.5, advisory]. */
 
-        ( void ) memset( pucTarget, 0, ipSIZE_OF_IPv6_ADDRESS );
-        pucEnd = &( pucTarget[ ipSIZE_OF_IPv6_ADDRESS ] );
-        pucColon = NULL;
-        xResult = 0;
+		( void ) memset( pucTarget, 0, ipSIZE_OF_IPv6_ADDRESS );
+		pucEnd = &( pucTarget[ ipSIZE_OF_IPv6_ADDRESS ] );
+		pucColon = NULL;
+		xResult = 0;
 
-        /* Leading :: requires some special handling. */
-        if( ( pcSource[ 0 ] == ':' ) && ( pcSource[ 1 ] == ':' ) && ( pcSource[ 2 ] == '\0' ) )
-        {
-            xResult = 1;
-        }
-        else
-        {
-            if( pcSource[ 0 ] == ':' )
-            {
-                pcSource++;
-            }
+		/* Leading :: requires some special handling. */
+		if( ( pcSource[ 0 ] == ':' ) && ( pcSource[ 1 ] == ':' ) && ( pcSource[ 2 ] == '\0' ) )
+		{
+			xResult = 1;
+		}
+		else
+		{
+			if( pcSource[ 0 ] == ':' )
+			{
+				pcSource++;
+			}
 
-            /*curtok = pcSource; */
-            xHadDigit = pdFALSE;
-            ulValue = 0;
+			/*curtok = pcSource; */
+			xHadDigit = pdFALSE;
+			ulValue = 0;
 
-            for( ; ; )
-            {
-                ch = *pcSource;
+			for( ; ; )
+			{
+				ch = *pcSource;
 
-                if( ch == ( char ) '\0' )
-                {
-                    /* The string is parsed now.
-                     * Store the last short, if present. */
-                    if( ( xHadDigit != pdFALSE ) &&
-                        ( pucTarget <= pucEnd - sizeof( uint16_t ) ) ) /*lint !e9050 !e946 dependence placed on C/C++ operator precedence; operators '<=' and '-' [MISRA 2012 Rule 12.1, advisory]. */
-                    {
-                        /* Add the last value seen, network byte order */
-                        pucTarget[ 0 ] = ( uint8_t ) ( ( ulValue >> 8 ) & 0xffU );
-                        pucTarget[ 1 ] = ( uint8_t ) ( ulValue & 0xffU );
-                        pucTarget = &( pucTarget[ 2 ] );
-                    }
+				if( ch == ( char ) '\0' )
+				{
+					/* The string is parsed now.
+					 * Store the last short, if present. */
+					if( ( xHadDigit != pdFALSE ) &&
+						( pucTarget <= pucEnd - sizeof( uint16_t ) ) ) /*lint !e9050 !e946 dependence placed on C/C++ operator precedence; operators '<=' and '-' [MISRA 2012 Rule 12.1, advisory]. */
+					{
+						/* Add the last value seen, network byte order */
+						pucTarget[ 0 ] = ( uint8_t ) ( ( ulValue >> 8 ) & 0xffU );
+						pucTarget[ 1 ] = ( uint8_t ) ( ulValue & 0xffU );
+						pucTarget = &( pucTarget[ 2 ] );
+					}
 
-                    break;
-                }
+					break;
+				}
 
-                pcSource++;
+				pcSource++;
 
-                if( ( ch >= '0' ) && ( ch <= '9' ) )
-                {
-                    ucNew = ipNUMERIC_CAST( uint8_t, ch - '0' );
-                }
-                else if( ( ch >= 'a' ) && ( ch <= 'f' ) )
-                {
-                    ucNew = ipNUMERIC_CAST( uint8_t, ch + 10 - 'a' );
-                }
-                else if( ( ch >= 'A' ) && ( ch <= 'F' ) )
-                {
-                    ucNew = ipNUMERIC_CAST( uint8_t, ch + 10 - 'A' );
-                }
-                else
-                {
-                    ucNew = ( uint8_t ) 255;
-                }
+				if( ( ch >= '0' ) && ( ch <= '9' ) )
+				{
+					ucNew = ipNUMERIC_CAST( uint8_t, ch - '0' );
+				}
+				else if( ( ch >= 'a' ) && ( ch <= 'f' ) )
+				{
+					ucNew = ipNUMERIC_CAST( uint8_t, ch + 10 - 'a' );
+				}
+				else if( ( ch >= 'A' ) && ( ch <= 'F' ) )
+				{
+					ucNew = ipNUMERIC_CAST( uint8_t, ch + 10 - 'A' );
+				}
+				else
+				{
+					ucNew = ( uint8_t ) 255;
+				}
 
-                if( ucNew != ( uint8_t ) 255 )
-                {
-                    if( ( ulValue & 0xf000UL ) != 0UL )
-                    {
-                        /* An overflow will occur. */
-                        break; /*lint !e9011 more than one 'break' terminates loop [MISRA 2012 Rule 15.4, advisory]. */
-                    }
+				if( ucNew != ( uint8_t ) 255 )
+				{
+					if( ( ulValue & 0xf000UL ) != 0UL )
+					{
+						/* An overflow will occur. */
+						break; /*lint !e9011 more than one 'break' terminates loop [MISRA 2012 Rule 15.4, advisory]. */
+					}
 
-                    ulValue = ( ulValue << 4 ) | ( ( uint32_t ) ucNew );
-                    xHadDigit = pdTRUE;
-                }
-                else if( ch == ':' )
-                {
-                    /*curtok = pcSource; */
-                    if( xHadDigit == pdFALSE )
-                    {
-                        /* A sequence of "::" may only occur once. */
-                        if( pucColon != NULL )
-                        {
-                            break; /*lint !e9011 more than one 'break' terminates loop [MISRA 2012 Rule 15.4, advisory]. */
-                        }
+					ulValue = ( ulValue << 4 ) | ( ( uint32_t ) ucNew );
+					xHadDigit = pdTRUE;
+				}
+				else if( ch == ':' )
+				{
+					/*curtok = pcSource; */
+					if( xHadDigit == pdFALSE )
+					{
+						/* A sequence of "::" may only occur once. */
+						if( pucColon != NULL )
+						{
+							break; /*lint !e9011 more than one 'break' terminates loop [MISRA 2012 Rule 15.4, advisory]. */
+						}
 
-                        pucColon = pucTarget;
-                        continue;
-                    }
+						pucColon = pucTarget;
+						continue;
+					}
 
-                    if( pucTarget > ( pucEnd - sizeof( uint16_t ) ) ) /*lint !e946 Relational or subtract operator applied to pointers [MISRA 2012 Rule 18.2, required], [MISRA 2012 Rule 18.3, required]. */
-                    {
-                        break;                                        /*lint !e9011 more than one 'break' terminates loop [MISRA 2012 Rule 15.4, advisory]. */
-                    }
+					if( pucTarget > ( pucEnd - sizeof( uint16_t ) ) ) /*lint !e946 Relational or subtract operator applied to pointers [MISRA 2012 Rule 18.2, required], [MISRA 2012 Rule 18.3, required]. */
+					{
+						break;                                        /*lint !e9011 more than one 'break' terminates loop [MISRA 2012 Rule 15.4, advisory]. */
+					}
 
-                    pucTarget[ 0 ] = ( uint8_t ) ( ( ulValue >> 8 ) & 0xffU );
-                    pucTarget[ 1 ] = ( uint8_t ) ( ulValue & 0xffU );
-                    pucTarget = &( pucTarget[ 2 ] );
-                    xHadDigit = pdFALSE;
-                    ulValue = 0;
-                }
-                else
-                {
-                    /* When an IPv4 address is provided, this break will be reached. */
-                    break; /*lint !e9011 more than one 'break' terminates loop [MISRA 2012 Rule 15.4, advisory]. */
-                }
-            } /* for( ;; ) */
+					pucTarget[ 0 ] = ( uint8_t ) ( ( ulValue >> 8 ) & 0xffU );
+					pucTarget[ 1 ] = ( uint8_t ) ( ulValue & 0xffU );
+					pucTarget = &( pucTarget[ 2 ] );
+					xHadDigit = pdFALSE;
+					ulValue = 0;
+				}
+				else
+				{
+					/* When an IPv4 address is provided, this break will be reached. */
+					break; /*lint !e9011 more than one 'break' terminates loop [MISRA 2012 Rule 15.4, advisory]. */
+				}
+			} /* for( ;; ) */
 
-            if( pucColon != NULL )
-            {
-                const BaseType_t xCount = ( int32_t ) ( pucTarget - pucColon ); /*lint !e946 !e947 Relational or subtract operator applied to pointers [MISRA 2012 Rule 18.2, required], [MISRA 2012 Rule 18.3, required]. */
-                BaseType_t xIndex;
+			if( pucColon != NULL )
+			{
+				const BaseType_t xCount = ( int32_t ) ( pucTarget - pucColon ); /*lint !e946 !e947 Relational or subtract operator applied to pointers [MISRA 2012 Rule 18.2, required], [MISRA 2012 Rule 18.3, required]. */
+				BaseType_t xIndex;
 
-                /* Inserting 'xCount' zero's. */
-                for( xIndex = 1; xIndex <= xCount; xIndex++ )
-                {
-                    pucEnd[ -xIndex ] = pucColon[ xCount - xIndex ];
-                    pucColon[ xCount - xIndex ] = 0;
-                }
+				/* Inserting 'xCount' zero's. */
+				for( xIndex = 1; xIndex <= xCount; xIndex++ )
+				{
+					pucEnd[ -xIndex ] = pucColon[ xCount - xIndex ];
+					pucColon[ xCount - xIndex ] = 0;
+				}
 
-                pucTarget = pucEnd;
-            }
+				pucTarget = pucEnd;
+			}
 
-            if( pucTarget == pucEnd )
-            {
-                xResult = 1;
-            }
-        }
+			if( pucTarget == pucEnd )
+			{
+				xResult = 1;
+			}
+		}
 
-        if( xResult != 1 )
-        {
-            pucTarget = ( uint8_t * ) pvDestination; /*lint !e9079: conversion from pointer to void to pointer to other type [MISRA 2012 Rule 11.5, advisory]. */
-            pucTarget[ 0 ] = 0;
-        }
+		if( xResult != 1 )
+		{
+			pucTarget = ( uint8_t * ) pvDestination; /*lint !e9079: conversion from pointer to void to pointer to other type [MISRA 2012 Rule 11.5, advisory]. */
+			pucTarget[ 0 ] = 0;
+		}
 
-        return xResult;
-    }
+		return xResult;
+	}
 #endif /* ipconfigUSE_IPv6 */
 /*-----------------------------------------------------------*/
 
@@ -2989,41 +2985,41 @@ uint32_t FreeRTOS_inet_addr( const char * pcIPAddress )
  * @return Size of the freertos_sockaddr structure.
  */
 #if ( ipconfigUSE_IPv6 != 0 )
-    size_t FreeRTOS_GetLocalAddress( ConstSocket_t xSocket,
-                                     struct freertos_sockaddr6 * pxAddress6 )
+	size_t FreeRTOS_GetLocalAddress( ConstSocket_t xSocket,
+									 struct freertos_sockaddr6 * pxAddress6 )
 #else
-    size_t FreeRTOS_GetLocalAddress( ConstSocket_t xSocket,
-                                     struct freertos_sockaddr * pxAddress )
+	size_t FreeRTOS_GetLocalAddress( ConstSocket_t xSocket,
+									 struct freertos_sockaddr * pxAddress )
 #endif
 {
-    FreeRTOS_Socket_t * pxSocket = ( FreeRTOS_Socket_t * ) xSocket;
+	FreeRTOS_Socket_t * pxSocket = ( FreeRTOS_Socket_t * ) xSocket;
 
-    #if ( ipconfigUSE_IPv6 != 0 )
-        struct freertos_sockaddr * pxAddress = ipPOINTER_CAST( struct freertos_sockaddr *, pxAddress6 );
-    #endif /* ipconfigUSE_IPv6 */
+	#if ( ipconfigUSE_IPv6 != 0 )
+		struct freertos_sockaddr * pxAddress = ipPOINTER_CAST( struct freertos_sockaddr *, pxAddress6 );
+	#endif /* ipconfigUSE_IPv6 */
 
-    #if ( ipconfigUSE_IPv6 != 0 )
-        if( pxSocket->bits.bIsIPv6 != pdFALSE_UNSIGNED )
-        {
-            pxAddress6->sin_family = FREERTOS_AF_INET6;
-            /* IP address of local machine. */
-            ( void ) memcpy( pxAddress6->sin_addrv6.ucBytes, pxSocket->xLocalAddress_IPv6.ucBytes, sizeof( pxAddress6->sin_addrv6.ucBytes ) );
-            /* Local port on this machine. */
-            pxAddress6->sin_port = FreeRTOS_htons( pxSocket->usLocalPort );
-        }
-        else
-    #endif
-    {
-        pxAddress->sin_family = FREERTOS_AF_INET;
-        pxAddress->sin_len = ( uint8_t ) sizeof( *pxAddress );
-        /* IP address of local machine. */
-        pxAddress->sin_addr = FreeRTOS_htonl( pxSocket->ulLocalAddress );
+	#if ( ipconfigUSE_IPv6 != 0 )
+		if( pxSocket->bits.bIsIPv6 != pdFALSE_UNSIGNED )
+		{
+			pxAddress6->sin_family = FREERTOS_AF_INET6;
+			/* IP address of local machine. */
+			( void ) memcpy( pxAddress6->sin_addrv6.ucBytes, pxSocket->xLocalAddress_IPv6.ucBytes, sizeof( pxAddress6->sin_addrv6.ucBytes ) );
+			/* Local port on this machine. */
+			pxAddress6->sin_port = FreeRTOS_htons( pxSocket->usLocalPort );
+		}
+		else
+	#endif
+	{
+		pxAddress->sin_family = FREERTOS_AF_INET;
+		pxAddress->sin_len = ( uint8_t ) sizeof( *pxAddress );
+		/* IP address of local machine. */
+		pxAddress->sin_addr = FreeRTOS_htonl( pxSocket->ulLocalAddress );
 
-        /* Local port on this machine. */
-        pxAddress->sin_port = FreeRTOS_htons( pxSocket->usLocalPort );
-    }
+		/* Local port on this machine. */
+		pxAddress->sin_port = FreeRTOS_htons( pxSocket->usLocalPort );
+	}
 
-    return sizeof( *pxAddress );
+	return sizeof( *pxAddress );
 }
 
 /*-----------------------------------------------------------*/
@@ -3037,47 +3033,47 @@ void vSocketWakeUpUser( FreeRTOS_Socket_t * pxSocket )
 {
 /* _HT_ must work this out, now vSocketWakeUpUser will be called for any important
  * event or transition */
-    #if ( ipconfigSOCKET_HAS_USER_SEMAPHORE == 1 )
-        {
-            if( pxSocket->pxUserSemaphore != NULL )
-            {
-                ( void ) xSemaphoreGive( pxSocket->pxUserSemaphore );
-            }
-        }
-    #endif /* ipconfigSOCKET_HAS_USER_SEMAPHORE */
+	#if ( ipconfigSOCKET_HAS_USER_SEMAPHORE == 1 )
+		{
+			if( pxSocket->pxUserSemaphore != NULL )
+			{
+				( void ) xSemaphoreGive( pxSocket->pxUserSemaphore );
+			}
+		}
+	#endif /* ipconfigSOCKET_HAS_USER_SEMAPHORE */
 
-    #if ( ipconfigSOCKET_HAS_USER_WAKE_CALLBACK == 1 )
-        {
-            if( pxSocket->pxUserWakeCallback != NULL )
-            {
-                pxSocket->pxUserWakeCallback( pxSocket );
-            }
-        }
-    #endif /* ipconfigSOCKET_HAS_USER_WAKE_CALLBACK */
+	#if ( ipconfigSOCKET_HAS_USER_WAKE_CALLBACK == 1 )
+		{
+			if( pxSocket->pxUserWakeCallback != NULL )
+			{
+				pxSocket->pxUserWakeCallback( pxSocket );
+			}
+		}
+	#endif /* ipconfigSOCKET_HAS_USER_WAKE_CALLBACK */
 
-    #if ( ipconfigSUPPORT_SELECT_FUNCTION == 1 )
-        {
-            if( pxSocket->pxSocketSet != NULL )
-            {
-                EventBits_t xSelectBits = ( pxSocket->xEventBits >> SOCKET_EVENT_BIT_COUNT ) & ( ( EventBits_t ) eSELECT_ALL );
+	#if ( ipconfigSUPPORT_SELECT_FUNCTION == 1 )
+		{
+			if( pxSocket->pxSocketSet != NULL )
+			{
+				EventBits_t xSelectBits = ( pxSocket->xEventBits >> SOCKET_EVENT_BIT_COUNT ) & ( ( EventBits_t ) eSELECT_ALL );
 
-                if( xSelectBits != 0UL )
-                {
-                    pxSocket->xSocketBits |= xSelectBits;
-                    ( void ) xEventGroupSetBits( pxSocket->pxSocketSet->xSelectGroup, xSelectBits );
-                }
-            }
+				if( xSelectBits != 0UL )
+				{
+					pxSocket->xSocketBits |= xSelectBits;
+					( void ) xEventGroupSetBits( pxSocket->pxSocketSet->xSelectGroup, xSelectBits );
+				}
+			}
 
-            pxSocket->xEventBits &= ( EventBits_t ) eSOCKET_ALL;
-        }
-    #endif /* ipconfigSUPPORT_SELECT_FUNCTION */
+			pxSocket->xEventBits &= ( EventBits_t ) eSOCKET_ALL;
+		}
+	#endif /* ipconfigSUPPORT_SELECT_FUNCTION */
 
-    if( ( pxSocket->xEventGroup != NULL ) && ( pxSocket->xEventBits != 0U ) )
-    {
-        ( void ) xEventGroupSetBits( pxSocket->xEventGroup, pxSocket->xEventBits );
-    }
+	if( ( pxSocket->xEventGroup != NULL ) && ( pxSocket->xEventBits != 0U ) )
+	{
+		( void ) xEventGroupSetBits( pxSocket->xEventGroup, pxSocket->xEventBits );
+	}
 
-    pxSocket->xEventBits = 0UL;
+	pxSocket->xEventBits = 0UL;
 }
 
 /*-----------------------------------------------------------*/
@@ -3094,21 +3090,21 @@ void vSocketWakeUpUser( FreeRTOS_Socket_t * pxSocket )
  *
  * @return xFound if a socket with the port number is found.
  */
-    BaseType_t xPortHasUDPSocket( uint16_t usPortNr )
-    {
-        BaseType_t xFound = pdFALSE;
+	BaseType_t xPortHasUDPSocket( uint16_t usPortNr )
+	{
+		BaseType_t xFound = pdFALSE;
 
-        vTaskSuspendAll();
-        {
-            if( ( pxListFindListItemWithValue( &xBoundUDPSocketsList, ( TickType_t ) usPortNr ) != NULL ) )
-            {
-                xFound = pdTRUE;
-            }
-        }
-        ( void ) xTaskResumeAll();
+		vTaskSuspendAll();
+		{
+			if( ( pxListFindListItemWithValue( &xBoundUDPSocketsList, ( TickType_t ) usPortNr ) != NULL ) )
+			{
+				xFound = pdTRUE;
+			}
+		}
+		( void ) xTaskResumeAll();
 
-        return xFound;
-    }
+		return xFound;
+	}
 
 #endif /* ipconfigETHERNET_DRIVER_FILTERS_PACKETS */
 
@@ -3123,38 +3119,38 @@ void vSocketWakeUpUser( FreeRTOS_Socket_t * pxSocket )
  *
  * @return It may return: -EINPROGRESS, -EAGAIN, or 0 for OK.
  */
-    static BaseType_t bMayConnect( FreeRTOS_Socket_t const * pxSocket )
-    {
-        BaseType_t xResult;
-        eIPTCPState_t eState = ipNUMERIC_CAST( eIPTCPState_t, pxSocket->u.xTCP.ucTCPState );
+	static BaseType_t bMayConnect( FreeRTOS_Socket_t const * pxSocket )
+	{
+		BaseType_t xResult;
+		eIPTCPState_t eState = ipNUMERIC_CAST( eIPTCPState_t, pxSocket->u.xTCP.ucTCPState );
 
-        switch( eState )
-        {
-            case eCLOSED:
-            case eCLOSE_WAIT:
-                xResult = 0;
-                break;
+		switch( eState )
+		{
+			case eCLOSED:
+			case eCLOSE_WAIT:
+				xResult = 0;
+				break;
 
-            case eCONNECT_SYN:
-                xResult = -pdFREERTOS_ERRNO_EINPROGRESS;
-                break;
+			case eCONNECT_SYN:
+				xResult = -pdFREERTOS_ERRNO_EINPROGRESS;
+				break;
 
-            case eTCP_LISTEN:
-            case eSYN_FIRST:
-            case eSYN_RECEIVED:
-            case eESTABLISHED:
-            case eFIN_WAIT_1:
-            case eFIN_WAIT_2:
-            case eCLOSING:
-            case eLAST_ACK:
-            case eTIME_WAIT:
-            default:
-                xResult = -pdFREERTOS_ERRNO_EAGAIN;
-                break;
-        }
+			case eTCP_LISTEN:
+			case eSYN_FIRST:
+			case eSYN_RECEIVED:
+			case eESTABLISHED:
+			case eFIN_WAIT_1:
+			case eFIN_WAIT_2:
+			case eCLOSING:
+			case eLAST_ACK:
+			case eTIME_WAIT:
+			default:
+				xResult = -pdFREERTOS_ERRNO_EAGAIN;
+				break;
+		}
 
-        return xResult;
-    }
+		return xResult;
+	}
 
 
 #endif /* ipconfigUSE_TCP */
@@ -3171,92 +3167,92 @@ void vSocketWakeUpUser( FreeRTOS_Socket_t * pxSocket )
  *
  * @return 0 on successful checks or a negative error code.
  */
-    static BaseType_t prvTCPConnectStart( FreeRTOS_Socket_t * pxSocket,
-                                          struct freertos_sockaddr const * pxAddress )
-    {
-        BaseType_t xResult = 0;
+	static BaseType_t prvTCPConnectStart( FreeRTOS_Socket_t * pxSocket,
+										  struct freertos_sockaddr const * pxAddress )
+	{
+		BaseType_t xResult = 0;
 
-        if( pxAddress == NULL )
-        {
-            /* NULL address passed to the function. Invalid value. */
-            xResult = -pdFREERTOS_ERRNO_EINVAL;
-        }
-        else if( prvValidSocket( pxSocket, FREERTOS_IPPROTO_TCP, pdFALSE ) == pdFALSE )
-        {
-            /* Not a valid socket or wrong type */
-            xResult = -pdFREERTOS_ERRNO_EBADF;
-        }
-        else if( FreeRTOS_issocketconnected( pxSocket ) > 0 )
-        {
-            /* The socket is already connected. */
-            xResult = -pdFREERTOS_ERRNO_EISCONN;
-        }
-        else if( !socketSOCKET_IS_BOUND( pxSocket ) )
-        {
-            /* Bind the socket to the port that the client task will send from.
-             * Non-standard, so the error returned is that returned by bind(). */
-            xResult = FreeRTOS_bind( pxSocket, NULL, 0U );
-        }
-        else
-        {
-            /* The socket is valid, not yet connected, and already bound to a port number. */
-        }
+		if( pxAddress == NULL )
+		{
+			/* NULL address passed to the function. Invalid value. */
+			xResult = -pdFREERTOS_ERRNO_EINVAL;
+		}
+		else if( prvValidSocket( pxSocket, FREERTOS_IPPROTO_TCP, pdFALSE ) == pdFALSE )
+		{
+			/* Not a valid socket or wrong type */
+			xResult = -pdFREERTOS_ERRNO_EBADF;
+		}
+		else if( FreeRTOS_issocketconnected( pxSocket ) > 0 )
+		{
+			/* The socket is already connected. */
+			xResult = -pdFREERTOS_ERRNO_EISCONN;
+		}
+		else if( !socketSOCKET_IS_BOUND( pxSocket ) )
+		{
+			/* Bind the socket to the port that the client task will send from.
+			 * Non-standard, so the error returned is that returned by bind(). */
+			xResult = FreeRTOS_bind( pxSocket, NULL, 0U );
+		}
+		else
+		{
+			/* The socket is valid, not yet connected, and already bound to a port number. */
+		}
 
-        if( xResult == 0 )
-        {
-            /* Check if it makes any sense to wait for a connect event, this condition
-             * might change while sleeping, so it must be checked within each loop */
-            xResult = bMayConnect( pxSocket ); /* -EINPROGRESS, -EAGAIN, or 0 for OK */
+		if( xResult == 0 )
+		{
+			/* Check if it makes any sense to wait for a connect event, this condition
+			 * might change while sleeping, so it must be checked within each loop */
+			xResult = bMayConnect( pxSocket ); /* -EINPROGRESS, -EAGAIN, or 0 for OK */
 
-            /* Start the connect procedure, kernel will start working on it */
-            if( xResult == 0 )
-            {
-                pxSocket->u.xTCP.bits.bConnPrepared = pdFALSE_UNSIGNED;
-                pxSocket->u.xTCP.ucRepCount = 0U;
+			/* Start the connect procedure, kernel will start working on it */
+			if( xResult == 0 )
+			{
+				pxSocket->u.xTCP.bits.bConnPrepared = pdFALSE_UNSIGNED;
+				pxSocket->u.xTCP.ucRepCount = 0U;
 
-                #if ( ipconfigUSE_IPv6 != 0 )
-                    if( pxAddress->sin_family == ( uint8_t ) FREERTOS_AF_INET6 )
-                    {
-                        struct freertos_sockaddr6 * pxAddress_IPv6 = ipPOINTER_CAST( struct freertos_sockaddr6 *, pxAddress );
+				#if ( ipconfigUSE_IPv6 != 0 )
+					if( pxAddress->sin_family == ( uint8_t ) FREERTOS_AF_INET6 )
+					{
+						struct freertos_sockaddr6 * pxAddress_IPv6 = ipPOINTER_CAST( struct freertos_sockaddr6 *, pxAddress );
 
-                        pxSocket->bits.bIsIPv6 = pdTRUE_UNSIGNED;
-                        FreeRTOS_printf( ( "FreeRTOS_connect: %u to %pip port %u\n",
-                                           pxSocket->usLocalPort, pxAddress_IPv6->sin_addrv6.ucBytes, FreeRTOS_ntohs( pxAddress_IPv6->sin_port ) ) );
-                        ( void ) memcpy( pxSocket->u.xTCP.xRemoteIP_IPv6.ucBytes, pxAddress_IPv6->sin_addrv6.ucBytes, sizeof( pxSocket->xLocalAddress_IPv6.ucBytes ) );
-                    }
-                    else
-                #endif /* ipconfigUSE_IPv6 */
-                {
-                    #if ( ipconfigUSE_IPv6 != 0 )
-                        {
-                            pxSocket->bits.bIsIPv6 = pdFALSE_UNSIGNED;
-                        }
-                    #endif /* ( ipconfigUSE_IPv6 != 0 ) */
-                    FreeRTOS_printf( ( "FreeRTOS_connect: %u to %lxip:%u\n",
-                                       pxSocket->usLocalPort, FreeRTOS_ntohl( pxAddress->sin_addr ), FreeRTOS_ntohs( pxAddress->sin_port ) ) );
-                }
+						pxSocket->bits.bIsIPv6 = pdTRUE_UNSIGNED;
+						FreeRTOS_printf( ( "FreeRTOS_connect: %u to %pip port %u\n",
+										   pxSocket->usLocalPort, pxAddress_IPv6->sin_addrv6.ucBytes, FreeRTOS_ntohs( pxAddress_IPv6->sin_port ) ) );
+						( void ) memcpy( pxSocket->u.xTCP.xRemoteIP_IPv6.ucBytes, pxAddress_IPv6->sin_addrv6.ucBytes, sizeof( pxSocket->xLocalAddress_IPv6.ucBytes ) );
+					}
+					else
+				#endif /* ipconfigUSE_IPv6 */
+				{
+					#if ( ipconfigUSE_IPv6 != 0 )
+						{
+							pxSocket->bits.bIsIPv6 = pdFALSE_UNSIGNED;
+						}
+					#endif /* ( ipconfigUSE_IPv6 != 0 ) */
+					FreeRTOS_printf( ( "FreeRTOS_connect: %u to %lxip:%u\n",
+									   pxSocket->usLocalPort, FreeRTOS_ntohl( pxAddress->sin_addr ), FreeRTOS_ntohs( pxAddress->sin_port ) ) );
+				}
 
-                /* Port on remote machine. */
-                pxSocket->u.xTCP.usRemotePort = FreeRTOS_ntohs( pxAddress->sin_port );
+				/* Port on remote machine. */
+				pxSocket->u.xTCP.usRemotePort = FreeRTOS_ntohs( pxAddress->sin_port );
 
-                /* IP address of remote machine. */
-                pxSocket->u.xTCP.ulRemoteIP = FreeRTOS_ntohl( pxAddress->sin_addr );
+				/* IP address of remote machine. */
+				pxSocket->u.xTCP.ulRemoteIP = FreeRTOS_ntohl( pxAddress->sin_addr );
 
-                /* (client) internal state: socket wants to send a connect. */
-                vTCPStateChange( pxSocket, eCONNECT_SYN );
+				/* (client) internal state: socket wants to send a connect. */
+				vTCPStateChange( pxSocket, eCONNECT_SYN );
 
-                /* To start an active connect. */
-                pxSocket->u.xTCP.usTimeout = 1U;
+				/* To start an active connect. */
+				pxSocket->u.xTCP.usTimeout = 1U;
 
-                if( xSendEventToIPTask( eTCPTimerEvent ) != pdPASS )
-                {
-                    xResult = -pdFREERTOS_ERRNO_ECANCELED;
-                }
-            }
-        }
+				if( xSendEventToIPTask( eTCPTimerEvent ) != pdPASS )
+				{
+					xResult = -pdFREERTOS_ERRNO_ECANCELED;
+				}
+			}
+		}
 
-        return xResult;
-    }
+		return xResult;
+	}
 
 
 #endif /* ipconfigUSE_TCP */
@@ -3276,75 +3272,75 @@ void vSocketWakeUpUser( FreeRTOS_Socket_t * pxSocket )
  * @return 0 is returned on a successful connection, else a negative
  *         error code is returned.
  */
-    BaseType_t FreeRTOS_connect( Socket_t xClientSocket,
-                                 struct freertos_sockaddr * pxAddress,
-                                 socklen_t xAddressLength )
-    {
-        FreeRTOS_Socket_t * pxSocket = ( FreeRTOS_Socket_t * ) xClientSocket;
-        TickType_t xRemainingTime;
-        BaseType_t xTimed = pdFALSE;
-        BaseType_t xResult = -pdFREERTOS_ERRNO_EINVAL;
-        TimeOut_t xTimeOut;
+	BaseType_t FreeRTOS_connect( Socket_t xClientSocket,
+								 struct freertos_sockaddr * pxAddress,
+								 socklen_t xAddressLength )
+	{
+		FreeRTOS_Socket_t * pxSocket = ( FreeRTOS_Socket_t * ) xClientSocket;
+		TickType_t xRemainingTime;
+		BaseType_t xTimed = pdFALSE;
+		BaseType_t xResult = -pdFREERTOS_ERRNO_EINVAL;
+		TimeOut_t xTimeOut;
 
-        ( void ) xAddressLength;
+		( void ) xAddressLength;
 
-        xResult = prvTCPConnectStart( pxSocket, pxAddress );
+		xResult = prvTCPConnectStart( pxSocket, pxAddress );
 
-        if( xResult == 0 )
-        {
-            /* And wait for the result */
-            for( ; ; )
-            {
-                if( xTimed == pdFALSE )
-                {
-                    /* Only in the first round, check for non-blocking */
-                    xRemainingTime = pxSocket->xReceiveBlockTime;
+		if( xResult == 0 )
+		{
+			/* And wait for the result */
+			for( ; ; )
+			{
+				if( xTimed == pdFALSE )
+				{
+					/* Only in the first round, check for non-blocking */
+					xRemainingTime = pxSocket->xReceiveBlockTime;
 
-                    if( xRemainingTime == ( TickType_t ) 0 )
-                    {
-                        /* Not yet connected, correct state, non-blocking. */
-                        xResult = -pdFREERTOS_ERRNO_EWOULDBLOCK;
-                        break;
-                    }
+					if( xRemainingTime == ( TickType_t ) 0 )
+					{
+						/* Not yet connected, correct state, non-blocking. */
+						xResult = -pdFREERTOS_ERRNO_EWOULDBLOCK;
+						break;
+					}
 
-                    /* Don't get here a second time. */
-                    xTimed = pdTRUE;
+					/* Don't get here a second time. */
+					xTimed = pdTRUE;
 
-                    /* Fetch the current time */
-                    vTaskSetTimeOutState( &xTimeOut );
-                }
+					/* Fetch the current time */
+					vTaskSetTimeOutState( &xTimeOut );
+				}
 
-                /* Did it get connected while sleeping ? */
-                xResult = FreeRTOS_issocketconnected( pxSocket );
+				/* Did it get connected while sleeping ? */
+				xResult = FreeRTOS_issocketconnected( pxSocket );
 
-                /* Returns positive when connected, negative means an error */
-                if( xResult < 0 )
-                {
-                    /* Return the error */
-                    break;
-                }
+				/* Returns positive when connected, negative means an error */
+				if( xResult < 0 )
+				{
+					/* Return the error */
+					break;
+				}
 
-                if( xResult > 0 )
-                {
-                    /* Socket now connected, return a zero */
-                    xResult = 0;
-                    break;
-                }
+				if( xResult > 0 )
+				{
+					/* Socket now connected, return a zero */
+					xResult = 0;
+					break;
+				}
 
-                /* Is it allowed to sleep more? */
-                if( xTaskCheckForTimeOut( &xTimeOut, &xRemainingTime ) != pdFALSE )
-                {
-                    xResult = -pdFREERTOS_ERRNO_ETIMEDOUT;
-                    break;
-                }
+				/* Is it allowed to sleep more? */
+				if( xTaskCheckForTimeOut( &xTimeOut, &xRemainingTime ) != pdFALSE )
+				{
+					xResult = -pdFREERTOS_ERRNO_ETIMEDOUT;
+					break;
+				}
 
-                /* Go sleeping until we get any down-stream event */
-                ( void ) xEventGroupWaitBits( pxSocket->xEventGroup, ( EventBits_t ) eSOCKET_CONNECT, pdTRUE /*xClearOnExit*/, pdFALSE /*xWaitAllBits*/, xRemainingTime );
-            }
-        }
+				/* Go sleeping until we get any down-stream event */
+				( void ) xEventGroupWaitBits( pxSocket->xEventGroup, ( EventBits_t ) eSOCKET_CONNECT, pdTRUE /*xClearOnExit*/, pdFALSE /*xWaitAllBits*/, xRemainingTime );
+			}
+		}
 
-        return xResult;
-    }
+		return xResult;
+	}
 
 #endif /* ipconfigUSE_TCP */
 /*-----------------------------------------------------------*/
@@ -3363,143 +3359,143 @@ void vSocketWakeUpUser( FreeRTOS_Socket_t * pxSocket )
  *         is in listen mode and receives a connection request. The new socket will
  *         be bound already to the same port number as the listening socket.
  */
-    Socket_t FreeRTOS_accept( Socket_t xServerSocket,
-                              struct freertos_sockaddr * pxAddress,
-                              socklen_t * pxAddressLength )
-    {
-        FreeRTOS_Socket_t * pxSocket = ( FreeRTOS_Socket_t * ) xServerSocket;
-        FreeRTOS_Socket_t * pxClientSocket = NULL;
-        TickType_t xRemainingTime;
-        BaseType_t xTimed = pdFALSE, xAsk = pdFALSE;
-        TimeOut_t xTimeOut;
-        IPStackEvent_t xAskEvent;
+	Socket_t FreeRTOS_accept( Socket_t xServerSocket,
+							  struct freertos_sockaddr * pxAddress,
+							  socklen_t * pxAddressLength )
+	{
+		FreeRTOS_Socket_t * pxSocket = ( FreeRTOS_Socket_t * ) xServerSocket;
+		FreeRTOS_Socket_t * pxClientSocket = NULL;
+		TickType_t xRemainingTime;
+		BaseType_t xTimed = pdFALSE, xAsk = pdFALSE;
+		TimeOut_t xTimeOut;
+		IPStackEvent_t xAskEvent;
 
-        if( prvValidSocket( pxSocket, FREERTOS_IPPROTO_TCP, pdTRUE ) == pdFALSE )
-        {
-            /* Not a valid socket or wrong type */
-            pxClientSocket = FREERTOS_INVALID_SOCKET;
-        }
-        else if( ( pxSocket->u.xTCP.bits.bReuseSocket == pdFALSE_UNSIGNED ) &&
-                 ( pxSocket->u.xTCP.ucTCPState != ( uint8_t ) eTCP_LISTEN ) )
-        {
-            /* Parent socket is not in listening mode */
-            pxClientSocket = FREERTOS_INVALID_SOCKET;
-        }
-        else
-        {
-            /* Loop will stop with breaks. */
-            for( ; ; )
-            {
-                /* Is there a new client? */
-                vTaskSuspendAll();
-                {
-                    if( pxSocket->u.xTCP.bits.bReuseSocket == pdFALSE_UNSIGNED )
-                    {
-                        pxClientSocket = pxSocket->u.xTCP.pxPeerSocket;
-                    }
-                    else
-                    {
-                        pxClientSocket = pxSocket;
-                    }
+		if( prvValidSocket( pxSocket, FREERTOS_IPPROTO_TCP, pdTRUE ) == pdFALSE )
+		{
+			/* Not a valid socket or wrong type */
+			pxClientSocket = FREERTOS_INVALID_SOCKET;
+		}
+		else if( ( pxSocket->u.xTCP.bits.bReuseSocket == pdFALSE_UNSIGNED ) &&
+				 ( pxSocket->u.xTCP.ucTCPState != ( uint8_t ) eTCP_LISTEN ) )
+		{
+			/* Parent socket is not in listening mode */
+			pxClientSocket = FREERTOS_INVALID_SOCKET;
+		}
+		else
+		{
+			/* Loop will stop with breaks. */
+			for( ; ; )
+			{
+				/* Is there a new client? */
+				vTaskSuspendAll();
+				{
+					if( pxSocket->u.xTCP.bits.bReuseSocket == pdFALSE_UNSIGNED )
+					{
+						pxClientSocket = pxSocket->u.xTCP.pxPeerSocket;
+					}
+					else
+					{
+						pxClientSocket = pxSocket;
+					}
 
-                    if( pxClientSocket != NULL )
-                    {
-                        pxSocket->u.xTCP.pxPeerSocket = NULL;
+					if( pxClientSocket != NULL )
+					{
+						pxSocket->u.xTCP.pxPeerSocket = NULL;
 
-                        /* Is it still not taken ? */
-                        if( pxClientSocket->u.xTCP.bits.bPassAccept != pdFALSE_UNSIGNED )
-                        {
-                            pxClientSocket->u.xTCP.bits.bPassAccept = pdFALSE_UNSIGNED;
-                        }
-                        else
-                        {
-                            pxClientSocket = NULL;
-                        }
-                    }
-                }
-                ( void ) xTaskResumeAll();
+						/* Is it still not taken ? */
+						if( pxClientSocket->u.xTCP.bits.bPassAccept != pdFALSE_UNSIGNED )
+						{
+							pxClientSocket->u.xTCP.bits.bPassAccept = pdFALSE_UNSIGNED;
+						}
+						else
+						{
+							pxClientSocket = NULL;
+						}
+					}
+				}
+				( void ) xTaskResumeAll();
 
-                if( pxClientSocket != NULL )
-                {
-                    #if ( ipconfigUSE_IPv6 != 0 )
-                        if( pxClientSocket->bits.bIsIPv6 != pdFALSE_UNSIGNED )
-                        {
-                            *pxAddressLength = sizeof( struct freertos_sockaddr6 );
+				if( pxClientSocket != NULL )
+				{
+					#if ( ipconfigUSE_IPv6 != 0 )
+						if( pxClientSocket->bits.bIsIPv6 != pdFALSE_UNSIGNED )
+						{
+							*pxAddressLength = sizeof( struct freertos_sockaddr6 );
 
-                            if( pxAddress != NULL )
-                            {
-                                struct freertos_sockaddr6 * pxAddress6 = ipPOINTER_CAST( struct freertos_sockaddr6 *, pxAddress );
+							if( pxAddress != NULL )
+							{
+								struct freertos_sockaddr6 * pxAddress6 = ipPOINTER_CAST( struct freertos_sockaddr6 *, pxAddress );
 
-                                pxAddress6->sin_family = FREERTOS_AF_INET6;
-                                /* Copy IP-address and port number. */
-                                ( void ) memcpy( pxAddress6->sin_addrv6.ucBytes, pxClientSocket->u.xTCP.xRemoteIP_IPv6.ucBytes, ipSIZE_OF_IPv6_ADDRESS );
-                                pxAddress->sin_port = FreeRTOS_ntohs( pxClientSocket->u.xTCP.usRemotePort );
-                            }
-                        }
-                        else
-                    #endif /* if ( ipconfigUSE_IPv6 != 0 ) */
-                    {
-                        *pxAddressLength = sizeof( struct freertos_sockaddr );
+								pxAddress6->sin_family = FREERTOS_AF_INET6;
+								/* Copy IP-address and port number. */
+								( void ) memcpy( pxAddress6->sin_addrv6.ucBytes, pxClientSocket->u.xTCP.xRemoteIP_IPv6.ucBytes, ipSIZE_OF_IPv6_ADDRESS );
+								pxAddress->sin_port = FreeRTOS_ntohs( pxClientSocket->u.xTCP.usRemotePort );
+							}
+						}
+						else
+					#endif /* if ( ipconfigUSE_IPv6 != 0 ) */
+					{
+						*pxAddressLength = sizeof( struct freertos_sockaddr );
 
-                        if( pxAddress != NULL )
-                        {
-                            pxAddress->sin_family = FREERTOS_AF_INET4;
-                            /* Copy IP-address and port number. */
-                            pxAddress->sin_addr = FreeRTOS_ntohl( pxClientSocket->u.xTCP.ulRemoteIP );
-                            pxAddress->sin_port = FreeRTOS_ntohs( pxClientSocket->u.xTCP.usRemotePort );
-                        }
-                    }
+						if( pxAddress != NULL )
+						{
+							pxAddress->sin_family = FREERTOS_AF_INET4;
+							/* Copy IP-address and port number. */
+							pxAddress->sin_addr = FreeRTOS_ntohl( pxClientSocket->u.xTCP.ulRemoteIP );
+							pxAddress->sin_port = FreeRTOS_ntohs( pxClientSocket->u.xTCP.usRemotePort );
+						}
+					}
 
-                    if( pxSocket->u.xTCP.bits.bReuseSocket == pdFALSE_UNSIGNED )
-                    {
-                        xAsk = pdTRUE;
-                    }
-                }
+					if( pxSocket->u.xTCP.bits.bReuseSocket == pdFALSE_UNSIGNED )
+					{
+						xAsk = pdTRUE;
+					}
+				}
 
-                if( xAsk != pdFALSE )
-                {
-                    /* Ask to set an event in 'xEventGroup' as soon as a new
-                     * client gets connected for this listening socket. */
-                    xAskEvent.eEventType = eTCPAcceptEvent;
-                    xAskEvent.pvData = pxSocket;
-                    ( void ) xSendEventStructToIPTask( &xAskEvent, portMAX_DELAY );
-                }
+				if( xAsk != pdFALSE )
+				{
+					/* Ask to set an event in 'xEventGroup' as soon as a new
+					 * client gets connected for this listening socket. */
+					xAskEvent.eEventType = eTCPAcceptEvent;
+					xAskEvent.pvData = pxSocket;
+					( void ) xSendEventStructToIPTask( &xAskEvent, portMAX_DELAY );
+				}
 
-                if( pxClientSocket != NULL )
-                {
-                    break;
-                }
+				if( pxClientSocket != NULL )
+				{
+					break;
+				}
 
-                if( xTimed == pdFALSE )
-                {
-                    /* Only in the first round, check for non-blocking */
-                    xRemainingTime = pxSocket->xReceiveBlockTime;
+				if( xTimed == pdFALSE )
+				{
+					/* Only in the first round, check for non-blocking */
+					xRemainingTime = pxSocket->xReceiveBlockTime;
 
-                    if( xRemainingTime == ( TickType_t ) 0 )
-                    {
-                        break;
-                    }
+					if( xRemainingTime == ( TickType_t ) 0 )
+					{
+						break;
+					}
 
-                    /* Don't get here a second time */
-                    xTimed = pdTRUE;
+					/* Don't get here a second time */
+					xTimed = pdTRUE;
 
-                    /* Fetch the current time */
-                    vTaskSetTimeOutState( &xTimeOut );
-                }
+					/* Fetch the current time */
+					vTaskSetTimeOutState( &xTimeOut );
+				}
 
-                /* Has the timeout been reached? */
-                if( xTaskCheckForTimeOut( &xTimeOut, &xRemainingTime ) != pdFALSE )
-                {
-                    break;
-                }
+				/* Has the timeout been reached? */
+				if( xTaskCheckForTimeOut( &xTimeOut, &xRemainingTime ) != pdFALSE )
+				{
+					break;
+				}
 
-                /* Go sleeping until we get any down-stream event */
-                ( void ) xEventGroupWaitBits( pxSocket->xEventGroup, ( EventBits_t ) eSOCKET_ACCEPT, pdTRUE /*xClearOnExit*/, pdFALSE /*xWaitAllBits*/, xRemainingTime );
-            }
-        }
+				/* Go sleeping until we get any down-stream event */
+				( void ) xEventGroupWaitBits( pxSocket->xEventGroup, ( EventBits_t ) eSOCKET_ACCEPT, pdTRUE /*xClearOnExit*/, pdFALSE /*xWaitAllBits*/, xRemainingTime );
+			}
+		}
 
-        return pxClientSocket;
-    }
+		return pxClientSocket;
+	}
 
 #endif /* ipconfigUSE_TCP */
 /*-----------------------------------------------------------*/
@@ -3520,200 +3516,200 @@ void vSocketWakeUpUser( FreeRTOS_Socket_t * pxSocket )
  *
  * @return The number of bytes actually received and stored in the pvBuffer.
  */
-    BaseType_t FreeRTOS_recv( Socket_t xSocket,
-                              void * pvBuffer,
-                              size_t uxBufferLength,
-                              BaseType_t xFlags )
-    {
-        BaseType_t xByteCount;
-        FreeRTOS_Socket_t * pxSocket = ( FreeRTOS_Socket_t * ) xSocket;
-        TickType_t xRemainingTime;
-        BaseType_t xTimed = pdFALSE;
-        TimeOut_t xTimeOut;
-        EventBits_t xEventBits = ( EventBits_t ) 0;
+	BaseType_t FreeRTOS_recv( Socket_t xSocket,
+							  void * pvBuffer,
+							  size_t uxBufferLength,
+							  BaseType_t xFlags )
+	{
+		BaseType_t xByteCount;
+		FreeRTOS_Socket_t * pxSocket = ( FreeRTOS_Socket_t * ) xSocket;
+		TickType_t xRemainingTime;
+		BaseType_t xTimed = pdFALSE;
+		TimeOut_t xTimeOut;
+		EventBits_t xEventBits = ( EventBits_t ) 0;
 
-        /* Check if the socket is valid, has type TCP and if it is bound to a
-         * port. */
-        if( prvValidSocket( pxSocket, FREERTOS_IPPROTO_TCP, pdTRUE ) == pdFALSE )
-        {
-            xByteCount = -pdFREERTOS_ERRNO_EINVAL;
-        }
-        else if( ( ( ( uint32_t ) xFlags & ( uint32_t ) FREERTOS_ZERO_COPY ) != 0U ) &&
-                 ( pvBuffer == NULL ) )
-        {
-            /* In zero-copy mode, pvBuffer is a pointer to a pointer ( not NULL ). */
-            xByteCount = -pdFREERTOS_ERRNO_EINVAL;
-        }
-        else
-        {
-            if( pxSocket->u.xTCP.rxStream != NULL )
-            {
-                xByteCount = ( BaseType_t ) uxStreamBufferGetSize( pxSocket->u.xTCP.rxStream );
-            }
-            else
-            {
-                xByteCount = 0;
-            }
+		/* Check if the socket is valid, has type TCP and if it is bound to a
+		 * port. */
+		if( prvValidSocket( pxSocket, FREERTOS_IPPROTO_TCP, pdTRUE ) == pdFALSE )
+		{
+			xByteCount = -pdFREERTOS_ERRNO_EINVAL;
+		}
+		else if( ( ( ( uint32_t ) xFlags & ( uint32_t ) FREERTOS_ZERO_COPY ) != 0U ) &&
+				 ( pvBuffer == NULL ) )
+		{
+			/* In zero-copy mode, pvBuffer is a pointer to a pointer ( not NULL ). */
+			xByteCount = -pdFREERTOS_ERRNO_EINVAL;
+		}
+		else
+		{
+			if( pxSocket->u.xTCP.rxStream != NULL )
+			{
+				xByteCount = ( BaseType_t ) uxStreamBufferGetSize( pxSocket->u.xTCP.rxStream );
+			}
+			else
+			{
+				xByteCount = 0;
+			}
 
-            while( xByteCount == 0 )
-            {
-                switch( ipNUMERIC_CAST( eIPTCPState_t, pxSocket->u.xTCP.ucTCPState ) )
-                {
-                    case eCLOSED:
-                    case eCLOSE_WAIT: /* (server + client) waiting for a connection termination request from the local user. */
-                    case eCLOSING:    /* (server + client) waiting for a connection termination request acknowledgement from the remote TCP. */
+			while( xByteCount == 0 )
+			{
+				switch( ipNUMERIC_CAST( eIPTCPState_t, pxSocket->u.xTCP.ucTCPState ) )
+				{
+					case eCLOSED:
+					case eCLOSE_WAIT: /* (server + client) waiting for a connection termination request from the local user. */
+					case eCLOSING:    /* (server + client) waiting for a connection termination request acknowledgement from the remote TCP. */
 
-                        if( pxSocket->u.xTCP.bits.bMallocError != pdFALSE_UNSIGNED )
-                        {
-                            /* The no-memory error has priority above the non-connected error.
-                             * Both are fatal and will lead to closing the socket. */
-                            xByteCount = -pdFREERTOS_ERRNO_ENOMEM;
-                        }
-                        else
-                        {
-                            xByteCount = -pdFREERTOS_ERRNO_ENOTCONN;
-                        }
+						if( pxSocket->u.xTCP.bits.bMallocError != pdFALSE_UNSIGNED )
+						{
+							/* The no-memory error has priority above the non-connected error.
+							 * Both are fatal and will lead to closing the socket. */
+							xByteCount = -pdFREERTOS_ERRNO_ENOMEM;
+						}
+						else
+						{
+							xByteCount = -pdFREERTOS_ERRNO_ENOTCONN;
+						}
 
-                        break;
+						break;
 
-                    case eTCP_LISTEN:
-                    case eCONNECT_SYN:
-                    case eSYN_FIRST:
-                    case eSYN_RECEIVED:
-                    case eESTABLISHED:
-                    case eFIN_WAIT_1:
-                    case eFIN_WAIT_2:
-                    case eLAST_ACK:
-                    case eTIME_WAIT:
-                    default:
-                        /* Nothing. */
-                        break;
-                }
+					case eTCP_LISTEN:
+					case eCONNECT_SYN:
+					case eSYN_FIRST:
+					case eSYN_RECEIVED:
+					case eESTABLISHED:
+					case eFIN_WAIT_1:
+					case eFIN_WAIT_2:
+					case eLAST_ACK:
+					case eTIME_WAIT:
+					default:
+						/* Nothing. */
+						break;
+				}
 
-                if( xByteCount < 0 )
-                {
-                    break;
-                }
+				if( xByteCount < 0 )
+				{
+					break;
+				}
 
-                if( xTimed == pdFALSE )
-                {
-                    /* Only in the first round, check for non-blocking. */
-                    xRemainingTime = pxSocket->xReceiveBlockTime;
+				if( xTimed == pdFALSE )
+				{
+					/* Only in the first round, check for non-blocking. */
+					xRemainingTime = pxSocket->xReceiveBlockTime;
 
-                    if( xRemainingTime == ( TickType_t ) 0 )
-                    {
-                        #if ( ipconfigSUPPORT_SIGNALS != 0 )
-                            {
-                                /* Just check for the interrupt flag. */
-                                xEventBits = xEventGroupWaitBits( pxSocket->xEventGroup, ( EventBits_t ) eSOCKET_INTR,
-                                                                  pdTRUE /*xClearOnExit*/, pdFALSE /*xWaitAllBits*/, socketDONT_BLOCK );
-                            }
-                        #endif /* ipconfigSUPPORT_SIGNALS */
-                        break;
-                    }
+					if( xRemainingTime == ( TickType_t ) 0 )
+					{
+						#if ( ipconfigSUPPORT_SIGNALS != 0 )
+							{
+								/* Just check for the interrupt flag. */
+								xEventBits = xEventGroupWaitBits( pxSocket->xEventGroup, ( EventBits_t ) eSOCKET_INTR,
+																  pdTRUE /*xClearOnExit*/, pdFALSE /*xWaitAllBits*/, socketDONT_BLOCK );
+							}
+						#endif /* ipconfigSUPPORT_SIGNALS */
+						break;
+					}
 
-                    if( ( ( uint32_t ) xFlags & ( uint32_t ) FREERTOS_MSG_DONTWAIT ) != 0U )
-                    {
-                        break;
-                    }
+					if( ( ( uint32_t ) xFlags & ( uint32_t ) FREERTOS_MSG_DONTWAIT ) != 0U )
+					{
+						break;
+					}
 
-                    /* Don't get here a second time. */
-                    xTimed = pdTRUE;
+					/* Don't get here a second time. */
+					xTimed = pdTRUE;
 
-                    /* Fetch the current time. */
-                    vTaskSetTimeOutState( &xTimeOut );
-                }
+					/* Fetch the current time. */
+					vTaskSetTimeOutState( &xTimeOut );
+				}
 
-                /* Has the timeout been reached? */
-                if( xTaskCheckForTimeOut( &xTimeOut, &xRemainingTime ) != pdFALSE )
-                {
-                    break;
-                }
+				/* Has the timeout been reached? */
+				if( xTaskCheckForTimeOut( &xTimeOut, &xRemainingTime ) != pdFALSE )
+				{
+					break;
+				}
 
-                /* Block until there is a down-stream event. */
-                xEventBits = xEventGroupWaitBits( pxSocket->xEventGroup,
-                                                  ( EventBits_t ) eSOCKET_RECEIVE | ( EventBits_t ) eSOCKET_CLOSED | ( EventBits_t ) eSOCKET_INTR,
-                                                  pdTRUE /*xClearOnExit*/, pdFALSE /*xWaitAllBits*/, xRemainingTime );
-                #if ( ipconfigSUPPORT_SIGNALS != 0 )
-                    {
-                        if( ( xEventBits & ( EventBits_t ) eSOCKET_INTR ) != 0U )
-                        {
-                            break;
-                        }
-                    }
-                #else
-                    {
-                        ( void ) xEventBits;
-                    }
-                #endif /* ipconfigSUPPORT_SIGNALS */
+				/* Block until there is a down-stream event. */
+				xEventBits = xEventGroupWaitBits( pxSocket->xEventGroup,
+												  ( EventBits_t ) eSOCKET_RECEIVE | ( EventBits_t ) eSOCKET_CLOSED | ( EventBits_t ) eSOCKET_INTR,
+												  pdTRUE /*xClearOnExit*/, pdFALSE /*xWaitAllBits*/, xRemainingTime );
+				#if ( ipconfigSUPPORT_SIGNALS != 0 )
+					{
+						if( ( xEventBits & ( EventBits_t ) eSOCKET_INTR ) != 0U )
+						{
+							break;
+						}
+					}
+				#else
+					{
+						( void ) xEventBits;
+					}
+				#endif /* ipconfigSUPPORT_SIGNALS */
 
-                if( pxSocket->u.xTCP.rxStream != NULL )
-                {
-                    xByteCount = ( BaseType_t ) uxStreamBufferGetSize( pxSocket->u.xTCP.rxStream );
-                }
-                else
-                {
-                    xByteCount = 0;
-                }
-            }
+				if( pxSocket->u.xTCP.rxStream != NULL )
+				{
+					xByteCount = ( BaseType_t ) uxStreamBufferGetSize( pxSocket->u.xTCP.rxStream );
+				}
+				else
+				{
+					xByteCount = 0;
+				}
+			}
 
-            #if ( ipconfigSUPPORT_SIGNALS != 0 )
-                if( ( xEventBits & ( EventBits_t ) eSOCKET_INTR ) != 0U )
-                {
-                    if( ( xEventBits & ( ( EventBits_t ) eSOCKET_RECEIVE | ( EventBits_t ) eSOCKET_CLOSED ) ) != 0U )
-                    {
-                        /* Shouldn't have cleared other flags. */
-                        xEventBits &= ~( ( EventBits_t ) eSOCKET_INTR );
-                        ( void ) xEventGroupSetBits( pxSocket->xEventGroup, xEventBits );
-                    }
+			#if ( ipconfigSUPPORT_SIGNALS != 0 )
+				if( ( xEventBits & ( EventBits_t ) eSOCKET_INTR ) != 0U )
+				{
+					if( ( xEventBits & ( ( EventBits_t ) eSOCKET_RECEIVE | ( EventBits_t ) eSOCKET_CLOSED ) ) != 0U )
+					{
+						/* Shouldn't have cleared other flags. */
+						xEventBits &= ~( ( EventBits_t ) eSOCKET_INTR );
+						( void ) xEventGroupSetBits( pxSocket->xEventGroup, xEventBits );
+					}
 
-                    xByteCount = -pdFREERTOS_ERRNO_EINTR;
-                }
-                else
-            #endif /* ipconfigSUPPORT_SIGNALS */
+					xByteCount = -pdFREERTOS_ERRNO_EINTR;
+				}
+				else
+			#endif /* ipconfigSUPPORT_SIGNALS */
 
-            if( xByteCount > 0 )
-            {
-                if( ( ( uint32_t ) xFlags & ( uint32_t ) FREERTOS_ZERO_COPY ) == 0U )
-                {
-                    BaseType_t xIsPeek = ( ( ( uint32_t ) xFlags & ( uint32_t ) FREERTOS_MSG_PEEK ) != 0U ) ? 1L : 0L;
+			if( xByteCount > 0 )
+			{
+				if( ( ( uint32_t ) xFlags & ( uint32_t ) FREERTOS_ZERO_COPY ) == 0U )
+				{
+					BaseType_t xIsPeek = ( ( ( uint32_t ) xFlags & ( uint32_t ) FREERTOS_MSG_PEEK ) != 0U ) ? 1L : 0L;
 
-                    xByteCount = ( BaseType_t )
-                                 uxStreamBufferGet( pxSocket->u.xTCP.rxStream,
-                                                    0UL,
-                                                    ipPOINTER_CAST( uint8_t *, pvBuffer ),
-                                                    ( size_t ) uxBufferLength,
-                                                    xIsPeek );
+					xByteCount = ( BaseType_t )
+								 uxStreamBufferGet( pxSocket->u.xTCP.rxStream,
+													0UL,
+													ipPOINTER_CAST( uint8_t *, pvBuffer ),
+													( size_t ) uxBufferLength,
+													xIsPeek );
 
-                    if( pxSocket->u.xTCP.bits.bLowWater != pdFALSE_UNSIGNED )
-                    {
-                        /* We had reached the low-water mark, now see if the flag
-                         * can be cleared */
-                        size_t uxFrontSpace = uxStreamBufferFrontSpace( pxSocket->u.xTCP.rxStream );
+					if( pxSocket->u.xTCP.bits.bLowWater != pdFALSE_UNSIGNED )
+					{
+						/* We had reached the low-water mark, now see if the flag
+						 * can be cleared */
+						size_t uxFrontSpace = uxStreamBufferFrontSpace( pxSocket->u.xTCP.rxStream );
 
-                        if( uxFrontSpace >= pxSocket->u.xTCP.uxEnoughSpace )
-                        {
-                            pxSocket->u.xTCP.bits.bLowWater = pdFALSE_UNSIGNED;
-                            pxSocket->u.xTCP.bits.bWinChange = pdTRUE_UNSIGNED;
-                            pxSocket->u.xTCP.usTimeout = 1U; /* because bLowWater is cleared. */
-                            ( void ) xSendEventToIPTask( eTCPTimerEvent );
-                        }
-                    }
-                }
-                else
-                {
-                    /* Zero-copy reception of data: pvBuffer is a pointer to a pointer. */
-                    xByteCount = ( BaseType_t ) uxStreamBufferGetPtr( pxSocket->u.xTCP.rxStream, ipPOINTER_CAST( uint8_t * *, pvBuffer ) );
-                }
-            }
-            else
-            {
-                /* Nothing. */
-            }
-        } /* prvValidSocket() */
+						if( uxFrontSpace >= pxSocket->u.xTCP.uxEnoughSpace )
+						{
+							pxSocket->u.xTCP.bits.bLowWater = pdFALSE_UNSIGNED;
+							pxSocket->u.xTCP.bits.bWinChange = pdTRUE_UNSIGNED;
+							pxSocket->u.xTCP.usTimeout = 1U; /* because bLowWater is cleared. */
+							( void ) xSendEventToIPTask( eTCPTimerEvent );
+						}
+					}
+				}
+				else
+				{
+					/* Zero-copy reception of data: pvBuffer is a pointer to a pointer. */
+					xByteCount = ( BaseType_t ) uxStreamBufferGetPtr( pxSocket->u.xTCP.rxStream, ipPOINTER_CAST( uint8_t * *, pvBuffer ) );
+				}
+			}
+			else
+			{
+				/* Nothing. */
+			}
+		} /* prvValidSocket() */
 
-        return xByteCount;
-    }
+		return xByteCount;
+	}
 
 
 #endif /* ipconfigUSE_TCP */
@@ -3730,55 +3726,55 @@ void vSocketWakeUpUser( FreeRTOS_Socket_t * pxSocket )
  *
  * @return 0: representing OK, else a negative error code will be returned.
  */
-    static int32_t prvTCPSendCheck( FreeRTOS_Socket_t * pxSocket,
-                                    size_t uxDataLength )
-    {
-        int32_t xResult = 1;
+	static int32_t prvTCPSendCheck( FreeRTOS_Socket_t * pxSocket,
+									size_t uxDataLength )
+	{
+		int32_t xResult = 1;
 
-        /* Is this a socket of type TCP and is it already bound to a port number ? */
-        if( prvValidSocket( pxSocket, FREERTOS_IPPROTO_TCP, pdTRUE ) == pdFALSE )
-        {
-            xResult = -pdFREERTOS_ERRNO_EINVAL;
-        }
-        else if( pxSocket->u.xTCP.bits.bMallocError != pdFALSE_UNSIGNED )
-        {
-            xResult = -pdFREERTOS_ERRNO_ENOMEM;
-        }
-        else if( ( pxSocket->u.xTCP.ucTCPState == ( uint8_t ) eCLOSED ) ||
-                 ( pxSocket->u.xTCP.ucTCPState == ( uint8_t ) eCLOSE_WAIT ) ||
-                 ( pxSocket->u.xTCP.ucTCPState == ( uint8_t ) eCLOSING ) )
-        {
-            xResult = -pdFREERTOS_ERRNO_ENOTCONN;
-        }
-        else if( pxSocket->u.xTCP.bits.bFinSent != pdFALSE_UNSIGNED )
-        {
-            /* This TCP connection is closing already, the FIN flag has been sent.
-             * Maybe it is still delivering or receiving data.
-             * Return OK in order not to get closed/deleted too quickly */
-            xResult = 0;
-        }
-        else if( uxDataLength == 0UL )
-        {
-            /* send() is being called to send zero bytes */
-            xResult = 0;
-        }
-        else if( pxSocket->u.xTCP.txStream == NULL )
-        {
-            /* Create the outgoing stream only when it is needed */
-            ( void ) prvTCPCreateStream( pxSocket, pdFALSE );
+		/* Is this a socket of type TCP and is it already bound to a port number ? */
+		if( prvValidSocket( pxSocket, FREERTOS_IPPROTO_TCP, pdTRUE ) == pdFALSE )
+		{
+			xResult = -pdFREERTOS_ERRNO_EINVAL;
+		}
+		else if( pxSocket->u.xTCP.bits.bMallocError != pdFALSE_UNSIGNED )
+		{
+			xResult = -pdFREERTOS_ERRNO_ENOMEM;
+		}
+		else if( ( pxSocket->u.xTCP.ucTCPState == ( uint8_t ) eCLOSED ) ||
+				 ( pxSocket->u.xTCP.ucTCPState == ( uint8_t ) eCLOSE_WAIT ) ||
+				 ( pxSocket->u.xTCP.ucTCPState == ( uint8_t ) eCLOSING ) )
+		{
+			xResult = -pdFREERTOS_ERRNO_ENOTCONN;
+		}
+		else if( pxSocket->u.xTCP.bits.bFinSent != pdFALSE_UNSIGNED )
+		{
+			/* This TCP connection is closing already, the FIN flag has been sent.
+			 * Maybe it is still delivering or receiving data.
+			 * Return OK in order not to get closed/deleted too quickly */
+			xResult = 0;
+		}
+		else if( uxDataLength == 0UL )
+		{
+			/* send() is being called to send zero bytes */
+			xResult = 0;
+		}
+		else if( pxSocket->u.xTCP.txStream == NULL )
+		{
+			/* Create the outgoing stream only when it is needed */
+			( void ) prvTCPCreateStream( pxSocket, pdFALSE );
 
-            if( pxSocket->u.xTCP.txStream == NULL )
-            {
-                xResult = -pdFREERTOS_ERRNO_ENOMEM;
-            }
-        }
-        else
-        {
-            /* Nothing. */
-        }
+			if( pxSocket->u.xTCP.txStream == NULL )
+			{
+				xResult = -pdFREERTOS_ERRNO_ENOMEM;
+			}
+		}
+		else
+		{
+			/* Nothing. */
+		}
 
-        return xResult;
-    }
+		return xResult;
+	}
 
 #endif /* ipconfigUSE_TCP */
 /*-----------------------------------------------------------*/
@@ -3794,33 +3790,33 @@ void vSocketWakeUpUser( FreeRTOS_Socket_t * pxSocket )
  * @return Head of the circular transmit buffer if all checks pass. Or else, NULL
  *         is returned.
  */
-    uint8_t * FreeRTOS_get_tx_head( ConstSocket_t xSocket,
-                                    BaseType_t * pxLength )
-    {
-        uint8_t * pucReturn = NULL;
-        const FreeRTOS_Socket_t * pxSocket = ( const FreeRTOS_Socket_t * ) xSocket;
-        StreamBuffer_t * pxBuffer = NULL;
+	uint8_t * FreeRTOS_get_tx_head( ConstSocket_t xSocket,
+									BaseType_t * pxLength )
+	{
+		uint8_t * pucReturn = NULL;
+		const FreeRTOS_Socket_t * pxSocket = ( const FreeRTOS_Socket_t * ) xSocket;
+		StreamBuffer_t * pxBuffer = NULL;
 
-        *pxLength = 0;
+		*pxLength = 0;
 
-        /* Confirm that this is a TCP socket before dereferencing structure
-         * member pointers. */
-        if( prvValidSocket( pxSocket, FREERTOS_IPPROTO_TCP, pdFALSE ) == pdTRUE )
-        {
-            pxBuffer = pxSocket->u.xTCP.txStream;
+		/* Confirm that this is a TCP socket before dereferencing structure
+		 * member pointers. */
+		if( prvValidSocket( pxSocket, FREERTOS_IPPROTO_TCP, pdFALSE ) == pdTRUE )
+		{
+			pxBuffer = pxSocket->u.xTCP.txStream;
 
-            if( pxBuffer != NULL )
-            {
-                BaseType_t xSpace = ( BaseType_t ) uxStreamBufferGetSpace( pxBuffer );
-                BaseType_t xRemain = ( BaseType_t ) pxBuffer->LENGTH - ( BaseType_t ) pxBuffer->uxHead;
+			if( pxBuffer != NULL )
+			{
+				BaseType_t xSpace = ( BaseType_t ) uxStreamBufferGetSpace( pxBuffer );
+				BaseType_t xRemain = ( BaseType_t ) pxBuffer->LENGTH - ( BaseType_t ) pxBuffer->uxHead;
 
-                *pxLength = FreeRTOS_min_BaseType( xSpace, xRemain );
-                pucReturn = &( pxBuffer->ucArray[ pxBuffer->uxHead ] );
-            }
-        }
+				*pxLength = FreeRTOS_min_BaseType( xSpace, xRemain );
+				pucReturn = &( pxBuffer->ucArray[ pxBuffer->uxHead ] );
+			}
+		}
 
-        return pucReturn;
-    }
+		return pucReturn;
+	}
 
 #endif /* ipconfigUSE_TCP */
 /*-----------------------------------------------------------*/
@@ -3840,187 +3836,187 @@ void vSocketWakeUpUser( FreeRTOS_Socket_t * pxSocket )
  * @return The number of bytes actually sent. Zero when nothing could be sent
  *         or a negative error code in case an error occurred.
  */
-    BaseType_t FreeRTOS_send( Socket_t xSocket,
-                              const void * pvBuffer,
-                              size_t uxDataLength,
-                              BaseType_t xFlags )
-    {
-        BaseType_t xByteCount = -pdFREERTOS_ERRNO_EINVAL;
-        BaseType_t xBytesLeft;
-        FreeRTOS_Socket_t * pxSocket = ( FreeRTOS_Socket_t * ) xSocket;
-        TickType_t xRemainingTime;
-        BaseType_t xTimed = pdFALSE;
-        TimeOut_t xTimeOut;
-        BaseType_t xCloseAfterSend;
-        const uint8_t * pucSource = ipPOINTER_CAST( const uint8_t *, pvBuffer );
+	BaseType_t FreeRTOS_send( Socket_t xSocket,
+							  const void * pvBuffer,
+							  size_t uxDataLength,
+							  BaseType_t xFlags )
+	{
+		BaseType_t xByteCount = -pdFREERTOS_ERRNO_EINVAL;
+		BaseType_t xBytesLeft;
+		FreeRTOS_Socket_t * pxSocket = ( FreeRTOS_Socket_t * ) xSocket;
+		TickType_t xRemainingTime;
+		BaseType_t xTimed = pdFALSE;
+		TimeOut_t xTimeOut;
+		BaseType_t xCloseAfterSend;
+		const uint8_t * pucSource = ipPOINTER_CAST( const uint8_t *, pvBuffer );
 
-        /* Prevent compiler warnings about unused parameters.  The parameter
-         * may be used in future versions. */
-        ( void ) xFlags;
+		/* Prevent compiler warnings about unused parameters.  The parameter
+		 * may be used in future versions. */
+		( void ) xFlags;
 
-        if( pvBuffer != NULL )
-        {
-            xByteCount = ( BaseType_t ) prvTCPSendCheck( pxSocket, uxDataLength );
-        }
+		if( pvBuffer != NULL )
+		{
+			xByteCount = ( BaseType_t ) prvTCPSendCheck( pxSocket, uxDataLength );
+		}
 
-        if( xByteCount > 0 )
-        {
-            /* xBytesLeft is number of bytes to send, will count to zero. */
-            xBytesLeft = ( BaseType_t ) uxDataLength;
+		if( xByteCount > 0 )
+		{
+			/* xBytesLeft is number of bytes to send, will count to zero. */
+			xBytesLeft = ( BaseType_t ) uxDataLength;
 
-            /* xByteCount is number of bytes that can be sent now. */
-            xByteCount = ( BaseType_t ) uxStreamBufferGetSpace( pxSocket->u.xTCP.txStream );
+			/* xByteCount is number of bytes that can be sent now. */
+			xByteCount = ( BaseType_t ) uxStreamBufferGetSpace( pxSocket->u.xTCP.txStream );
 
-            /* While there are still bytes to be sent. */
-            while( xBytesLeft > 0 )
-            {
-                /* If txStream has space. */
-                if( xByteCount > 0 )
-                {
-                    /* Don't send more than necessary. */
-                    if( xByteCount > xBytesLeft )
-                    {
-                        xByteCount = xBytesLeft;
-                    }
+			/* While there are still bytes to be sent. */
+			while( xBytesLeft > 0 )
+			{
+				/* If txStream has space. */
+				if( xByteCount > 0 )
+				{
+					/* Don't send more than necessary. */
+					if( xByteCount > xBytesLeft )
+					{
+						xByteCount = xBytesLeft;
+					}
 
-                    /* Is the close-after-send flag set and is this really the
-                     * last transmission? */
-                    if( ( pxSocket->u.xTCP.bits.bCloseAfterSend != pdFALSE_UNSIGNED ) && ( xByteCount == xBytesLeft ) )
-                    {
-                        xCloseAfterSend = pdTRUE;
-                    }
-                    else
-                    {
-                        xCloseAfterSend = pdFALSE;
-                    }
+					/* Is the close-after-send flag set and is this really the
+					 * last transmission? */
+					if( ( pxSocket->u.xTCP.bits.bCloseAfterSend != pdFALSE_UNSIGNED ) && ( xByteCount == xBytesLeft ) )
+					{
+						xCloseAfterSend = pdTRUE;
+					}
+					else
+					{
+						xCloseAfterSend = pdFALSE;
+					}
 
-                    /* The flag 'bCloseAfterSend' can be set before sending data
-                     * using setsockopt()
-                     *
-                     * When the last data packet is being sent out, a FIN flag will
-                     * be included to let the peer know that no more data is to be
-                     * expected.  The use of 'bCloseAfterSend' is not mandatory, it
-                     * is just a faster way of transferring files (e.g. when using
-                     * FTP). */
-                    if( xCloseAfterSend != pdFALSE )
-                    {
-                        /* Now suspend the scheduler: sending the last data	and
-                         * setting bCloseRequested must be done together */
-                        vTaskSuspendAll();
-                        pxSocket->u.xTCP.bits.bCloseRequested = pdTRUE_UNSIGNED;
-                    }
+					/* The flag 'bCloseAfterSend' can be set before sending data
+					 * using setsockopt()
+					 *
+					 * When the last data packet is being sent out, a FIN flag will
+					 * be included to let the peer know that no more data is to be
+					 * expected.  The use of 'bCloseAfterSend' is not mandatory, it
+					 * is just a faster way of transferring files (e.g. when using
+					 * FTP). */
+					if( xCloseAfterSend != pdFALSE )
+					{
+						/* Now suspend the scheduler: sending the last data	and
+						 * setting bCloseRequested must be done together */
+						vTaskSuspendAll();
+						pxSocket->u.xTCP.bits.bCloseRequested = pdTRUE_UNSIGNED;
+					}
 
-                    xByteCount = ( BaseType_t ) uxStreamBufferAdd( pxSocket->u.xTCP.txStream, 0UL, pucSource, ( size_t ) xByteCount );
+					xByteCount = ( BaseType_t ) uxStreamBufferAdd( pxSocket->u.xTCP.txStream, 0UL, pucSource, ( size_t ) xByteCount );
 
-                    if( xCloseAfterSend != pdFALSE )
-                    {
-                        /* Now when the IP-task transmits the data, it will also
-                         * see	that bCloseRequested is true and include the FIN
-                         * flag to start closure of the connection. */
-                        ( void ) xTaskResumeAll();
-                    }
+					if( xCloseAfterSend != pdFALSE )
+					{
+						/* Now when the IP-task transmits the data, it will also
+						 * see	that bCloseRequested is true and include the FIN
+						 * flag to start closure of the connection. */
+						( void ) xTaskResumeAll();
+					}
 
-                    /* Send a message to the IP-task so it can work on this
-                    * socket.  Data is sent, let the IP-task work on it. */
-                    pxSocket->u.xTCP.usTimeout = 1U;
+					/* Send a message to the IP-task so it can work on this
+					* socket.  Data is sent, let the IP-task work on it. */
+					pxSocket->u.xTCP.usTimeout = 1U;
 
-                    if( xIsCallingFromIPTask() == pdFALSE )
-                    {
-                        /* Only send a TCP timer event when not called from the
-                         * IP-task. */
-                        ( void ) xSendEventToIPTask( eTCPTimerEvent );
-                    }
+					if( xIsCallingFromIPTask() == pdFALSE )
+					{
+						/* Only send a TCP timer event when not called from the
+						 * IP-task. */
+						( void ) xSendEventToIPTask( eTCPTimerEvent );
+					}
 
-                    xBytesLeft -= xByteCount;
+					xBytesLeft -= xByteCount;
 
-                    if( xBytesLeft == 0 )
-                    {
-                        break;
-                    }
+					if( xBytesLeft == 0 )
+					{
+						break;
+					}
 
-                    /* As there are still bytes left to be sent, increase the
-                     * data pointer. */
-                    pucSource = &( pucSource[ xByteCount ] );
-                }
+					/* As there are still bytes left to be sent, increase the
+					 * data pointer. */
+					pucSource = &( pucSource[ xByteCount ] );
+				}
 
-                /* Not all bytes have been sent. In case the socket is marked as
-                 * blocking sleep for a while. */
-                if( xTimed == pdFALSE )
-                {
-                    /* Only in the first round, check for non-blocking. */
-                    xRemainingTime = pxSocket->xSendBlockTime;
+				/* Not all bytes have been sent. In case the socket is marked as
+				 * blocking sleep for a while. */
+				if( xTimed == pdFALSE )
+				{
+					/* Only in the first round, check for non-blocking. */
+					xRemainingTime = pxSocket->xSendBlockTime;
 
-                    #if ( ipconfigUSE_CALLBACKS != 0 )
-                        {
-                            if( xIsCallingFromIPTask() != pdFALSE )
-                            {
-                                /* If this send function is called from within a
-                                 * call-back handler it may not block, otherwise
-                                 * chances would be big to get a deadlock: the IP-task
-                                 * waiting for	itself. */
-                                xRemainingTime = ( TickType_t ) 0;
-                            }
-                        }
-                    #endif /* ipconfigUSE_CALLBACKS */
+					#if ( ipconfigUSE_CALLBACKS != 0 )
+						{
+							if( xIsCallingFromIPTask() != pdFALSE )
+							{
+								/* If this send function is called from within a
+								 * call-back handler it may not block, otherwise
+								 * chances would be big to get a deadlock: the IP-task
+								 * waiting for	itself. */
+								xRemainingTime = ( TickType_t ) 0;
+							}
+						}
+					#endif /* ipconfigUSE_CALLBACKS */
 
-                    if( xRemainingTime == ( TickType_t ) 0 )
-                    {
-                        break;
-                    }
+					if( xRemainingTime == ( TickType_t ) 0 )
+					{
+						break;
+					}
 
-                    if( ( ( uint32_t ) xFlags & ( uint32_t ) FREERTOS_MSG_DONTWAIT ) != 0U )
-                    {
-                        break;
-                    }
+					if( ( ( uint32_t ) xFlags & ( uint32_t ) FREERTOS_MSG_DONTWAIT ) != 0U )
+					{
+						break;
+					}
 
-                    /* Don't get here a second time. */
-                    xTimed = pdTRUE;
+					/* Don't get here a second time. */
+					xTimed = pdTRUE;
 
-                    /* Fetch the current time. */
-                    vTaskSetTimeOutState( &xTimeOut );
-                }
-                else
-                {
-                    /* Has the timeout been reached? */
-                    if( xTaskCheckForTimeOut( &xTimeOut, &xRemainingTime ) != pdFALSE )
-                    {
-                        break;
-                    }
-                }
+					/* Fetch the current time. */
+					vTaskSetTimeOutState( &xTimeOut );
+				}
+				else
+				{
+					/* Has the timeout been reached? */
+					if( xTaskCheckForTimeOut( &xTimeOut, &xRemainingTime ) != pdFALSE )
+					{
+						break;
+					}
+				}
 
-                /* Go sleeping until down-stream events are received. */
-                ( void ) xEventGroupWaitBits( pxSocket->xEventGroup, ( EventBits_t ) eSOCKET_SEND | ( EventBits_t ) eSOCKET_CLOSED,
-                                              pdTRUE /*xClearOnExit*/, pdFALSE /*xWaitAllBits*/, xRemainingTime );
+				/* Go sleeping until down-stream events are received. */
+				( void ) xEventGroupWaitBits( pxSocket->xEventGroup, ( EventBits_t ) eSOCKET_SEND | ( EventBits_t ) eSOCKET_CLOSED,
+											  pdTRUE /*xClearOnExit*/, pdFALSE /*xWaitAllBits*/, xRemainingTime );
 
-                xByteCount = ( BaseType_t ) uxStreamBufferGetSpace( pxSocket->u.xTCP.txStream );
-            }
+				xByteCount = ( BaseType_t ) uxStreamBufferGetSpace( pxSocket->u.xTCP.txStream );
+			}
 
-            /* How much was actually sent? */
-            xByteCount = ( ( BaseType_t ) uxDataLength ) - xBytesLeft;
+			/* How much was actually sent? */
+			xByteCount = ( ( BaseType_t ) uxDataLength ) - xBytesLeft;
 
-            if( xByteCount == 0 )
-            {
-                if( pxSocket->u.xTCP.ucTCPState > ( uint8_t ) eESTABLISHED )
-                {
-                    xByteCount = ( BaseType_t ) -pdFREERTOS_ERRNO_ENOTCONN;
-                }
-                else
-                {
-                    if( ipconfigTCP_MAY_LOG_PORT( pxSocket->usLocalPort ) )
-                    {
-                        FreeRTOS_debug_printf( ( "FreeRTOS_send: %u -> %lxip:%d: no space\n",
-                                                 pxSocket->usLocalPort,
-                                                 pxSocket->u.xTCP.ulRemoteIP,
-                                                 pxSocket->u.xTCP.usRemotePort ) );
-                    }
+			if( xByteCount == 0 )
+			{
+				if( pxSocket->u.xTCP.ucTCPState > ( uint8_t ) eESTABLISHED )
+				{
+					xByteCount = ( BaseType_t ) -pdFREERTOS_ERRNO_ENOTCONN;
+				}
+				else
+				{
+					if( ipconfigTCP_MAY_LOG_PORT( pxSocket->usLocalPort ) )
+					{
+						FreeRTOS_debug_printf( ( "FreeRTOS_send: %u -> %lxip:%d: no space\n",
+												 pxSocket->usLocalPort,
+												 pxSocket->u.xTCP.ulRemoteIP,
+												 pxSocket->u.xTCP.usRemotePort ) );
+					}
 
-                    xByteCount = ( BaseType_t ) -pdFREERTOS_ERRNO_ENOSPC;
-                }
-            }
-        }
+					xByteCount = ( BaseType_t ) -pdFREERTOS_ERRNO_ENOSPC;
+				}
+			}
+		}
 
-        return xByteCount;
-    }
+		return xByteCount;
+	}
 
 
 #endif /* ipconfigUSE_TCP */
@@ -4037,59 +4033,59 @@ void vSocketWakeUpUser( FreeRTOS_Socket_t * pxSocket )
  * @return 0 in case of success, or else a negative error code is
  *         returned.
  */
-    BaseType_t FreeRTOS_listen( Socket_t xSocket,
-                                BaseType_t xBacklog )
-    {
-        FreeRTOS_Socket_t * pxSocket;
-        BaseType_t xResult = 0;
+	BaseType_t FreeRTOS_listen( Socket_t xSocket,
+								BaseType_t xBacklog )
+	{
+		FreeRTOS_Socket_t * pxSocket;
+		BaseType_t xResult = 0;
 
-        pxSocket = ( FreeRTOS_Socket_t * ) xSocket;
+		pxSocket = ( FreeRTOS_Socket_t * ) xSocket;
 
-        /* listen() is allowed for a valid TCP socket in Closed state and already
-         * bound. */
-        if( prvValidSocket( pxSocket, FREERTOS_IPPROTO_TCP, pdTRUE ) == pdFALSE )
-        {
-            xResult = -pdFREERTOS_ERRNO_EOPNOTSUPP;
-        }
-        else if( ( pxSocket->u.xTCP.ucTCPState != ( uint8_t ) eCLOSED ) && ( pxSocket->u.xTCP.ucTCPState != ( uint8_t ) eCLOSE_WAIT ) )
-        {
-            /* Socket is in a wrong state. */
-            xResult = -pdFREERTOS_ERRNO_EOPNOTSUPP;
-        }
-        else
-        {
-            /* Backlog is interpreted here as "the maximum number of child
-             * sockets. */
-            pxSocket->u.xTCP.usBacklog = ( uint16_t ) FreeRTOS_min_int32( ( int32_t ) 0xffff, ( int32_t ) xBacklog );
+		/* listen() is allowed for a valid TCP socket in Closed state and already
+		 * bound. */
+		if( prvValidSocket( pxSocket, FREERTOS_IPPROTO_TCP, pdTRUE ) == pdFALSE )
+		{
+			xResult = -pdFREERTOS_ERRNO_EOPNOTSUPP;
+		}
+		else if( ( pxSocket->u.xTCP.ucTCPState != ( uint8_t ) eCLOSED ) && ( pxSocket->u.xTCP.ucTCPState != ( uint8_t ) eCLOSE_WAIT ) )
+		{
+			/* Socket is in a wrong state. */
+			xResult = -pdFREERTOS_ERRNO_EOPNOTSUPP;
+		}
+		else
+		{
+			/* Backlog is interpreted here as "the maximum number of child
+			 * sockets. */
+			pxSocket->u.xTCP.usBacklog = ( uint16_t ) FreeRTOS_min_int32( ( int32_t ) 0xffff, ( int32_t ) xBacklog );
 
-            /* This cleaning is necessary only if a listening socket is being
-             * reused as it might have had a previous connection. */
-            if( pxSocket->u.xTCP.bits.bReuseSocket != pdFALSE_UNSIGNED )
-            {
-                if( pxSocket->u.xTCP.rxStream != NULL )
-                {
-                    vStreamBufferClear( pxSocket->u.xTCP.rxStream );
-                }
+			/* This cleaning is necessary only if a listening socket is being
+			 * reused as it might have had a previous connection. */
+			if( pxSocket->u.xTCP.bits.bReuseSocket != pdFALSE_UNSIGNED )
+			{
+				if( pxSocket->u.xTCP.rxStream != NULL )
+				{
+					vStreamBufferClear( pxSocket->u.xTCP.rxStream );
+				}
 
-                if( pxSocket->u.xTCP.txStream != NULL )
-                {
-                    vStreamBufferClear( pxSocket->u.xTCP.txStream );
-                }
+				if( pxSocket->u.xTCP.txStream != NULL )
+				{
+					vStreamBufferClear( pxSocket->u.xTCP.txStream );
+				}
 
-                ( void ) memset( pxSocket->u.xTCP.xPacket.u.ucLastPacket, 0, sizeof( pxSocket->u.xTCP.xPacket.u.ucLastPacket ) );
-                ( void ) memset( &pxSocket->u.xTCP.xTCPWindow, 0, sizeof( pxSocket->u.xTCP.xTCPWindow ) );
-                ( void ) memset( &pxSocket->u.xTCP.bits, 0, sizeof( pxSocket->u.xTCP.bits ) );
+				( void ) memset( pxSocket->u.xTCP.xPacket.u.ucLastPacket, 0, sizeof( pxSocket->u.xTCP.xPacket.u.ucLastPacket ) );
+				( void ) memset( &pxSocket->u.xTCP.xTCPWindow, 0, sizeof( pxSocket->u.xTCP.xTCPWindow ) );
+				( void ) memset( &pxSocket->u.xTCP.bits, 0, sizeof( pxSocket->u.xTCP.bits ) );
 
-                /* Now set the bReuseSocket flag again, because the bits have
-                 * just been cleared. */
-                pxSocket->u.xTCP.bits.bReuseSocket = pdTRUE_UNSIGNED;
-            }
+				/* Now set the bReuseSocket flag again, because the bits have
+				 * just been cleared. */
+				pxSocket->u.xTCP.bits.bReuseSocket = pdTRUE_UNSIGNED;
+			}
 
-            vTCPStateChange( pxSocket, eTCP_LISTEN );
-        }
+			vTCPStateChange( pxSocket, eTCP_LISTEN );
+		}
 
-        return xResult;
-    }
+		return xResult;
+	}
 
 
 #endif /* ipconfigUSE_TCP */
@@ -4108,38 +4104,38 @@ void vSocketWakeUpUser( FreeRTOS_Socket_t * pxSocket )
  *
  * @return 0 on successful shutdown or else a negative error code.
  */
-    BaseType_t FreeRTOS_shutdown( Socket_t xSocket,
-                                  BaseType_t xHow )
-    {
-        FreeRTOS_Socket_t * pxSocket = ( FreeRTOS_Socket_t * ) xSocket;
-        BaseType_t xResult;
+	BaseType_t FreeRTOS_shutdown( Socket_t xSocket,
+								  BaseType_t xHow )
+	{
+		FreeRTOS_Socket_t * pxSocket = ( FreeRTOS_Socket_t * ) xSocket;
+		BaseType_t xResult;
 
-        if( prvValidSocket( pxSocket, FREERTOS_IPPROTO_TCP, pdTRUE ) == pdFALSE )
-        {
-            /*_RB_ Is this comment correct?  The socket is not of a type that
-             * supports the listen() operation. */
-            xResult = -pdFREERTOS_ERRNO_EOPNOTSUPP;
-        }
-        else if( pxSocket->u.xTCP.ucTCPState != ( uint8_t ) eESTABLISHED )
-        {
-            /*_RB_ Is this comment correct?  The socket is not of a type that
-             * supports the listen() operation. */
-            xResult = -pdFREERTOS_ERRNO_EOPNOTSUPP;
-        }
-        else
-        {
-            pxSocket->u.xTCP.bits.bUserShutdown = pdTRUE_UNSIGNED;
+		if( prvValidSocket( pxSocket, FREERTOS_IPPROTO_TCP, pdTRUE ) == pdFALSE )
+		{
+			/*_RB_ Is this comment correct?  The socket is not of a type that
+			 * supports the listen() operation. */
+			xResult = -pdFREERTOS_ERRNO_EOPNOTSUPP;
+		}
+		else if( pxSocket->u.xTCP.ucTCPState != ( uint8_t ) eESTABLISHED )
+		{
+			/*_RB_ Is this comment correct?  The socket is not of a type that
+			 * supports the listen() operation. */
+			xResult = -pdFREERTOS_ERRNO_EOPNOTSUPP;
+		}
+		else
+		{
+			pxSocket->u.xTCP.bits.bUserShutdown = pdTRUE_UNSIGNED;
 
-            /* Let the IP-task perform the shutdown of the connection. */
-            pxSocket->u.xTCP.usTimeout = 1U;
-            ( void ) xSendEventToIPTask( eTCPTimerEvent );
-            xResult = 0;
-        }
+			/* Let the IP-task perform the shutdown of the connection. */
+			pxSocket->u.xTCP.usTimeout = 1U;
+			( void ) xSendEventToIPTask( eTCPTimerEvent );
+			xResult = 0;
+		}
 
-        ( void ) xHow;
+		( void ) xHow;
 
-        return xResult;
-    }
+		return xResult;
+	}
 
 
 #endif /* ipconfigUSE_TCP */
@@ -4159,81 +4155,81 @@ void vSocketWakeUpUser( FreeRTOS_Socket_t * pxSocket )
  *
  * @return Minimum amount of time before the timer shall expire.
  */
-    TickType_t xTCPTimerCheck( BaseType_t xWillSleep )
-    {
-        FreeRTOS_Socket_t * pxSocket;
-        TickType_t xShortest = pdMS_TO_TICKS( ( TickType_t ) ipTCP_TIMER_PERIOD_MS );
-        TickType_t xNow = xTaskGetTickCount();
-        static TickType_t xLastTime = 0U;
-        TickType_t xDelta = xNow - xLastTime;
-        const ListItem_t * pxEnd = listGET_END_MARKER( &xBoundTCPSocketsList );
-        const ListItem_t * pxIterator = ( const ListItem_t * ) listGET_HEAD_ENTRY( &xBoundTCPSocketsList );
+	TickType_t xTCPTimerCheck( BaseType_t xWillSleep )
+	{
+		FreeRTOS_Socket_t * pxSocket;
+		TickType_t xShortest = pdMS_TO_TICKS( ( TickType_t ) ipTCP_TIMER_PERIOD_MS );
+		TickType_t xNow = xTaskGetTickCount();
+		static TickType_t xLastTime = 0U;
+		TickType_t xDelta = xNow - xLastTime;
+		const ListItem_t * pxEnd = listGET_END_MARKER( &xBoundTCPSocketsList );
+		const ListItem_t * pxIterator = ( const ListItem_t * ) listGET_HEAD_ENTRY( &xBoundTCPSocketsList );
 
-        xLastTime = xNow;
+		xLastTime = xNow;
 
-        if( xDelta == 0U )
-        {
-            xDelta = 1U;
-        }
+		if( xDelta == 0U )
+		{
+			xDelta = 1U;
+		}
 
-        while( pxIterator != pxEnd )
-        {
-            pxSocket = ipCAST_PTR_TO_TYPE_PTR( FreeRTOS_Socket_t, listGET_LIST_ITEM_OWNER( pxIterator ) );
-            pxIterator = ( ListItem_t * ) listGET_NEXT( pxIterator );
+		while( pxIterator != pxEnd )
+		{
+			pxSocket = ipCAST_PTR_TO_TYPE_PTR( FreeRTOS_Socket_t, listGET_LIST_ITEM_OWNER( pxIterator ) );
+			pxIterator = ( ListItem_t * ) listGET_NEXT( pxIterator );
 
-            /* Sockets with 'timeout == 0' do not need any regular attention. */
-            if( pxSocket->u.xTCP.usTimeout == 0U )
-            {
-                continue;
-            }
+			/* Sockets with 'timeout == 0' do not need any regular attention. */
+			if( pxSocket->u.xTCP.usTimeout == 0U )
+			{
+				continue;
+			}
 
-            if( xDelta < ( TickType_t ) pxSocket->u.xTCP.usTimeout )
-            {
-                pxSocket->u.xTCP.usTimeout = ( uint16_t ) ( ( ( TickType_t ) pxSocket->u.xTCP.usTimeout ) - xDelta );
-            }
-            else
-            {
-                BaseType_t xRc;
+			if( xDelta < ( TickType_t ) pxSocket->u.xTCP.usTimeout )
+			{
+				pxSocket->u.xTCP.usTimeout = ( uint16_t ) ( ( ( TickType_t ) pxSocket->u.xTCP.usTimeout ) - xDelta );
+			}
+			else
+			{
+				BaseType_t xRc;
 
-                pxSocket->u.xTCP.usTimeout = 0U;
-                xRc = xTCPSocketCheck( pxSocket );
+				pxSocket->u.xTCP.usTimeout = 0U;
+				xRc = xTCPSocketCheck( pxSocket );
 
-                /* Within this function, the socket might want to send a delayed
-                 * ack or send out data or whatever it needs to do. */
-                if( xRc < 0 )
-                {
-                    /* Continue because the socket was deleted. */
-                    continue;
-                }
-            }
+				/* Within this function, the socket might want to send a delayed
+				 * ack or send out data or whatever it needs to do. */
+				if( xRc < 0 )
+				{
+					/* Continue because the socket was deleted. */
+					continue;
+				}
+			}
 
-            /* In xEventBits the driver may indicate that the socket has
-             * important events for the user.  These are only done just before the
-             * IP-task goes to sleep. */
-            if( pxSocket->xEventBits != 0U )
-            {
-                if( xWillSleep != pdFALSE )
-                {
-                    /* The IP-task is about to go to sleep, so messages can be
-                     * sent to the socket owners. */
-                    vSocketWakeUpUser( pxSocket );
-                }
-                else
-                {
-                    /* Or else make sure this will be called again to wake-up
-                     * the sockets' owner. */
-                    xShortest = ( TickType_t ) 0;
-                }
-            }
+			/* In xEventBits the driver may indicate that the socket has
+			 * important events for the user.  These are only done just before the
+			 * IP-task goes to sleep. */
+			if( pxSocket->xEventBits != 0U )
+			{
+				if( xWillSleep != pdFALSE )
+				{
+					/* The IP-task is about to go to sleep, so messages can be
+					 * sent to the socket owners. */
+					vSocketWakeUpUser( pxSocket );
+				}
+				else
+				{
+					/* Or else make sure this will be called again to wake-up
+					 * the sockets' owner. */
+					xShortest = ( TickType_t ) 0;
+				}
+			}
 
-            if( ( pxSocket->u.xTCP.usTimeout != 0U ) && ( xShortest > ( TickType_t ) pxSocket->u.xTCP.usTimeout ) )
-            {
-                xShortest = ( TickType_t ) pxSocket->u.xTCP.usTimeout;
-            }
-        }
+			if( ( pxSocket->u.xTCP.usTimeout != 0U ) && ( xShortest > ( TickType_t ) pxSocket->u.xTCP.usTimeout ) )
+			{
+				xShortest = ( TickType_t ) pxSocket->u.xTCP.usTimeout;
+			}
+		}
 
-        return xShortest;
-    }
+		return xShortest;
+	}
 
 
 #endif /* ipconfigUSE_TCP */
@@ -4248,99 +4244,98 @@ void vSocketWakeUpUser( FreeRTOS_Socket_t * pxSocket )
  *        For a socket in listening mode, the remote port and IP address
  *        are both 0.
  *
- * @param[in] ulLocalIP: Local IP address. Ignored for now.
  * @param[in] uxLocalPort: Local port number.
  * @param[in] ulRemoteIP: Remote (peer) IP address.
  * @param[in] uxRemotePort: Remote (peer) port.
  *
  * @return The socket which was found.
  */
-    FreeRTOS_Socket_t * pxTCPSocketLookup( UBaseType_t uxLocalPort,
-                                           uint32_t ulRemoteIP,
-                                           UBaseType_t uxRemotePort
-    #if ( ipconfigUSE_IPv6 != 0 )
-                                               ,
-                                               IPv6_Address_t * pxAddress_IPv6
-    #endif /* ipconfigUSE_IPv6 */
-                                           )
-    {
-        const ListItem_t * pxIterator;
-        FreeRTOS_Socket_t * pxResult = NULL, * pxListenSocket = NULL;
-        const ListItem_t * pxEnd = ipPOINTER_CAST( const ListItem_t *, listGET_END_MARKER( &xBoundTCPSocketsList ) );
+	FreeRTOS_Socket_t * pxTCPSocketLookup( UBaseType_t uxLocalPort,
+										   uint32_t ulRemoteIP,
+										   UBaseType_t uxRemotePort
+	#if ( ipconfigUSE_IPv6 != 0 )
+											   ,
+											   IPv6_Address_t * pxAddress_IPv6
+	#endif /* ipconfigUSE_IPv6 */
+										   )
+	{
+		const ListItem_t * pxIterator;
+		FreeRTOS_Socket_t * pxResult = NULL, * pxListenSocket = NULL;
+		const ListItem_t * pxEnd = ipPOINTER_CAST( const ListItem_t *, listGET_END_MARKER( &xBoundTCPSocketsList ) );
 
-        for( pxIterator = listGET_NEXT( pxEnd );
-             pxIterator != pxEnd;
-             pxIterator = listGET_NEXT( pxIterator ) )
-        {
-            FreeRTOS_Socket_t * pxSocket = ipPOINTER_CAST( FreeRTOS_Socket_t *, listGET_LIST_ITEM_OWNER( pxIterator ) );
+		for( pxIterator = listGET_NEXT( pxEnd );
+			 pxIterator != pxEnd;
+			 pxIterator = listGET_NEXT( pxIterator ) )
+		{
+			FreeRTOS_Socket_t * pxSocket = ipPOINTER_CAST( FreeRTOS_Socket_t *, listGET_LIST_ITEM_OWNER( pxIterator ) );
 
-            if( pxSocket->usLocalPort == ( uint16_t ) uxLocalPort )
-            {
-                if( pxSocket->u.xTCP.ucTCPState == ( uint8_t ) eTCP_LISTEN )
-                {
-                    /* If this is a socket listening to uxLocalPort, remember it
-                     * in case there is no perfect match. */
-                    pxListenSocket = pxSocket;
-                }
-                else if( pxSocket->u.xTCP.usRemotePort == ( uint16_t ) uxRemotePort )
-                {
-                    #if ( ipconfigUSE_IPv6 != 0 )
-                        {
-                            if( pxSocket->bits.bIsIPv6 != pdFALSE_UNSIGNED )
-                            {
-                                if( pxAddress_IPv6 != NULL )
-                                {
-                                    if( memcmp( pxSocket->u.xTCP.xRemoteIP_IPv6.ucBytes, pxAddress_IPv6->ucBytes, ipSIZE_OF_IPv6_ADDRESS ) == 0 )
-                                    {
-                                        /* For sockets not in listening mode, find a match with
-                                         * uxLocalPort, ulRemoteIP AND uxRemotePort. */
-                                        pxResult = pxSocket;
-                                        break;
-                                    }
-                                }
-                            }
-                            else
-                            {
-                                if( pxAddress_IPv6 == NULL )
-                                {
-                                    if( pxSocket->u.xTCP.ulRemoteIP == ulRemoteIP )
-                                    {
-                                        /* For sockets not in listening mode, find a match with
-                                         * uxLocalPort, ulRemoteIP AND uxRemotePort. */
-                                        pxResult = pxSocket;
-                                        break; /*lint !e9011 more than one 'break' terminates loop [MISRA 2012 Rule 15.4, advisory]. */
-                                    }
-                                }
-                            }
-                        }
-                    #else /* if ( ipconfigUSE_IPv6 != 0 ) */
-                        {
-                            if( pxSocket->u.xTCP.ulRemoteIP == ulRemoteIP )
-                            {
-                                /* For sockets not in listening mode, find a match with
-                                 * xLocalPort, ulRemoteIP AND xRemotePort. */
-                                pxResult = pxSocket;
-                                break;
-                            }
-                        }
-                    #endif /* ipconfigUSE_IPv6 */
-                }
-                else
-                {
-                    /* This 'pxSocket' doesn't match. */
-                }
-            }
-        }
+			if( pxSocket->usLocalPort == ( uint16_t ) uxLocalPort )
+			{
+				if( pxSocket->u.xTCP.ucTCPState == ( uint8_t ) eTCP_LISTEN )
+				{
+					/* If this is a socket listening to uxLocalPort, remember it
+					 * in case there is no perfect match. */
+					pxListenSocket = pxSocket;
+				}
+				else if( pxSocket->u.xTCP.usRemotePort == ( uint16_t ) uxRemotePort )
+				{
+					#if ( ipconfigUSE_IPv6 != 0 )
+						{
+							if( pxSocket->bits.bIsIPv6 != pdFALSE_UNSIGNED )
+							{
+								if( pxAddress_IPv6 != NULL )
+								{
+									if( memcmp( pxSocket->u.xTCP.xRemoteIP_IPv6.ucBytes, pxAddress_IPv6->ucBytes, ipSIZE_OF_IPv6_ADDRESS ) == 0 )
+									{
+										/* For sockets not in listening mode, find a match with
+										 * uxLocalPort, ulRemoteIP AND uxRemotePort. */
+										pxResult = pxSocket;
+										break;
+									}
+								}
+							}
+							else
+							{
+								if( pxAddress_IPv6 == NULL )
+								{
+									if( pxSocket->u.xTCP.ulRemoteIP == ulRemoteIP )
+									{
+										/* For sockets not in listening mode, find a match with
+										 * uxLocalPort, ulRemoteIP AND uxRemotePort. */
+										pxResult = pxSocket;
+										break; /*lint !e9011 more than one 'break' terminates loop [MISRA 2012 Rule 15.4, advisory]. */
+									}
+								}
+							}
+						}
+					#else /* if ( ipconfigUSE_IPv6 != 0 ) */
+						{
+							if( pxSocket->u.xTCP.ulRemoteIP == ulRemoteIP )
+							{
+								/* For sockets not in listening mode, find a match with
+								 * xLocalPort, ulRemoteIP AND xRemotePort. */
+								pxResult = pxSocket;
+								break;
+							}
+						}
+					#endif /* ipconfigUSE_IPv6 */
+				}
+				else
+				{
+					/* This 'pxSocket' doesn't match. */
+				}
+			}
+		}
 
-        if( pxResult == NULL )
-        {
-            /* An exact match was not found, maybe a listening socket was
-             * found. */
-            pxResult = pxListenSocket;
-        }
+		if( pxResult == NULL )
+		{
+			/* An exact match was not found, maybe a listening socket was
+			 * found. */
+			pxResult = pxListenSocket;
+		}
 
-        return pxResult;
-    }
+		return pxResult;
+	}
 
 #endif /* ipconfigUSE_TCP */
 /*-----------------------------------------------------------*/
@@ -4355,19 +4350,19 @@ void vSocketWakeUpUser( FreeRTOS_Socket_t * pxSocket )
  *
  * @return The Rx stream of the socket if all checks pass, else NULL.
  */
-    const struct xSTREAM_BUFFER * FreeRTOS_get_rx_buf( ConstSocket_t xSocket )
-    {
-        const struct xSTREAM_BUFFER * pxReturn = NULL;
+	const struct xSTREAM_BUFFER * FreeRTOS_get_rx_buf( ConstSocket_t xSocket )
+	{
+		const struct xSTREAM_BUFFER * pxReturn = NULL;
 
-        /* Confirm that this is a TCP socket before dereferencing structure
-         * member pointers. */
-        if( prvValidSocket( xSocket, FREERTOS_IPPROTO_TCP, pdFALSE ) == pdTRUE )
-        {
-            pxReturn = xSocket->u.xTCP.rxStream;
-        }
+		/* Confirm that this is a TCP socket before dereferencing structure
+		 * member pointers. */
+		if( prvValidSocket( xSocket, FREERTOS_IPPROTO_TCP, pdFALSE ) == pdTRUE )
+		{
+			pxReturn = xSocket->u.xTCP.rxStream;
+		}
 
-        return pxReturn;
-    }
+		return pxReturn;
+	}
 
 #endif /* ipconfigUSE_TCP */
 /*-----------------------------------------------------------*/
@@ -4382,75 +4377,75 @@ void vSocketWakeUpUser( FreeRTOS_Socket_t * pxSocket )
  *
  * @return The stream buffer.
  */
-    static StreamBuffer_t * prvTCPCreateStream( FreeRTOS_Socket_t * pxSocket,
-                                                BaseType_t xIsInputStream )
-    {
-        StreamBuffer_t * pxBuffer;
-        size_t uxLength;
-        size_t uxSize;
+	static StreamBuffer_t * prvTCPCreateStream( FreeRTOS_Socket_t * pxSocket,
+												BaseType_t xIsInputStream )
+	{
+		StreamBuffer_t * pxBuffer;
+		size_t uxLength;
+		size_t uxSize;
 
-        /* Now that a stream is created, the maximum size is fixed before
-         * creation, it could still be changed with setsockopt(). */
-        if( xIsInputStream != pdFALSE )
-        {
-            uxLength = pxSocket->u.xTCP.uxRxStreamSize;
+		/* Now that a stream is created, the maximum size is fixed before
+		 * creation, it could still be changed with setsockopt(). */
+		if( xIsInputStream != pdFALSE )
+		{
+			uxLength = pxSocket->u.xTCP.uxRxStreamSize;
 
-            if( pxSocket->u.xTCP.uxLittleSpace == 0UL )
-            {
-                pxSocket->u.xTCP.uxLittleSpace = ( sock20_PERCENT * pxSocket->u.xTCP.uxRxStreamSize ) / sock100_PERCENT;
-            }
+			if( pxSocket->u.xTCP.uxLittleSpace == 0UL )
+			{
+				pxSocket->u.xTCP.uxLittleSpace = ( sock20_PERCENT * pxSocket->u.xTCP.uxRxStreamSize ) / sock100_PERCENT;
+			}
 
-            if( pxSocket->u.xTCP.uxEnoughSpace == 0UL )
-            {
-                pxSocket->u.xTCP.uxEnoughSpace = ( sock80_PERCENT * pxSocket->u.xTCP.uxRxStreamSize ) / sock100_PERCENT;
-            }
-        }
-        else
-        {
-            uxLength = pxSocket->u.xTCP.uxTxStreamSize;
-        }
+			if( pxSocket->u.xTCP.uxEnoughSpace == 0UL )
+			{
+				pxSocket->u.xTCP.uxEnoughSpace = ( sock80_PERCENT * pxSocket->u.xTCP.uxRxStreamSize ) / sock100_PERCENT;
+			}
+		}
+		else
+		{
+			uxLength = pxSocket->u.xTCP.uxTxStreamSize;
+		}
 
-        /* Add an extra 4 (or 8) bytes. */
-        uxLength += sizeof( size_t );
+		/* Add an extra 4 (or 8) bytes. */
+		uxLength += sizeof( size_t );
 
-        /* And make the length a multiple of sizeof( size_t ). */
-        uxLength &= ~( sizeof( size_t ) - 1U );
+		/* And make the length a multiple of sizeof( size_t ). */
+		uxLength &= ~( sizeof( size_t ) - 1U );
 
-        uxSize = ( sizeof( *pxBuffer ) + uxLength ) - sizeof( pxBuffer->ucArray );
+		uxSize = ( sizeof( *pxBuffer ) + uxLength ) - sizeof( pxBuffer->ucArray );
 
-        pxBuffer = ipCAST_PTR_TO_TYPE_PTR( StreamBuffer_t, pvPortMallocLarge( uxSize ) );
+		pxBuffer = ipCAST_PTR_TO_TYPE_PTR( StreamBuffer_t, pvPortMallocLarge( uxSize ) );
 
-        if( pxBuffer == NULL )
-        {
-            FreeRTOS_debug_printf( ( "prvTCPCreateStream: malloc failed\n" ) );
-            pxSocket->u.xTCP.bits.bMallocError = pdTRUE_UNSIGNED;
-            vTCPStateChange( pxSocket, eCLOSE_WAIT );
-        }
-        else
-        {
-            /* Clear the markers of the stream */
-            ( void ) memset( pxBuffer, 0, sizeof( *pxBuffer ) - sizeof( pxBuffer->ucArray ) );
-            pxBuffer->LENGTH = ( size_t ) uxLength;
+		if( pxBuffer == NULL )
+		{
+			FreeRTOS_debug_printf( ( "prvTCPCreateStream: malloc failed\n" ) );
+			pxSocket->u.xTCP.bits.bMallocError = pdTRUE_UNSIGNED;
+			vTCPStateChange( pxSocket, eCLOSE_WAIT );
+		}
+		else
+		{
+			/* Clear the markers of the stream */
+			( void ) memset( pxBuffer, 0, sizeof( *pxBuffer ) - sizeof( pxBuffer->ucArray ) );
+			pxBuffer->LENGTH = ( size_t ) uxLength;
 
-            if( xTCPWindowLoggingLevel != 0 )
-            {
-                FreeRTOS_debug_printf( ( "prvTCPCreateStream: %cxStream created %u bytes (total %u)\n", ( xIsInputStream != 0 ) ? 'R' : 'T', uxLength, uxSize ) );
-            }
+			if( xTCPWindowLoggingLevel != 0 )
+			{
+				FreeRTOS_debug_printf( ( "prvTCPCreateStream: %cxStream created %u bytes (total %u)\n", ( xIsInputStream != 0 ) ? 'R' : 'T', uxLength, uxSize ) );
+			}
 
-            if( xIsInputStream != 0 )
-            {
-                iptraceMEM_STATS_CREATE( tcpRX_STREAM_BUFFER, pxBuffer, uxSize );
-                pxSocket->u.xTCP.rxStream = pxBuffer;
-            }
-            else
-            {
-                iptraceMEM_STATS_CREATE( tcpTX_STREAM_BUFFER, pxBuffer, uxSize );
-                pxSocket->u.xTCP.txStream = pxBuffer;
-            }
-        }
+			if( xIsInputStream != 0 )
+			{
+				iptraceMEM_STATS_CREATE( tcpRX_STREAM_BUFFER, pxBuffer, uxSize );
+				pxSocket->u.xTCP.rxStream = pxBuffer;
+			}
+			else
+			{
+				iptraceMEM_STATS_CREATE( tcpTX_STREAM_BUFFER, pxBuffer, uxSize );
+				pxSocket->u.xTCP.txStream = pxBuffer;
+			}
+		}
 
-        return pxBuffer;
-    }
+		return pxBuffer;
+	}
 
 
 #endif /* ipconfigUSE_TCP */
@@ -4470,138 +4465,138 @@ void vSocketWakeUpUser( FreeRTOS_Socket_t * pxSocket )
  * @return The number of bytes actually added to the RxStream. Or else, a negative
  *         error code is returned.
  */
-    int32_t lTCPAddRxdata( FreeRTOS_Socket_t * pxSocket,
-                           size_t uxOffset,
-                           const uint8_t * pcData,
-                           uint32_t ulByteCount )
-    {
-        StreamBuffer_t * pxStream = pxSocket->u.xTCP.rxStream;
-        int32_t xResult = 0;
+	int32_t lTCPAddRxdata( FreeRTOS_Socket_t * pxSocket,
+						   size_t uxOffset,
+						   const uint8_t * pcData,
+						   uint32_t ulByteCount )
+	{
+		StreamBuffer_t * pxStream = pxSocket->u.xTCP.rxStream;
+		int32_t xResult = 0;
 
-        #if ( ipconfigUSE_CALLBACKS == 1 )
-            BaseType_t bHasHandler = ipconfigIS_VALID_PROG_ADDRESS( pxSocket->u.xTCP.pxHandleReceive ) ? pdTRUE : pdFALSE;
-            const uint8_t * pucBuffer = NULL;
-        #endif /* ipconfigUSE_CALLBACKS */
+		#if ( ipconfigUSE_CALLBACKS == 1 )
+			BaseType_t bHasHandler = ipconfigIS_VALID_PROG_ADDRESS( pxSocket->u.xTCP.pxHandleReceive ) ? pdTRUE : pdFALSE;
+			const uint8_t * pucBuffer = NULL;
+		#endif /* ipconfigUSE_CALLBACKS */
 
-        /* int32_t uxStreamBufferAdd( pxBuffer, uxOffset, pucData, aCount )
-         * if( pucData != NULL ) copy data the the buffer
-         * if( pucData == NULL ) no copying, just advance rxHead
-         * if( uxOffset != 0 ) Just store data which has come out-of-order
-         * if( uxOffset == 0 ) Also advance rxHead */
-        if( pxStream == NULL )
-        {
-            pxStream = prvTCPCreateStream( pxSocket, pdTRUE );
+		/* int32_t uxStreamBufferAdd( pxBuffer, uxOffset, pucData, aCount )
+		 * if( pucData != NULL ) copy data the the buffer
+		 * if( pucData == NULL ) no copying, just advance rxHead
+		 * if( uxOffset != 0 ) Just store data which has come out-of-order
+		 * if( uxOffset == 0 ) Also advance rxHead */
+		if( pxStream == NULL )
+		{
+			pxStream = prvTCPCreateStream( pxSocket, pdTRUE );
 
-            if( pxStream == NULL )
-            {
-                xResult = -1;
-            }
-        }
+			if( pxStream == NULL )
+			{
+				xResult = -1;
+			}
+		}
 
-        if( xResult >= 0 )
-        {
-            #if ( ipconfigUSE_CALLBACKS == 1 )
-                {
-                    if( ( bHasHandler != pdFALSE ) && ( uxStreamBufferGetSize( pxStream ) == 0U ) && ( uxOffset == 0UL ) && ( pcData != NULL ) )
-                    {
-                        /* Data can be passed directly to the user */
-                        pucBuffer = pcData;
+		if( xResult >= 0 )
+		{
+			#if ( ipconfigUSE_CALLBACKS == 1 )
+				{
+					if( ( bHasHandler != pdFALSE ) && ( uxStreamBufferGetSize( pxStream ) == 0U ) && ( uxOffset == 0UL ) && ( pcData != NULL ) )
+					{
+						/* Data can be passed directly to the user */
+						pucBuffer = pcData;
 
-                        /* Zero-copy for call-back: no need to add the bytes to the
-                         * stream, only the pointer will be advanced by uxStreamBufferAdd(). */
-                        pcData = NULL;
-                    }
-                }
-            #endif /* ipconfigUSE_CALLBACKS */
+						/* Zero-copy for call-back: no need to add the bytes to the
+						 * stream, only the pointer will be advanced by uxStreamBufferAdd(). */
+						pcData = NULL;
+					}
+				}
+			#endif /* ipconfigUSE_CALLBACKS */
 
-            xResult = ( int32_t ) uxStreamBufferAdd( pxStream, uxOffset, pcData, ( size_t ) ulByteCount );
+			xResult = ( int32_t ) uxStreamBufferAdd( pxStream, uxOffset, pcData, ( size_t ) ulByteCount );
 
-            #if ( ipconfigHAS_DEBUG_PRINTF != 0 )
-                {
-                    if( xResult != ( int32_t ) ulByteCount )
-                    {
-                        FreeRTOS_debug_printf( ( "lTCPAddRxdata: at %u: %d/%u bytes (tail %u head %u space %u front %u)\n",
-                                                 ( printf_unsigned ) uxOffset,
-                                                 ( printf_signed ) xResult,
-                                                 ( printf_unsigned ) ulByteCount,
-                                                 ( printf_unsigned ) pxStream->uxTail,
-                                                 ( printf_unsigned ) pxStream->uxHead,
-                                                 ( printf_unsigned ) uxStreamBufferFrontSpace( pxStream ),
-                                                 ( printf_unsigned ) pxStream->uxFront ) );
-                    }
-                }
-            #endif /* ipconfigHAS_DEBUG_PRINTF */
+			#if ( ipconfigHAS_DEBUG_PRINTF != 0 )
+				{
+					if( xResult != ( int32_t ) ulByteCount )
+					{
+						FreeRTOS_debug_printf( ( "lTCPAddRxdata: at %u: %d/%u bytes (tail %u head %u space %u front %u)\n",
+												 ( printf_unsigned ) uxOffset,
+												 ( printf_signed ) xResult,
+												 ( printf_unsigned ) ulByteCount,
+												 ( printf_unsigned ) pxStream->uxTail,
+												 ( printf_unsigned ) pxStream->uxHead,
+												 ( printf_unsigned ) uxStreamBufferFrontSpace( pxStream ),
+												 ( printf_unsigned ) pxStream->uxFront ) );
+					}
+				}
+			#endif /* ipconfigHAS_DEBUG_PRINTF */
 
-            if( uxOffset == 0U )
-            {
-                /* Data is being added to rxStream at the head (offs = 0) */
-                #if ( ipconfigUSE_CALLBACKS == 1 )
-                    if( bHasHandler != pdFALSE )
-                    {
-                        /* The socket owner has installed an OnReceive handler. Pass the
-                         * Rx data, without copying from the rxStream, to the user. */
-                        for( ; ; )
-                        {
-                            uint8_t * ucReadPtr = NULL;
-                            uint32_t ulCount;
+			if( uxOffset == 0U )
+			{
+				/* Data is being added to rxStream at the head (offs = 0) */
+				#if ( ipconfigUSE_CALLBACKS == 1 )
+					if( bHasHandler != pdFALSE )
+					{
+						/* The socket owner has installed an OnReceive handler. Pass the
+						 * Rx data, without copying from the rxStream, to the user. */
+						for( ; ; )
+						{
+							uint8_t * ucReadPtr = NULL;
+							uint32_t ulCount;
 
-                            if( pucBuffer != NULL )
-                            {
-                                ucReadPtr = ipPOINTER_CAST( uint8_t *, pucBuffer );
-                                ulCount = ulByteCount;
-                                pucBuffer = NULL;
-                            }
-                            else
-                            {
-                                ulCount = ( uint32_t ) uxStreamBufferGetPtr( pxStream, &( ucReadPtr ) );
-                            }
+							if( pucBuffer != NULL )
+							{
+								ucReadPtr = ipPOINTER_CAST( uint8_t *, pucBuffer );
+								ulCount = ulByteCount;
+								pucBuffer = NULL;
+							}
+							else
+							{
+								ulCount = ( uint32_t ) uxStreamBufferGetPtr( pxStream, &( ucReadPtr ) );
+							}
 
-                            if( ulCount == 0UL )
-                            {
-                                break;
-                            }
+							if( ulCount == 0UL )
+							{
+								break;
+							}
 
-                            ( void ) pxSocket->u.xTCP.pxHandleReceive( pxSocket, ucReadPtr, ( size_t ) ulCount );
-                            ( void ) uxStreamBufferGet( pxStream, 0UL, NULL, ( size_t ) ulCount, pdFALSE );
-                        }
-                    }
-                    else
-                #endif /* ipconfigUSE_CALLBACKS */
-                {
-                    /* See if running out of space. */
-                    if( pxSocket->u.xTCP.bits.bLowWater == pdFALSE_UNSIGNED )
-                    {
-                        size_t uxFrontSpace = uxStreamBufferFrontSpace( pxSocket->u.xTCP.rxStream );
+							( void ) pxSocket->u.xTCP.pxHandleReceive( pxSocket, ucReadPtr, ( size_t ) ulCount );
+							( void ) uxStreamBufferGet( pxStream, 0UL, NULL, ( size_t ) ulCount, pdFALSE );
+						}
+					}
+					else
+				#endif /* ipconfigUSE_CALLBACKS */
+				{
+					/* See if running out of space. */
+					if( pxSocket->u.xTCP.bits.bLowWater == pdFALSE_UNSIGNED )
+					{
+						size_t uxFrontSpace = uxStreamBufferFrontSpace( pxSocket->u.xTCP.rxStream );
 
-                        if( uxFrontSpace <= pxSocket->u.xTCP.uxLittleSpace )
-                        {
-                            pxSocket->u.xTCP.bits.bLowWater = pdTRUE_UNSIGNED;
-                            pxSocket->u.xTCP.bits.bWinChange = pdTRUE_UNSIGNED;
+						if( uxFrontSpace <= pxSocket->u.xTCP.uxLittleSpace )
+						{
+							pxSocket->u.xTCP.bits.bLowWater = pdTRUE_UNSIGNED;
+							pxSocket->u.xTCP.bits.bWinChange = pdTRUE_UNSIGNED;
 
-                            /* bLowWater was reached, send the changed window size. */
-                            pxSocket->u.xTCP.usTimeout = 1U;
-                            ( void ) xSendEventToIPTask( eTCPTimerEvent );
-                        }
-                    }
+							/* bLowWater was reached, send the changed window size. */
+							pxSocket->u.xTCP.usTimeout = 1U;
+							( void ) xSendEventToIPTask( eTCPTimerEvent );
+						}
+					}
 
-                    /* New incoming data is available, wake up the user.   User's
-                     * semaphores will be set just before the IP-task goes asleep. */
-                    pxSocket->xEventBits |= ( EventBits_t ) eSOCKET_RECEIVE;
+					/* New incoming data is available, wake up the user.   User's
+					 * semaphores will be set just before the IP-task goes asleep. */
+					pxSocket->xEventBits |= ( EventBits_t ) eSOCKET_RECEIVE;
 
-                    #if ipconfigSUPPORT_SELECT_FUNCTION == 1
-                        {
-                            if( ( pxSocket->xSelectBits & ( EventBits_t ) eSELECT_READ ) != 0U )
-                            {
-                                pxSocket->xEventBits |= ( ( ( EventBits_t ) eSELECT_READ ) << SOCKET_EVENT_BIT_COUNT );
-                            }
-                        }
-                    #endif
-                }
-            }
-        }
+					#if ipconfigSUPPORT_SELECT_FUNCTION == 1
+						{
+							if( ( pxSocket->xSelectBits & ( EventBits_t ) eSELECT_READ ) != 0U )
+							{
+								pxSocket->xEventBits |= ( ( ( EventBits_t ) eSELECT_READ ) << SOCKET_EVENT_BIT_COUNT );
+							}
+						}
+					#endif
+				}
+			}
+		}
 
-        return xResult;
-    }
+		return xResult;
+	}
 
 
 #endif /* ipconfigUSE_TCP */
@@ -4621,80 +4616,80 @@ void vSocketWakeUpUser( FreeRTOS_Socket_t * pxSocket )
  */
 
 /* Function to get the remote address and IP port */
-    #if ( ipconfigUSE_IPv6 != 0 )
-        BaseType_t FreeRTOS_GetRemoteAddress( ConstSocket_t xSocket,
-                                              struct freertos_sockaddr6 * pxAddress6 )
-    #else
-        BaseType_t FreeRTOS_GetRemoteAddress( ConstSocket_t xSocket,
-                                              struct freertos_sockaddr * pxAddress )
-    #endif /* ( ipconfigUSE_IPv6 != 0 ) */
-    {
-        FreeRTOS_Socket_t * pxSocket = ( FreeRTOS_Socket_t * ) xSocket;
+	#if ( ipconfigUSE_IPv6 != 0 )
+		BaseType_t FreeRTOS_GetRemoteAddress( ConstSocket_t xSocket,
+											  struct freertos_sockaddr6 * pxAddress6 )
+	#else
+		BaseType_t FreeRTOS_GetRemoteAddress( ConstSocket_t xSocket,
+											  struct freertos_sockaddr * pxAddress )
+	#endif /* ( ipconfigUSE_IPv6 != 0 ) */
+	{
+		FreeRTOS_Socket_t * pxSocket = ( FreeRTOS_Socket_t * ) xSocket;
 
-        #if ( ipconfigUSE_IPv6 != 0 )
-            struct freertos_sockaddr * pxAddress = ipPOINTER_CAST( struct freertos_sockaddr *, pxAddress6 );
-        #endif
-        BaseType_t xResult;
+		#if ( ipconfigUSE_IPv6 != 0 )
+			struct freertos_sockaddr * pxAddress = ipPOINTER_CAST( struct freertos_sockaddr *, pxAddress6 );
+		#endif
+		BaseType_t xResult;
 
-        if( pxSocket->ucProtocol != ( uint8_t ) FREERTOS_IPPROTO_TCP )
-        {
-            xResult = -pdFREERTOS_ERRNO_EINVAL;
-        }
-        else
-        {
-            /* BSD style sockets communicate IP and port addresses in network
-             * byte order.
-             * IP address of remote machine. */
-            #if ( ipconfigUSE_IPv6 != 0 )
-                if( pxSocket->bits.bIsIPv6 != pdFALSE_UNSIGNED )
-                {
-                    pxAddress6->sin_family = FREERTOS_AF_INET6;
+		if( pxSocket->ucProtocol != ( uint8_t ) FREERTOS_IPPROTO_TCP )
+		{
+			xResult = -pdFREERTOS_ERRNO_EINVAL;
+		}
+		else
+		{
+			/* BSD style sockets communicate IP and port addresses in network
+			 * byte order.
+			 * IP address of remote machine. */
+			#if ( ipconfigUSE_IPv6 != 0 )
+				if( pxSocket->bits.bIsIPv6 != pdFALSE_UNSIGNED )
+				{
+					pxAddress6->sin_family = FREERTOS_AF_INET6;
 
-                    /* IP address of remote machine. */
-                    ( void ) memcpy( pxAddress6->sin_addrv6.ucBytes, pxSocket->u.xTCP.xRemoteIP_IPv6.ucBytes, sizeof( pxAddress6->sin_addrv6.ucBytes ) );
+					/* IP address of remote machine. */
+					( void ) memcpy( pxAddress6->sin_addrv6.ucBytes, pxSocket->u.xTCP.xRemoteIP_IPv6.ucBytes, sizeof( pxAddress6->sin_addrv6.ucBytes ) );
 
-                    /* Port of remote machine. */
-                    pxAddress6->sin_port = FreeRTOS_htons( pxSocket->u.xTCP.usRemotePort );
-                }
-                else
-            #endif /* ipconfigUSE_IPv6 */
-            {
-                pxAddress->sin_len = ( uint8_t ) sizeof( *pxAddress );
-                pxAddress->sin_family = FREERTOS_AF_INET;
+					/* Port of remote machine. */
+					pxAddress6->sin_port = FreeRTOS_htons( pxSocket->u.xTCP.usRemotePort );
+				}
+				else
+			#endif /* ipconfigUSE_IPv6 */
+			{
+				pxAddress->sin_len = ( uint8_t ) sizeof( *pxAddress );
+				pxAddress->sin_family = FREERTOS_AF_INET;
 
-                /* IP address of remote machine. */
-                pxAddress->sin_addr = FreeRTOS_htonl( pxSocket->u.xTCP.ulRemoteIP );
+				/* IP address of remote machine. */
+				pxAddress->sin_addr = FreeRTOS_htonl( pxSocket->u.xTCP.ulRemoteIP );
 
-                /* Port on remote machine. */
-                pxAddress->sin_port = FreeRTOS_htons( pxSocket->u.xTCP.usRemotePort );
-            }
+				/* Port on remote machine. */
+				pxAddress->sin_port = FreeRTOS_htons( pxSocket->u.xTCP.usRemotePort );
+			}
 
-            xResult = ( BaseType_t ) sizeof( *pxAddress );
-        }
+			xResult = ( BaseType_t ) sizeof( *pxAddress );
+		}
 
-        return xResult;
-    }
+		return xResult;
+	}
 
 #endif /* ipconfigUSE_TCP */
 
 #if ( ( ipconfigUSE_TCP == 1 ) && ( ipconfigUSE_IPv6 != 0 ) )
-    /* Get the type of IP: either 'ipTYPE_IPv4' or 'ipTYPE_IPv6'. */
-    BaseType_t FreeRTOS_GetIPType( ConstSocket_t xSocket )
-    {
-        FreeRTOS_Socket_t * pxSocket = ( FreeRTOS_Socket_t * ) xSocket;
-        BaseType_t xResult;
+	/* Get the type of IP: either 'ipTYPE_IPv4' or 'ipTYPE_IPv6'. */
+	BaseType_t FreeRTOS_GetIPType( ConstSocket_t xSocket )
+	{
+		FreeRTOS_Socket_t * pxSocket = ( FreeRTOS_Socket_t * ) xSocket;
+		BaseType_t xResult;
 
-        if( pxSocket->bits.bIsIPv6 != pdFALSE_UNSIGNED )
-        {
-            xResult = ( BaseType_t ) ipTYPE_IPv6;
-        }
-        else
-        {
-            xResult = ( BaseType_t ) ipTYPE_IPv4;
-        }
+		if( pxSocket->bits.bIsIPv6 != pdFALSE_UNSIGNED )
+		{
+			xResult = ( BaseType_t ) ipTYPE_IPv6;
+		}
+		else
+		{
+			xResult = ( BaseType_t ) ipTYPE_IPv4;
+		}
 
-        return xResult;
-    }
+		return xResult;
+	}
 #endif /* if ( ( ipconfigUSE_TCP == 1 ) && ( ipconfigUSE_IPv6 != 0 ) ) */
 
 /*-----------------------------------------------------------*/
@@ -4709,37 +4704,37 @@ void vSocketWakeUpUser( FreeRTOS_Socket_t * pxSocket )
  * @return the number of bytes that may be added to txStream or
  *         else a negative error code.
  */
-    BaseType_t FreeRTOS_maywrite( ConstSocket_t xSocket )
-    {
-        const FreeRTOS_Socket_t * pxSocket = ( const FreeRTOS_Socket_t * ) xSocket;
-        BaseType_t xResult;
+	BaseType_t FreeRTOS_maywrite( ConstSocket_t xSocket )
+	{
+		const FreeRTOS_Socket_t * pxSocket = ( const FreeRTOS_Socket_t * ) xSocket;
+		BaseType_t xResult;
 
-        if( pxSocket->ucProtocol != ( uint8_t ) FREERTOS_IPPROTO_TCP )
-        {
-            xResult = -pdFREERTOS_ERRNO_EINVAL;
-        }
-        else if( pxSocket->u.xTCP.ucTCPState != ( uint8_t ) eESTABLISHED )
-        {
-            if( ( pxSocket->u.xTCP.ucTCPState < ( uint8_t ) eCONNECT_SYN ) || ( pxSocket->u.xTCP.ucTCPState > ( EventBits_t ) eESTABLISHED ) )
-            {
-                xResult = -1;
-            }
-            else
-            {
-                xResult = 0;
-            }
-        }
-        else if( pxSocket->u.xTCP.txStream == NULL )
-        {
-            xResult = ( BaseType_t ) pxSocket->u.xTCP.uxTxStreamSize;
-        }
-        else
-        {
-            xResult = ( BaseType_t ) uxStreamBufferGetSpace( pxSocket->u.xTCP.txStream );
-        }
+		if( pxSocket->ucProtocol != ( uint8_t ) FREERTOS_IPPROTO_TCP )
+		{
+			xResult = -pdFREERTOS_ERRNO_EINVAL;
+		}
+		else if( pxSocket->u.xTCP.ucTCPState != ( uint8_t ) eESTABLISHED )
+		{
+			if( ( pxSocket->u.xTCP.ucTCPState < ( uint8_t ) eCONNECT_SYN ) || ( pxSocket->u.xTCP.ucTCPState > ( EventBits_t ) eESTABLISHED ) )
+			{
+				xResult = -1;
+			}
+			else
+			{
+				xResult = 0;
+			}
+		}
+		else if( pxSocket->u.xTCP.txStream == NULL )
+		{
+			xResult = ( BaseType_t ) pxSocket->u.xTCP.uxTxStreamSize;
+		}
+		else
+		{
+			xResult = ( BaseType_t ) uxStreamBufferGetSpace( pxSocket->u.xTCP.txStream );
+		}
 
-        return xResult;
-    }
+		return xResult;
+	}
 
 
 #endif /* ipconfigUSE_TCP */
@@ -4755,29 +4750,29 @@ void vSocketWakeUpUser( FreeRTOS_Socket_t * pxSocket )
  *
  * @return The bytes that can be written. Or else an error code.
  */
-    BaseType_t FreeRTOS_tx_space( ConstSocket_t xSocket )
-    {
-        const FreeRTOS_Socket_t * pxSocket = ( const FreeRTOS_Socket_t * ) xSocket;
-        BaseType_t xReturn;
+	BaseType_t FreeRTOS_tx_space( ConstSocket_t xSocket )
+	{
+		const FreeRTOS_Socket_t * pxSocket = ( const FreeRTOS_Socket_t * ) xSocket;
+		BaseType_t xReturn;
 
-        if( pxSocket->ucProtocol != ( uint8_t ) FREERTOS_IPPROTO_TCP )
-        {
-            xReturn = -pdFREERTOS_ERRNO_EINVAL;
-        }
-        else
-        {
-            if( pxSocket->u.xTCP.txStream != NULL )
-            {
-                xReturn = ( BaseType_t ) uxStreamBufferGetSpace( pxSocket->u.xTCP.txStream );
-            }
-            else
-            {
-                xReturn = ( BaseType_t ) pxSocket->u.xTCP.uxTxStreamSize;
-            }
-        }
+		if( pxSocket->ucProtocol != ( uint8_t ) FREERTOS_IPPROTO_TCP )
+		{
+			xReturn = -pdFREERTOS_ERRNO_EINVAL;
+		}
+		else
+		{
+			if( pxSocket->u.xTCP.txStream != NULL )
+			{
+				xReturn = ( BaseType_t ) uxStreamBufferGetSpace( pxSocket->u.xTCP.txStream );
+			}
+			else
+			{
+				xReturn = ( BaseType_t ) pxSocket->u.xTCP.uxTxStreamSize;
+			}
+		}
 
-        return xReturn;
-    }
+		return xReturn;
+	}
 
 
 #endif /* ipconfigUSE_TCP */
@@ -4793,29 +4788,29 @@ void vSocketWakeUpUser( FreeRTOS_Socket_t * pxSocket )
  * @return The number of bytes stored in the Tx buffer of the socket.
  *         Or an error code.
  */
-    BaseType_t FreeRTOS_tx_size( ConstSocket_t xSocket )
-    {
-        const FreeRTOS_Socket_t * pxSocket = ( const FreeRTOS_Socket_t * ) xSocket;
-        BaseType_t xReturn;
+	BaseType_t FreeRTOS_tx_size( ConstSocket_t xSocket )
+	{
+		const FreeRTOS_Socket_t * pxSocket = ( const FreeRTOS_Socket_t * ) xSocket;
+		BaseType_t xReturn;
 
-        if( pxSocket->ucProtocol != ( uint8_t ) FREERTOS_IPPROTO_TCP )
-        {
-            xReturn = -pdFREERTOS_ERRNO_EINVAL;
-        }
-        else
-        {
-            if( pxSocket->u.xTCP.txStream != NULL )
-            {
-                xReturn = ( BaseType_t ) uxStreamBufferGetSize( pxSocket->u.xTCP.txStream );
-            }
-            else
-            {
-                xReturn = 0;
-            }
-        }
+		if( pxSocket->ucProtocol != ( uint8_t ) FREERTOS_IPPROTO_TCP )
+		{
+			xReturn = -pdFREERTOS_ERRNO_EINVAL;
+		}
+		else
+		{
+			if( pxSocket->u.xTCP.txStream != NULL )
+			{
+				xReturn = ( BaseType_t ) uxStreamBufferGetSize( pxSocket->u.xTCP.txStream );
+			}
+			else
+			{
+				xReturn = 0;
+			}
+		}
 
-        return xReturn;
-    }
+		return xReturn;
+	}
 
 
 #endif /* ipconfigUSE_TCP */
@@ -4830,28 +4825,28 @@ void vSocketWakeUpUser( FreeRTOS_Socket_t * pxSocket )
  *
  * @return pdTRUE if TCP socket is connected.
  */
-    BaseType_t FreeRTOS_issocketconnected( ConstSocket_t xSocket )
-    {
-        const FreeRTOS_Socket_t * pxSocket = ( const FreeRTOS_Socket_t * ) xSocket;
-        BaseType_t xReturn = pdFALSE;
+	BaseType_t FreeRTOS_issocketconnected( ConstSocket_t xSocket )
+	{
+		const FreeRTOS_Socket_t * pxSocket = ( const FreeRTOS_Socket_t * ) xSocket;
+		BaseType_t xReturn = pdFALSE;
 
-        if( pxSocket->ucProtocol != ( uint8_t ) FREERTOS_IPPROTO_TCP )
-        {
-            xReturn = -pdFREERTOS_ERRNO_EINVAL;
-        }
-        else
-        {
-            if( pxSocket->u.xTCP.ucTCPState >= ( uint8_t ) eESTABLISHED )
-            {
-                if( pxSocket->u.xTCP.ucTCPState < ( uint8_t ) eCLOSE_WAIT )
-                {
-                    xReturn = pdTRUE;
-                }
-            }
-        }
+		if( pxSocket->ucProtocol != ( uint8_t ) FREERTOS_IPPROTO_TCP )
+		{
+			xReturn = -pdFREERTOS_ERRNO_EINVAL;
+		}
+		else
+		{
+			if( pxSocket->u.xTCP.ucTCPState >= ( uint8_t ) eESTABLISHED )
+			{
+				if( pxSocket->u.xTCP.ucTCPState < ( uint8_t ) eCLOSE_WAIT )
+				{
+					xReturn = pdTRUE;
+				}
+			}
+		}
 
-        return xReturn;
-    }
+		return xReturn;
+	}
 
 
 #endif /* ipconfigUSE_TCP */
@@ -4866,25 +4861,25 @@ void vSocketWakeUpUser( FreeRTOS_Socket_t * pxSocket )
  *
  * @return the actual size of MSS being used or an error code.
  */
-    BaseType_t FreeRTOS_mss( ConstSocket_t xSocket )
-    {
-        const FreeRTOS_Socket_t * pxSocket = ( const FreeRTOS_Socket_t * ) xSocket;
-        BaseType_t xReturn;
+	BaseType_t FreeRTOS_mss( ConstSocket_t xSocket )
+	{
+		const FreeRTOS_Socket_t * pxSocket = ( const FreeRTOS_Socket_t * ) xSocket;
+		BaseType_t xReturn;
 
-        if( pxSocket->ucProtocol != ( uint8_t ) FREERTOS_IPPROTO_TCP )
-        {
-            xReturn = -pdFREERTOS_ERRNO_EINVAL;
-        }
-        else
-        {
-            /* usCurMSS is declared as uint16_t to save space.  FreeRTOS_mss()
-             * will often be used in signed native-size expressions cast it to
-             * BaseType_t. */
-            xReturn = ( BaseType_t ) ( pxSocket->u.xTCP.usCurMSS );
-        }
+		if( pxSocket->ucProtocol != ( uint8_t ) FREERTOS_IPPROTO_TCP )
+		{
+			xReturn = -pdFREERTOS_ERRNO_EINVAL;
+		}
+		else
+		{
+			/* usCurMSS is declared as uint16_t to save space.  FreeRTOS_mss()
+			 * will often be used in signed native-size expressions cast it to
+			 * BaseType_t. */
+			xReturn = ( BaseType_t ) ( pxSocket->u.xTCP.usCurMSS );
+		}
 
-        return xReturn;
-    }
+		return xReturn;
+	}
 
 
 #endif /* ipconfigUSE_TCP */
@@ -4902,23 +4897,23 @@ void vSocketWakeUpUser( FreeRTOS_Socket_t * pxSocket )
  *
  * @note For internal use only.
  */
-    BaseType_t FreeRTOS_connstatus( ConstSocket_t xSocket )
-    {
-        const FreeRTOS_Socket_t * pxSocket = ( const FreeRTOS_Socket_t * ) xSocket;
-        BaseType_t xReturn;
+	BaseType_t FreeRTOS_connstatus( ConstSocket_t xSocket )
+	{
+		const FreeRTOS_Socket_t * pxSocket = ( const FreeRTOS_Socket_t * ) xSocket;
+		BaseType_t xReturn;
 
-        if( pxSocket->ucProtocol != ( uint8_t ) FREERTOS_IPPROTO_TCP )
-        {
-            xReturn = -pdFREERTOS_ERRNO_EINVAL;
-        }
-        else
-        {
-            /* Cast it to BaseType_t. */
-            xReturn = ( BaseType_t ) ( pxSocket->u.xTCP.ucTCPState );
-        }
+		if( pxSocket->ucProtocol != ( uint8_t ) FREERTOS_IPPROTO_TCP )
+		{
+			xReturn = -pdFREERTOS_ERRNO_EINVAL;
+		}
+		else
+		{
+			/* Cast it to BaseType_t. */
+			xReturn = ( BaseType_t ) ( pxSocket->u.xTCP.ucTCPState );
+		}
 
-        return xReturn;
-    }
+		return xReturn;
+	}
 
 
 #endif /* ipconfigUSE_TCP */
@@ -4934,26 +4929,26 @@ void vSocketWakeUpUser( FreeRTOS_Socket_t * pxSocket )
  * @return Returns the number of bytes which can be read. Or an error
  *         code is returned.
  */
-    BaseType_t FreeRTOS_rx_size( ConstSocket_t xSocket )
-    {
-        const FreeRTOS_Socket_t * pxSocket = ( const FreeRTOS_Socket_t * ) xSocket;
-        BaseType_t xReturn;
+	BaseType_t FreeRTOS_rx_size( ConstSocket_t xSocket )
+	{
+		const FreeRTOS_Socket_t * pxSocket = ( const FreeRTOS_Socket_t * ) xSocket;
+		BaseType_t xReturn;
 
-        if( pxSocket->ucProtocol != ( uint8_t ) FREERTOS_IPPROTO_TCP )
-        {
-            xReturn = -pdFREERTOS_ERRNO_EINVAL;
-        }
-        else if( pxSocket->u.xTCP.rxStream != NULL )
-        {
-            xReturn = ( BaseType_t ) uxStreamBufferGetSize( pxSocket->u.xTCP.rxStream );
-        }
-        else
-        {
-            xReturn = 0;
-        }
+		if( pxSocket->ucProtocol != ( uint8_t ) FREERTOS_IPPROTO_TCP )
+		{
+			xReturn = -pdFREERTOS_ERRNO_EINVAL;
+		}
+		else if( pxSocket->u.xTCP.rxStream != NULL )
+		{
+			xReturn = ( BaseType_t ) uxStreamBufferGetSize( pxSocket->u.xTCP.rxStream );
+		}
+		else
+		{
+			xReturn = 0;
+		}
 
-        return xReturn;
-    }
+		return xReturn;
+	}
 
 
 #endif /* ipconfigUSE_TCP */
@@ -4969,22 +4964,22 @@ void vSocketWakeUpUser( FreeRTOS_Socket_t * pxSocket )
  * @return Returns the number of packets that are stored.  Use FreeRTOS_recvfrom()
  *         to retrieve those packets.
  */
-    BaseType_t FreeRTOS_udp_rx_size( Socket_t xSocket )
-    {
-        BaseType_t xReturn = 0;
-        const FreeRTOS_Socket_t * pxSocket = ( const FreeRTOS_Socket_t * ) xSocket;
+	BaseType_t FreeRTOS_udp_rx_size( Socket_t xSocket )
+	{
+		BaseType_t xReturn = 0;
+		const FreeRTOS_Socket_t * pxSocket = ( const FreeRTOS_Socket_t * ) xSocket;
 
-        if( pxSocket->ucProtocol == ( uint8_t ) FREERTOS_IPPROTO_UDP )
-        {
-            xReturn = ( BaseType_t ) listCURRENT_LIST_LENGTH( &( pxSocket->u.xUDP.xWaitingPacketsList ) );
-        }
-        else
-        {
-            xReturn = -pdFREERTOS_ERRNO_EINVAL;
-        }
+		if( pxSocket->ucProtocol == ( uint8_t ) FREERTOS_IPPROTO_UDP )
+		{
+			xReturn = ( BaseType_t ) listCURRENT_LIST_LENGTH( &( pxSocket->u.xUDP.xWaitingPacketsList ) );
+		}
+		else
+		{
+			xReturn = -pdFREERTOS_ERRNO_EINVAL;
+		}
 
-        return xReturn;
-    }
+		return xReturn;
+	}
 #endif /* 0 */
 
 #if ( ipconfigUSE_TCP == 1 )
@@ -4993,17 +4988,17 @@ void vSocketWakeUpUser( FreeRTOS_Socket_t * pxSocket )
  * @brief Get the net status. The IP-task will print a summary of all sockets and
  *        their connections.
  */
-    void FreeRTOS_netstat( void )
-    {
-        IPStackEvent_t xAskEvent;
+	void FreeRTOS_netstat( void )
+	{
+		IPStackEvent_t xAskEvent;
 
-        /* Ask the IP-task to call vTCPNetStat()
-         * to avoid accessing xBoundTCPSocketsList
-         */
-        xAskEvent.eEventType = eTCPNetStat;
-        xAskEvent.pvData = ( void * ) NULL;
-        ( void ) xSendEventStructToIPTask( &xAskEvent, pdMS_TO_TICKS( 1000U ) );
-    }
+		/* Ask the IP-task to call vTCPNetStat()
+		 * to avoid accessing xBoundTCPSocketsList
+		 */
+		xAskEvent.eEventType = eTCPNetStat;
+		xAskEvent.pvData = ( void * ) NULL;
+		( void ) xSendEventStructToIPTask( &xAskEvent, pdMS_TO_TICKS( 1000U ) );
+	}
 
 #endif /* ipconfigUSE_TCP */
 /*-----------------------------------------------------------*/
@@ -5013,115 +5008,115 @@ void vSocketWakeUpUser( FreeRTOS_Socket_t * pxSocket )
 /**
  * @brief Print a summary of all sockets and their connections.
  */
-    void vTCPNetStat( void )
-    {
-        /* Show a simple listing of all created sockets and their connections */
-        const ListItem_t * pxIterator;
-        BaseType_t count = 0;
-        size_t uxMinimum = uxGetMinimumFreeNetworkBuffers();
-        size_t uxCurrent = uxGetNumberOfFreeNetworkBuffers();
+	void vTCPNetStat( void )
+	{
+		/* Show a simple listing of all created sockets and their connections */
+		const ListItem_t * pxIterator;
+		BaseType_t count = 0;
+		size_t uxMinimum = uxGetMinimumFreeNetworkBuffers();
+		size_t uxCurrent = uxGetNumberOfFreeNetworkBuffers();
 
-        if( !listLIST_IS_INITIALISED( &xBoundTCPSocketsList ) )
-        {
-            FreeRTOS_printf( ( "PLUS-TCP not initialized\n" ) );
-        }
-        else
-        {
-            const ListItem_t * pxEndTCP = ipPOINTER_CAST( const ListItem_t *, listGET_END_MARKER( &xBoundTCPSocketsList ) );
-            const ListItem_t * pxEndUDP = ipPOINTER_CAST( const ListItem_t *, listGET_END_MARKER( &xBoundUDPSocketsList ) );
+		if( !listLIST_IS_INITIALISED( &xBoundTCPSocketsList ) )
+		{
+			FreeRTOS_printf( ( "PLUS-TCP not initialized\n" ) );
+		}
+		else
+		{
+			const ListItem_t * pxEndTCP = ipPOINTER_CAST( const ListItem_t *, listGET_END_MARKER( &xBoundTCPSocketsList ) );
+			const ListItem_t * pxEndUDP = ipPOINTER_CAST( const ListItem_t *, listGET_END_MARKER( &xBoundUDPSocketsList ) );
 
-            #if ( ipconfigUSE_IPv6 != 0 )
-                {
-                    FreeRTOS_printf( ( "Prot Port IP-Remote                       : Port R/T Status         Alive  tmout Child\n" ) );
-                }
-            #else
-                {
-                    FreeRTOS_printf( ( "Prot Port IP-Remote       : Port  R/T Status       Alive  tmout Child\n" ) );
-                }
-            #endif
+			#if ( ipconfigUSE_IPv6 != 0 )
+				{
+					FreeRTOS_printf( ( "Prot Port IP-Remote                       : Port R/T Status         Alive  tmout Child\n" ) );
+				}
+			#else
+				{
+					FreeRTOS_printf( ( "Prot Port IP-Remote       : Port  R/T Status       Alive  tmout Child\n" ) );
+				}
+			#endif
 
-            for( pxIterator = listGET_HEAD_ENTRY( &xBoundTCPSocketsList );
-                 pxIterator != pxEndTCP;
-                 pxIterator = listGET_NEXT( pxIterator ) )
-            {
-                char pcRemoteIp[ 40 ];
-                #if ( ipconfigUSE_IPv6 != 0 )
-                    const int xIPWidth = 32;
-                #else
-                    const int xIPWidth = 16;
-                #endif
-                FreeRTOS_Socket_t * pxSocket = ipPOINTER_CAST( FreeRTOS_Socket_t *, listGET_LIST_ITEM_OWNER( pxIterator ) );
-                #if ( ipconfigTCP_KEEP_ALIVE == 1 )
-                    TickType_t age = xTaskGetTickCount() - pxSocket->u.xTCP.xLastAliveTime;
-                #else
-                    TickType_t age = 0U;
-                #endif
-                #if ( ipconfigUSE_CALLBACKS == 1 )
-                    void * pxHandleReceive = ipPOINTER_CAST( void *, pxSocket->u.xTCP.pxHandleReceive ); /*lint !e9074 !e611 conversion between a pointer to function and another type [MISRA 2012 Rule 11.1, required]. */
-                #else
-                    void * pxHandleReceive = NULL;
-                #endif
-                char ucChildText[ 16 ] = "";
+			for( pxIterator = listGET_HEAD_ENTRY( &xBoundTCPSocketsList );
+				 pxIterator != pxEndTCP;
+				 pxIterator = listGET_NEXT( pxIterator ) )
+			{
+				char pcRemoteIp[ 40 ];
+				#if ( ipconfigUSE_IPv6 != 0 )
+					const int xIPWidth = 32;
+				#else
+					const int xIPWidth = 16;
+				#endif
+				FreeRTOS_Socket_t * pxSocket = ipPOINTER_CAST( FreeRTOS_Socket_t *, listGET_LIST_ITEM_OWNER( pxIterator ) );
+				#if ( ipconfigTCP_KEEP_ALIVE == 1 )
+					TickType_t age = xTaskGetTickCount() - pxSocket->u.xTCP.xLastAliveTime;
+				#else
+					TickType_t age = 0U;
+				#endif
+				#if ( ipconfigUSE_CALLBACKS == 1 )
+					void * pxHandleReceive = ipPOINTER_CAST( void *, pxSocket->u.xTCP.pxHandleReceive ); /*lint !e9074 !e611 conversion between a pointer to function and another type [MISRA 2012 Rule 11.1, required]. */
+				#else
+					void * pxHandleReceive = NULL;
+				#endif
+				char ucChildText[ 16 ] = "";
 
-                if( pxSocket->u.xTCP.ucTCPState == ( uint8_t ) eTCP_LISTEN )
-                {
-                    ( void ) snprintf( ucChildText, sizeof( ucChildText ), " %d/%d",    /*lint !e586 function 'snprintf' is deprecated. [MISRA 2012 Rule 21.6, required]. */
-                                       pxSocket->u.xTCP.usChildCount,
-                                       pxSocket->u.xTCP.usBacklog );
-                }
+				if( pxSocket->u.xTCP.ucTCPState == ( uint8_t ) eTCP_LISTEN )
+				{
+					( void ) snprintf( ucChildText, sizeof( ucChildText ), " %d/%d",    /*lint !e586 function 'snprintf' is deprecated. [MISRA 2012 Rule 21.6, required]. */
+									   pxSocket->u.xTCP.usChildCount,
+									   pxSocket->u.xTCP.usBacklog );
+				}
 
-                if( age > 999999UL )
-                {
-                    age = 999999UL;
-                }
+				if( age > 999999UL )
+				{
+					age = 999999UL;
+				}
 
-                #if ( ipconfigUSE_IPv6 != 0 )
-                    if( pxSocket->bits.bIsIPv6 != pdFALSE_UNSIGNED )
-                    {
-                        ( void ) snprintf( pcRemoteIp, /*lint !e586 function 'snprintf' is deprecated. [MISRA 2012 Rule 21.6, required]. */
-                                           sizeof( pcRemoteIp ),
-                                           "%pip", pxSocket->u.xTCP.xRemoteIP_IPv6.ucBytes );
-                    }
-                    else
-                #endif
-                {
-                    ( void ) snprintf( pcRemoteIp,  /*lint !e586 function 'snprintf' is deprecated. [MISRA 2012 Rule 21.6, required]. */
-                                       sizeof( pcRemoteIp ), "%lxip", pxSocket->u.xTCP.ulRemoteIP );
-                }
+				#if ( ipconfigUSE_IPv6 != 0 )
+					if( pxSocket->bits.bIsIPv6 != pdFALSE_UNSIGNED )
+					{
+						( void ) snprintf( pcRemoteIp, /*lint !e586 function 'snprintf' is deprecated. [MISRA 2012 Rule 21.6, required]. */
+										   sizeof( pcRemoteIp ),
+										   "%pip", pxSocket->u.xTCP.xRemoteIP_IPv6.ucBytes );
+					}
+					else
+				#endif
+				{
+					( void ) snprintf( pcRemoteIp,  /*lint !e586 function 'snprintf' is deprecated. [MISRA 2012 Rule 21.6, required]. */
+									   sizeof( pcRemoteIp ), "%lxip", pxSocket->u.xTCP.ulRemoteIP );
+				}
 
-                FreeRTOS_printf( ( "TCP %5d %-*s:%5d %d/%d %-13.13s %6lu %6u%s\n",
-                                   pxSocket->usLocalPort,         /* Local port on this machine */
-                                   xIPWidth,
-                                   pcRemoteIp,                    /* IP address of remote machine */
-                                   pxSocket->u.xTCP.usRemotePort, /* Port on remote machine */
-                                   ( pxSocket->u.xTCP.rxStream != NULL ) ? 1 : 0,
-                                   ( pxSocket->u.xTCP.txStream != NULL ) ? 1 : 0,
-                                   FreeRTOS_GetTCPStateName( pxSocket->u.xTCP.ucTCPState ),
-                                   age,
-                                   pxSocket->u.xTCP.usTimeout,
-                                   ucChildText ) );
-                /* Remove compiler warnings if FreeRTOS_debug_printf() is not defined. */
-                ( void ) pxHandleReceive;
-                count++;
-            }
+				FreeRTOS_printf( ( "TCP %5d %-*s:%5d %d/%d %-13.13s %6lu %6u%s\n",
+								   pxSocket->usLocalPort,         /* Local port on this machine */
+								   xIPWidth,
+								   pcRemoteIp,                    /* IP address of remote machine */
+								   pxSocket->u.xTCP.usRemotePort, /* Port on remote machine */
+								   ( pxSocket->u.xTCP.rxStream != NULL ) ? 1 : 0,
+								   ( pxSocket->u.xTCP.txStream != NULL ) ? 1 : 0,
+								   FreeRTOS_GetTCPStateName( pxSocket->u.xTCP.ucTCPState ),
+								   age,
+								   pxSocket->u.xTCP.usTimeout,
+								   ucChildText ) );
+				/* Remove compiler warnings if FreeRTOS_debug_printf() is not defined. */
+				( void ) pxHandleReceive;
+				count++;
+			}
 
-            for( pxIterator = listGET_HEAD_ENTRY( &xBoundUDPSocketsList );
-                 pxIterator != pxEndUDP;
-                 pxIterator = listGET_NEXT( pxIterator ) )
-            {
-                /* Local port on this machine */
-                FreeRTOS_printf( ( "UDP Port %5u\n",
-                                   FreeRTOS_ntohs( listGET_LIST_ITEM_VALUE( pxIterator ) ) ) );
-                count++;
-            }
+			for( pxIterator = listGET_HEAD_ENTRY( &xBoundUDPSocketsList );
+				 pxIterator != pxEndUDP;
+				 pxIterator = listGET_NEXT( pxIterator ) )
+			{
+				/* Local port on this machine */
+				FreeRTOS_printf( ( "UDP Port %5u\n",
+								   FreeRTOS_ntohs( listGET_LIST_ITEM_VALUE( pxIterator ) ) ) );
+				count++;
+			}
 
-            FreeRTOS_printf( ( "FreeRTOS_netstat: %u sockets %u < %u < %d buffers free\n",
-                               ( printf_unsigned ) count,
-                               ( printf_unsigned ) uxMinimum,
-                               ( printf_unsigned ) uxCurrent,
-                               ( printf_signed ) ipconfigNUM_NETWORK_BUFFER_DESCRIPTORS ) );
-        }
-    }
+			FreeRTOS_printf( ( "FreeRTOS_netstat: %u sockets %u < %u < %d buffers free\n",
+							   ( printf_unsigned ) count,
+							   ( printf_unsigned ) uxMinimum,
+							   ( printf_unsigned ) uxCurrent,
+							   ( printf_signed ) ipconfigNUM_NETWORK_BUFFER_DESCRIPTORS ) );
+		}
+	}
 
 #endif /* ( ( ipconfigHAS_PRINTF != 0 ) && ( ipconfigUSE_TCP == 1 ) ) */
 /*-----------------------------------------------------------*/
@@ -5136,177 +5131,177 @@ void vSocketWakeUpUser( FreeRTOS_Socket_t * pxSocket )
  *
  * @param[in] pxSocketSet: The socket-set which is to be waited on for change.
  */
-    void vSocketSelect( SocketSelect_t * pxSocketSet )
-    {
-        BaseType_t xRound;
-        EventBits_t xSocketBits, xBitsToClear;
+	void vSocketSelect( SocketSelect_t * pxSocketSet )
+	{
+		BaseType_t xRound;
+		EventBits_t xSocketBits, xBitsToClear;
 
-        #if ipconfigUSE_TCP == 1
-            BaseType_t xLastRound = 1;
-        #else
-            BaseType_t xLastRound = 0;
-        #endif
+		#if ipconfigUSE_TCP == 1
+			BaseType_t xLastRound = 1;
+		#else
+			BaseType_t xLastRound = 0;
+		#endif
 
-        /* These flags will be switched on after checking the socket status. */
-        EventBits_t xGroupBits = 0;
+		/* These flags will be switched on after checking the socket status. */
+		EventBits_t xGroupBits = 0;
 
-        for( xRound = 0; xRound <= xLastRound; xRound++ )
-        {
-            const ListItem_t * pxIterator;
-            const ListItem_t * pxEnd;
+		for( xRound = 0; xRound <= xLastRound; xRound++ )
+		{
+			const ListItem_t * pxIterator;
+			const ListItem_t * pxEnd;
 
-            if( xRound == 0 )
-            {
-                pxEnd = listGET_END_MARKER( &xBoundUDPSocketsList );
-            }
+			if( xRound == 0 )
+			{
+				pxEnd = listGET_END_MARKER( &xBoundUDPSocketsList );
+			}
 
-            #if ipconfigUSE_TCP == 1
-                else
-                {
-                    pxEnd = listGET_END_MARKER( &xBoundTCPSocketsList );
-                }
-            #endif /* ipconfigUSE_TCP == 1 */
+			#if ipconfigUSE_TCP == 1
+				else
+				{
+					pxEnd = listGET_END_MARKER( &xBoundTCPSocketsList );
+				}
+			#endif /* ipconfigUSE_TCP == 1 */
 
-            for( pxIterator = listGET_NEXT( pxEnd );
-                 pxIterator != pxEnd;
-                 pxIterator = listGET_NEXT( pxIterator ) )
-            {
-                FreeRTOS_Socket_t * pxSocket = ipCAST_PTR_TO_TYPE_PTR( FreeRTOS_Socket_t, listGET_LIST_ITEM_OWNER( pxIterator ) );
+			for( pxIterator = listGET_NEXT( pxEnd );
+				 pxIterator != pxEnd;
+				 pxIterator = listGET_NEXT( pxIterator ) )
+			{
+				FreeRTOS_Socket_t * pxSocket = ipCAST_PTR_TO_TYPE_PTR( FreeRTOS_Socket_t, listGET_LIST_ITEM_OWNER( pxIterator ) );
 
-                if( pxSocket->pxSocketSet != pxSocketSet )
-                {
-                    /* Socket does not belong to this select group. */
-                    continue;
-                }
+				if( pxSocket->pxSocketSet != pxSocketSet )
+				{
+					/* Socket does not belong to this select group. */
+					continue;
+				}
 
-                xSocketBits = 0;
+				xSocketBits = 0;
 
-                #if ( ipconfigUSE_TCP == 1 )
-                    if( pxSocket->ucProtocol == ( uint8_t ) FREERTOS_IPPROTO_TCP )
-                    {
-                        /* Check if the socket has already been accepted by the
-                         * owner.  If not, it is useless to return it from a
-                         * select(). */
-                        BaseType_t bAccepted = pdFALSE;
+				#if ( ipconfigUSE_TCP == 1 )
+					if( pxSocket->ucProtocol == ( uint8_t ) FREERTOS_IPPROTO_TCP )
+					{
+						/* Check if the socket has already been accepted by the
+						 * owner.  If not, it is useless to return it from a
+						 * select(). */
+						BaseType_t bAccepted = pdFALSE;
 
-                        if( pxSocket->u.xTCP.bits.bPassQueued == pdFALSE_UNSIGNED )
-                        {
-                            if( pxSocket->u.xTCP.bits.bPassAccept == pdFALSE_UNSIGNED )
-                            {
-                                bAccepted = pdTRUE;
-                            }
-                        }
+						if( pxSocket->u.xTCP.bits.bPassQueued == pdFALSE_UNSIGNED )
+						{
+							if( pxSocket->u.xTCP.bits.bPassAccept == pdFALSE_UNSIGNED )
+							{
+								bAccepted = pdTRUE;
+							}
+						}
 
-                        /* Is the set owner interested in READ events? */
-                        if( ( pxSocket->xSelectBits & ( EventBits_t ) eSELECT_READ ) != ( EventBits_t ) 0U )
-                        {
-                            if( pxSocket->u.xTCP.ucTCPState == ( uint8_t ) eTCP_LISTEN )
-                            {
-                                if( ( pxSocket->u.xTCP.pxPeerSocket != NULL ) && ( pxSocket->u.xTCP.pxPeerSocket->u.xTCP.bits.bPassAccept != pdFALSE_UNSIGNED ) )
-                                {
-                                    xSocketBits |= ( EventBits_t ) eSELECT_READ;
-                                }
-                            }
-                            else if( ( pxSocket->u.xTCP.bits.bReuseSocket != pdFALSE_UNSIGNED ) && ( pxSocket->u.xTCP.bits.bPassAccept != pdFALSE_UNSIGNED ) )
-                            {
-                                /* This socket has the re-use flag. After connecting it turns into
-                                 * aconnected socket. Set the READ event, so that accept() will be called. */
-                                xSocketBits |= ( EventBits_t ) eSELECT_READ;
-                            }
-                            else if( ( bAccepted != 0 ) && ( FreeRTOS_recvcount( pxSocket ) > 0 ) )
-                            {
-                                xSocketBits |= ( EventBits_t ) eSELECT_READ;
-                            }
-                            else
-                            {
-                                /* Nothing. */
-                            }
-                        }
+						/* Is the set owner interested in READ events? */
+						if( ( pxSocket->xSelectBits & ( EventBits_t ) eSELECT_READ ) != ( EventBits_t ) 0U )
+						{
+							if( pxSocket->u.xTCP.ucTCPState == ( uint8_t ) eTCP_LISTEN )
+							{
+								if( ( pxSocket->u.xTCP.pxPeerSocket != NULL ) && ( pxSocket->u.xTCP.pxPeerSocket->u.xTCP.bits.bPassAccept != pdFALSE_UNSIGNED ) )
+								{
+									xSocketBits |= ( EventBits_t ) eSELECT_READ;
+								}
+							}
+							else if( ( pxSocket->u.xTCP.bits.bReuseSocket != pdFALSE_UNSIGNED ) && ( pxSocket->u.xTCP.bits.bPassAccept != pdFALSE_UNSIGNED ) )
+							{
+								/* This socket has the re-use flag. After connecting it turns into
+								 * aconnected socket. Set the READ event, so that accept() will be called. */
+								xSocketBits |= ( EventBits_t ) eSELECT_READ;
+							}
+							else if( ( bAccepted != 0 ) && ( FreeRTOS_recvcount( pxSocket ) > 0 ) )
+							{
+								xSocketBits |= ( EventBits_t ) eSELECT_READ;
+							}
+							else
+							{
+								/* Nothing. */
+							}
+						}
 
-                        /* Is the set owner interested in EXCEPTION events? */
-                        if( ( pxSocket->xSelectBits & ( EventBits_t ) eSELECT_EXCEPT ) != 0U )
-                        {
-                            if( ( pxSocket->u.xTCP.ucTCPState == ( uint8_t ) eCLOSE_WAIT ) || ( pxSocket->u.xTCP.ucTCPState == ( uint8_t ) eCLOSED ) )
-                            {
-                                xSocketBits |= ( EventBits_t ) eSELECT_EXCEPT;
-                            }
-                        }
+						/* Is the set owner interested in EXCEPTION events? */
+						if( ( pxSocket->xSelectBits & ( EventBits_t ) eSELECT_EXCEPT ) != 0U )
+						{
+							if( ( pxSocket->u.xTCP.ucTCPState == ( uint8_t ) eCLOSE_WAIT ) || ( pxSocket->u.xTCP.ucTCPState == ( uint8_t ) eCLOSED ) )
+							{
+								xSocketBits |= ( EventBits_t ) eSELECT_EXCEPT;
+							}
+						}
 
-                        /* Is the set owner interested in WRITE events? */
-                        if( ( pxSocket->xSelectBits & ( EventBits_t ) eSELECT_WRITE ) != 0U )
-                        {
-                            BaseType_t bMatch = pdFALSE;
+						/* Is the set owner interested in WRITE events? */
+						if( ( pxSocket->xSelectBits & ( EventBits_t ) eSELECT_WRITE ) != 0U )
+						{
+							BaseType_t bMatch = pdFALSE;
 
-                            if( bAccepted != 0 )
-                            {
-                                if( FreeRTOS_tx_space( pxSocket ) > 0 )
-                                {
-                                    bMatch = pdTRUE;
-                                }
-                            }
+							if( bAccepted != 0 )
+							{
+								if( FreeRTOS_tx_space( pxSocket ) > 0 )
+								{
+									bMatch = pdTRUE;
+								}
+							}
 
-                            if( bMatch == pdFALSE )
-                            {
-                                if( ( pxSocket->u.xTCP.bits.bConnPrepared != pdFALSE_UNSIGNED ) &&
-                                    ( pxSocket->u.xTCP.ucTCPState >= ( uint8_t ) eESTABLISHED ) &&
-                                    ( pxSocket->u.xTCP.bits.bConnPassed == pdFALSE_UNSIGNED ) )
-                                {
-                                    pxSocket->u.xTCP.bits.bConnPassed = pdTRUE_UNSIGNED;
-                                    bMatch = pdTRUE;
-                                }
-                            }
+							if( bMatch == pdFALSE )
+							{
+								if( ( pxSocket->u.xTCP.bits.bConnPrepared != pdFALSE_UNSIGNED ) &&
+									( pxSocket->u.xTCP.ucTCPState >= ( uint8_t ) eESTABLISHED ) &&
+									( pxSocket->u.xTCP.bits.bConnPassed == pdFALSE_UNSIGNED ) )
+								{
+									pxSocket->u.xTCP.bits.bConnPassed = pdTRUE_UNSIGNED;
+									bMatch = pdTRUE;
+								}
+							}
 
-                            if( bMatch != pdFALSE )
-                            {
-                                xSocketBits |= ( EventBits_t ) eSELECT_WRITE;
-                            }
-                        }
-                    }
-                    else
-                #endif /* ipconfigUSE_TCP == 1 */
-                {
-                    /* Select events for UDP are simpler. */
-                    if( ( ( pxSocket->xSelectBits & ( EventBits_t ) eSELECT_READ ) != 0U ) &&
-                        ( listCURRENT_LIST_LENGTH( &( pxSocket->u.xUDP.xWaitingPacketsList ) ) > 0U ) )
-                    {
-                        xSocketBits |= ( EventBits_t ) eSELECT_READ;
-                    }
+							if( bMatch != pdFALSE )
+							{
+								xSocketBits |= ( EventBits_t ) eSELECT_WRITE;
+							}
+						}
+					}
+					else
+				#endif /* ipconfigUSE_TCP == 1 */
+				{
+					/* Select events for UDP are simpler. */
+					if( ( ( pxSocket->xSelectBits & ( EventBits_t ) eSELECT_READ ) != 0U ) &&
+						( listCURRENT_LIST_LENGTH( &( pxSocket->u.xUDP.xWaitingPacketsList ) ) > 0U ) )
+					{
+						xSocketBits |= ( EventBits_t ) eSELECT_READ;
+					}
 
-                    /* The WRITE and EXCEPT bits are not used for UDP */
-                }   /* if( pxSocket->ucProtocol == FREERTOS_IPPROTO_TCP ) */
+					/* The WRITE and EXCEPT bits are not used for UDP */
+				}   /* if( pxSocket->ucProtocol == FREERTOS_IPPROTO_TCP ) */
 
-                /* Each socket keeps its own event flags, which are looked-up
-                 * by FreeRTOS_FD_ISSSET() */
-                pxSocket->xSocketBits = xSocketBits;
+				/* Each socket keeps its own event flags, which are looked-up
+				 * by FreeRTOS_FD_ISSSET() */
+				pxSocket->xSocketBits = xSocketBits;
 
-                /* The ORed value will be used to set the bits in the event
-                 * group. */
-                xGroupBits |= xSocketBits;
-            } /* for( pxIterator ... ) */
-        }     /* for( xRound = 0; xRound <= xLastRound; xRound++ ) */
+				/* The ORed value will be used to set the bits in the event
+				 * group. */
+				xGroupBits |= xSocketBits;
+			} /* for( pxIterator ... ) */
+		}     /* for( xRound = 0; xRound <= xLastRound; xRound++ ) */
 
-        xBitsToClear = xEventGroupGetBits( pxSocketSet->xSelectGroup );
+		xBitsToClear = xEventGroupGetBits( pxSocketSet->xSelectGroup );
 
-        /* Now set the necessary bits. */
-        xBitsToClear = ( xBitsToClear & ~xGroupBits ) & ( ( EventBits_t ) eSELECT_ALL );
+		/* Now set the necessary bits. */
+		xBitsToClear = ( xBitsToClear & ~xGroupBits ) & ( ( EventBits_t ) eSELECT_ALL );
 
-        #if ( ipconfigSUPPORT_SIGNALS != 0 )
-            {
-                /* Maybe the socketset was signalled, but don't
-                 * clear the 'eSELECT_INTR' bit here, as it will be used
-                 * and cleared in FreeRTOS_select(). */
-                xBitsToClear &= ~( ( EventBits_t ) eSELECT_INTR );
-            }
-        #endif /* ipconfigSUPPORT_SIGNALS */
+		#if ( ipconfigSUPPORT_SIGNALS != 0 )
+			{
+				/* Maybe the socketset was signalled, but don't
+				 * clear the 'eSELECT_INTR' bit here, as it will be used
+				 * and cleared in FreeRTOS_select(). */
+				xBitsToClear &= ~( ( EventBits_t ) eSELECT_INTR );
+			}
+		#endif /* ipconfigSUPPORT_SIGNALS */
 
-        if( xBitsToClear != 0U )
-        {
-            ( void ) xEventGroupClearBits( pxSocketSet->xSelectGroup, xBitsToClear );
-        }
+		if( xBitsToClear != 0U )
+		{
+			( void ) xEventGroupClearBits( pxSocketSet->xSelectGroup, xBitsToClear );
+		}
 
-        /* Now include eSELECT_CALL_IP to wakeup the caller. */
-        ( void ) xEventGroupSetBits( pxSocketSet->xSelectGroup, xGroupBits | ( EventBits_t ) eSELECT_CALL_IP );
-    }
+		/* Now include eSELECT_CALL_IP to wakeup the caller. */
+		( void ) xEventGroupSetBits( pxSocketSet->xSelectGroup, xGroupBits | ( EventBits_t ) eSELECT_CALL_IP );
+	}
 
 
 #endif /* ipconfigSUPPORT_SELECT_FUNCTION == 1 */
@@ -5322,36 +5317,36 @@ void vSocketWakeUpUser( FreeRTOS_Socket_t * pxSocket )
  *
  * @param[in] xSocket: The socket that will be signalled.
  */
-    BaseType_t FreeRTOS_SignalSocket( Socket_t xSocket )
-    {
-        FreeRTOS_Socket_t * pxSocket = ( FreeRTOS_Socket_t * ) xSocket;
-        BaseType_t xReturn;
+	BaseType_t FreeRTOS_SignalSocket( Socket_t xSocket )
+	{
+		FreeRTOS_Socket_t * pxSocket = ( FreeRTOS_Socket_t * ) xSocket;
+		BaseType_t xReturn;
 
-        if( pxSocket == NULL )
-        {
-            xReturn = -pdFREERTOS_ERRNO_EINVAL;
-        }
-        else
-        #if ( ipconfigSUPPORT_SELECT_FUNCTION == 1 )
-            if( ( pxSocket->pxSocketSet != NULL ) && ( pxSocket->pxSocketSet->xSelectGroup != NULL ) )
-            {
-                ( void ) xEventGroupSetBits( pxSocket->pxSocketSet->xSelectGroup, ( EventBits_t ) eSELECT_INTR );
-                xReturn = 0;
-            }
-            else
-        #endif /* ipconfigSUPPORT_SELECT_FUNCTION */
-        if( pxSocket->xEventGroup != NULL )
-        {
-            ( void ) xEventGroupSetBits( pxSocket->xEventGroup, ( EventBits_t ) eSOCKET_INTR );
-            xReturn = 0;
-        }
-        else
-        {
-            xReturn = -pdFREERTOS_ERRNO_EINVAL;
-        }
+		if( pxSocket == NULL )
+		{
+			xReturn = -pdFREERTOS_ERRNO_EINVAL;
+		}
+		else
+		#if ( ipconfigSUPPORT_SELECT_FUNCTION == 1 )
+			if( ( pxSocket->pxSocketSet != NULL ) && ( pxSocket->pxSocketSet->xSelectGroup != NULL ) )
+			{
+				( void ) xEventGroupSetBits( pxSocket->pxSocketSet->xSelectGroup, ( EventBits_t ) eSELECT_INTR );
+				xReturn = 0;
+			}
+			else
+		#endif /* ipconfigSUPPORT_SELECT_FUNCTION */
+		if( pxSocket->xEventGroup != NULL )
+		{
+			( void ) xEventGroupSetBits( pxSocket->xEventGroup, ( EventBits_t ) eSOCKET_INTR );
+			xReturn = 0;
+		}
+		else
+		{
+			xReturn = -pdFREERTOS_ERRNO_EINVAL;
+		}
 
-        return xReturn;
-    }
+		return xReturn;
+	}
 
 #endif /* ipconfigSUPPORT_SIGNALS */
 /*-----------------------------------------------------------*/
@@ -5366,25 +5361,25 @@ void vSocketWakeUpUser( FreeRTOS_Socket_t * pxSocket )
  * @param[in,out] pxHigherPriorityTaskWoken: will be set to non-zero in case a higher-
  *                priority task has become runnable.
  */
-    BaseType_t FreeRTOS_SignalSocketFromISR( Socket_t xSocket,
-                                             BaseType_t * pxHigherPriorityTaskWoken )
-    {
-        FreeRTOS_Socket_t * pxSocket = ( FreeRTOS_Socket_t * ) xSocket;
-        BaseType_t xReturn;
-        IPStackEvent_t xEvent;
+	BaseType_t FreeRTOS_SignalSocketFromISR( Socket_t xSocket,
+											 BaseType_t * pxHigherPriorityTaskWoken )
+	{
+		FreeRTOS_Socket_t * pxSocket = ( FreeRTOS_Socket_t * ) xSocket;
+		BaseType_t xReturn;
+		IPStackEvent_t xEvent;
 
-        configASSERT( pxSocket != NULL );
-        configASSERT( pxSocket->ucProtocol == ( uint8_t ) FREERTOS_IPPROTO_TCP );
-        configASSERT( pxSocket->xEventGroup != NULL );
+		configASSERT( pxSocket != NULL );
+		configASSERT( pxSocket->ucProtocol == ( uint8_t ) FREERTOS_IPPROTO_TCP );
+		configASSERT( pxSocket->xEventGroup != NULL );
 
-        xEvent.eEventType = eSocketSignalEvent;
-        xEvent.pvData = pxSocket;
+		xEvent.eEventType = eSocketSignalEvent;
+		xEvent.pvData = pxSocket;
 
-        /* The IP-task will call FreeRTOS_SignalSocket for this socket. */
-        xReturn = xQueueSendToBackFromISR( xNetworkEventQueue, &xEvent, pxHigherPriorityTaskWoken );
+		/* The IP-task will call FreeRTOS_SignalSocket for this socket. */
+		xReturn = xQueueSendToBackFromISR( xNetworkEventQueue, &xEvent, pxHigherPriorityTaskWoken );
 
-        return xReturn;
-    }
+		return xReturn;
+	}
 
 #endif /* ipconfigSUPPORT_SIGNALS */
 /*-----------------------------------------------------------*/

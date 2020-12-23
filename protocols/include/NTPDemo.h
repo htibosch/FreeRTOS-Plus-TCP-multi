@@ -1,6 +1,6 @@
 /*
  * FreeRTOS+TCP V2.3.1
- * Copyright (C) 2017 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -23,7 +23,7 @@
  * http://www.FreeRTOS.org
  */
 
- /*
+/*
  * A simple demo for NTP using FreeRTOS+TCP
  */
 
@@ -31,7 +31,18 @@
 
 #define NTPDEMO_H
 
-void vStartNTPTask( uint16_t usTaskStackSize, UBaseType_t uxTaskPriority );
+void vStartNTPTask( uint16_t usTaskStackSize,
+					UBaseType_t uxTaskPriority );
+
+/*
+ * xIPVersion = 4 or 6.
+ * xAsynchronous = true for asynchronous DNS lookups.
+ * xLogging = true to get more logging.
+ */
+void vNTPSetNTPType( BaseType_t aIPType, BaseType_t xAsynchronous, BaseType_t xLogging );
+
+/* Delete the IP-addresses of the NTP server to force a DNS lookup. */
+void vNTPClearCache( void );
 
 extern BaseType_t xNTPHasTime;
 extern uint32_t ulNTPTime;

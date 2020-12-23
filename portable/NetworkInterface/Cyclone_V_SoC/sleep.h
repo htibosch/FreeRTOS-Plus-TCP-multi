@@ -31,19 +31,19 @@
 ******************************************************************************/
 
 #ifndef SLEEP_H
-#define SLEEP_H
+	#define SLEEP_H
 
-#include "xil_types.h"
+	#include "xil_types.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+	#ifdef __cplusplus
+		extern "C" {
+	#endif
 
-s32 usleep(u32 useconds);
-s32 sleep(u32 seconds);
+	s32 usleep( u32 useconds );
+	s32 sleep( u32 seconds );
 
-#ifdef __cplusplus
-}
-#endif
+	#ifdef __cplusplus
+		}
+	#endif
 
-#endif
+#endif /* ifndef SLEEP_H */

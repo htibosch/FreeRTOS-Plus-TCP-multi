@@ -1,6 +1,6 @@
 /*
  * FreeRTOS+TCP V2.3.1
- * Copyright (C) 2017 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -44,62 +44,64 @@
 #include "ff_stdio.h"
 
 #ifndef HTTP_SERVER_BACKLOG
-	#define HTTP_SERVER_BACKLOG			( 12 )
+	#define HTTP_SERVER_BACKLOG    ( 12 )
 #endif
 
 #ifndef USE_HTML_CHUNKS
-	#define USE_HTML_CHUNKS				( 0 )
+	#define USE_HTML_CHUNKS    ( 0 )
 #endif
 
 #if !defined( ARRAY_SIZE )
-	#define ARRAY_SIZE(x) ( BaseType_t ) (sizeof( x ) / sizeof( x )[ 0 ] )
+	#define ARRAY_SIZE( x )    ( BaseType_t ) ( sizeof( x ) / sizeof( x )[ 0 ] )
 #endif
 
 /* Some defines to make the code more readbale */
-#define pcCOMMAND_BUFFER	pxClient->pxParent->pcCommandBuffer
-#define pcNEW_DIR			pxClient->pxParent->pcNewDir
-#define pcFILE_BUFFER		pxClient->pxParent->pcFileBuffer
+#define pcCOMMAND_BUFFER					  pxClient->pxParent->pcCommandBuffer
+#define pcNEW_DIR							  pxClient->pxParent->pcNewDir
+#define pcFILE_BUFFER						  pxClient->pxParent->pcFileBuffer
 
 #ifndef ipconfigHTTP_REQUEST_CHARACTER
-	#define ipconfigHTTP_REQUEST_CHARACTER		'?'
+	#define ipconfigHTTP_REQUEST_CHARACTER	  '?'
 #endif
 
 /*_RB_ Need comment block, although fairly self evident. */
-static void prvFileClose( HTTPClient_t *pxClient );
-static BaseType_t prvProcessCmd( HTTPClient_t *pxClient, BaseType_t xIndex );
-static const char *pcGetContentsType( const char *apFname );
-static BaseType_t prvOpenURL( HTTPClient_t *pxClient );
-static BaseType_t prvSendFile( HTTPClient_t *pxClient );
-static BaseType_t prvSendReply( HTTPClient_t *pxClient, BaseType_t xCode );
+static void prvFileClose( HTTPClient_t * pxClient );
+static BaseType_t prvProcessCmd( HTTPClient_t * pxClient,
+								 BaseType_t xIndex );
+static const char * pcGetContentsType( const char * apFname );
+static BaseType_t prvOpenURL( HTTPClient_t * pxClient );
+static BaseType_t prvSendFile( HTTPClient_t * pxClient );
+static BaseType_t prvSendReply( HTTPClient_t * pxClient,
+								BaseType_t xCode );
 
-static const char pcEmptyString[1] = { '\0' };
+static const char pcEmptyString[ 1 ] = { '\0' };
 
 typedef struct xTYPE_COUPLE
 {
-	const char *pcExtension;
-	const char *pcType;
+	const char * pcExtension;
+	const char * pcType;
 } TypeCouple_t;
 
-static TypeCouple_t pxTypeCouples[ ] =
+static TypeCouple_t pxTypeCouples[] =
 {
-	{ "html", "text/html" },
-	{ "css",  "text/css" },
-	{ "js",   "text/javascript" },
-	{ "png",  "image/png" },
-	{ "jpg",  "image/jpeg" },
-	{ "gif",  "image/gif" },
-	{ "txt",  "text/plain" },
-	{ "mp3",  "audio/mpeg3" },
-	{ "wav",  "audio/wav" },
-	{ "flac", "audio/ogg" },
-	{ "pdf",  "application/pdf" },
+	{ "html", "text/html"			   },
+	{ "css",  "text/css"			   },
+	{ "js",	  "text/javascript"		   },
+	{ "png",  "image/png"			   },
+	{ "jpg",  "image/jpeg"			   },
+	{ "gif",  "image/gif"			   },
+	{ "txt",  "text/plain"			   },
+	{ "mp3",  "audio/mpeg3"			   },
+	{ "wav",  "audio/wav"			   },
+	{ "flac", "audio/ogg"			   },
+	{ "pdf",  "application/pdf"		   },
 	{ "ttf",  "application/x-font-ttf" },
 	{ "ttc",  "application/x-font-ttf" }
 };
 
-void vHTTPClientDelete( TCPClient_t *pxTCPClient )
+void vHTTPClientDelete( TCPClient_t * pxTCPClient )
 {
-HTTPClient_t *pxClient = ( HTTPClient_t * ) pxTCPClient;
+	HTTPClient_t * pxClient = ( HTTPClient_t * ) pxTCPClient;
 
 	/* This HTTP client stops, close / release all resources. */
 	if( pxClient->xSocket != FREERTOS_NO_SOCKET )
@@ -108,11 +110,12 @@ HTTPClient_t *pxClient = ( HTTPClient_t * ) pxTCPClient;
 		FreeRTOS_closesocket( pxClient->xSocket );
 		pxClient->xSocket = FREERTOS_NO_SOCKET;
 	}
+
 	prvFileClose( pxClient );
 }
 /*-----------------------------------------------------------*/
 
-static void prvFileClose( HTTPClient_t *pxClient )
+static void prvFileClose( HTTPClient_t * pxClient )
 {
 	if( pxClient->pxFileHandle != NULL )
 	{
@@ -123,29 +126,30 @@ static void prvFileClose( HTTPClient_t *pxClient )
 }
 /*-----------------------------------------------------------*/
 
-static BaseType_t prvSendReply( HTTPClient_t *pxClient, BaseType_t xCode )
+static BaseType_t prvSendReply( HTTPClient_t * pxClient,
+								BaseType_t xCode )
 {
-struct xTCP_SERVER *pxParent = pxClient->pxParent;
-BaseType_t xRc;
+	struct xTCP_SERVER * pxParent = pxClient->pxParent;
+	BaseType_t xRc;
 
 	/* A normal command reply on the main socket (port 21). */
-	char *pcBuffer = pxParent->pcFileBuffer;
+	char * pcBuffer = pxParent->pcFileBuffer;
 
 	xRc = snprintf( pcBuffer, sizeof( pxParent->pcFileBuffer ),
-		"HTTP/1.1 %d %s\r\n"
-#if	USE_HTML_CHUNKS
-		"Transfer-Encoding: chunked\r\n"
-#endif
-		"Content-Type: %s\r\n"
-		"Connection: keep-alive\r\n"
-		"%s\r\n",
-		( int ) xCode,
-		webCodename (xCode),
-		pxParent->pcContentsType[0] ? pxParent->pcContentsType : "text/html",
-		pxParent->pcExtraContents );
+					"HTTP/1.1 %d %s\r\n"
+					#if USE_HTML_CHUNKS
+						"Transfer-Encoding: chunked\r\n"
+					#endif
+					"Content-Type: %s\r\n"
+					"Connection: keep-alive\r\n"
+					"%s\r\n",
+					( int ) xCode,
+					webCodename( xCode ),
+					pxParent->pcContentsType[ 0 ] ? pxParent->pcContentsType : "text/html",
+					pxParent->pcExtraContents );
 
-	pxParent->pcContentsType[0] = '\0';
-	pxParent->pcExtraContents[0] = '\0';
+	pxParent->pcContentsType[ 0 ] = '\0';
+	pxParent->pcExtraContents[ 0 ] = '\0';
 
 	xRc = FreeRTOS_send( pxClient->xSocket, ( const void * ) pcBuffer, xRc, 0 );
 	pxClient->bits.bReplySent = pdTRUE_UNSIGNED;
@@ -154,11 +158,11 @@ BaseType_t xRc;
 }
 /*-----------------------------------------------------------*/
 
-static BaseType_t prvSendFile( HTTPClient_t *pxClient )
+static BaseType_t prvSendFile( HTTPClient_t * pxClient )
 {
-size_t uxSpace;
-size_t uxCount;
-BaseType_t xRc = 0;
+	size_t uxSpace;
+	size_t uxCount;
+	BaseType_t xRc = 0;
 
 	if( pxClient->bits.bReplySent == pdFALSE_UNSIGNED )
 	{
@@ -166,41 +170,46 @@ BaseType_t xRc = 0;
 
 		strcpy( pxClient->pxParent->pcContentsType, pcGetContentsType( pxClient->pcCurrentFilename ) );
 		snprintf( pxClient->pxParent->pcExtraContents, sizeof( pxClient->pxParent->pcExtraContents ),
-			"Content-Length: %d\r\n", ( int ) pxClient->uxBytesLeft );
+				  "Content-Length: %d\r\n", ( int ) pxClient->uxBytesLeft );
 
 		/* "Requested file action OK". */
 		xRc = prvSendReply( pxClient, WEB_REPLY_OK );
 	}
 
-	if( xRc >= 0 ) do
+	if( xRc >= 0 )
 	{
-		uxSpace = FreeRTOS_tx_space( pxClient->xSocket );
+		do
+		{
+			uxSpace = FreeRTOS_tx_space( pxClient->xSocket );
 
-		if( pxClient->uxBytesLeft < uxSpace )
-		{
-			uxCount = pxClient->uxBytesLeft;
-		}
-		else
-		{
-			uxCount = uxSpace;
-		}
-
-		if( uxCount > 0u )
-		{
-			if( uxCount > sizeof( pxClient->pxParent->pcFileBuffer ) )
+			if( pxClient->uxBytesLeft < uxSpace )
 			{
-				uxCount = sizeof( pxClient->pxParent->pcFileBuffer );
+				uxCount = pxClient->uxBytesLeft;
 			}
-			ff_fread( pxClient->pxParent->pcFileBuffer, 1, uxCount, pxClient->pxFileHandle );
-			pxClient->uxBytesLeft -= uxCount;
-
-			xRc = FreeRTOS_send( pxClient->xSocket, pxClient->pxParent->pcFileBuffer, uxCount, 0 );
-			if( xRc < 0 )
+			else
 			{
-				break;
+				uxCount = uxSpace;
 			}
-		}
-	} while( uxCount > 0u );
+
+			if( uxCount > 0u )
+			{
+				if( uxCount > sizeof( pxClient->pxParent->pcFileBuffer ) )
+				{
+					uxCount = sizeof( pxClient->pxParent->pcFileBuffer );
+				}
+
+				ff_fread( pxClient->pxParent->pcFileBuffer, 1, uxCount, pxClient->pxFileHandle );
+				pxClient->uxBytesLeft -= uxCount;
+
+				xRc = FreeRTOS_send( pxClient->xSocket, pxClient->pxParent->pcFileBuffer, uxCount, 0 );
+
+				if( xRc < 0 )
+				{
+					break;
+				}
+			}
+		} while( uxCount > 0u );
+	}
 
 	if( pxClient->uxBytesLeft == 0u )
 	{
@@ -218,36 +227,39 @@ BaseType_t xRc = 0;
 }
 /*-----------------------------------------------------------*/
 
-static BaseType_t prvOpenURL( HTTPClient_t *pxClient )
+static BaseType_t prvOpenURL( HTTPClient_t * pxClient )
 {
-BaseType_t xRc;
-char pcSlash[ 2 ];
+	BaseType_t xRc;
+	char pcSlash[ 2 ];
 
 	pxClient->bits.ulFlags = 0;
 
-	#if( ipconfigHTTP_HAS_HANDLE_REQUEST_HOOK != 0 )
-	{
-		if( strchr( pxClient->pcUrlData, ipconfigHTTP_REQUEST_CHARACTER ) != NULL )
+	#if ( ipconfigHTTP_HAS_HANDLE_REQUEST_HOOK != 0 )
 		{
-		size_t xResult;
-
-			xResult = uxApplicationHTTPHandleRequestHook( pxClient->pcUrlData, pxClient->pcCurrentFilename, sizeof( pxClient->pcCurrentFilename ) );
-			if( xResult > 0 )
+			if( strchr( pxClient->pcUrlData, ipconfigHTTP_REQUEST_CHARACTER ) != NULL )
 			{
-				strcpy( pxClient->pxParent->pcContentsType, "text/html" );
-				snprintf( pxClient->pxParent->pcExtraContents, sizeof( pxClient->pxParent->pcExtraContents ),
-					"Content-Length: %d\r\n", ( int ) xResult );
-				xRc = prvSendReply( pxClient, WEB_REPLY_OK );	/* "Requested file action OK" */
-				if( xRc > 0 )
+				size_t xResult;
+
+				xResult = uxApplicationHTTPHandleRequestHook( pxClient->pcUrlData, pxClient->pcCurrentFilename, sizeof( pxClient->pcCurrentFilename ) );
+
+				if( xResult > 0 )
 				{
-					xRc = FreeRTOS_send( pxClient->xSocket, pxClient->pcCurrentFilename, xResult, 0 );
+					strcpy( pxClient->pxParent->pcContentsType, "text/html" );
+					snprintf( pxClient->pxParent->pcExtraContents, sizeof( pxClient->pxParent->pcExtraContents ),
+							  "Content-Length: %d\r\n", ( int ) xResult );
+					xRc = prvSendReply( pxClient, WEB_REPLY_OK ); /* "Requested file action OK" */
+
+					if( xRc > 0 )
+					{
+						xRc = FreeRTOS_send( pxClient->xSocket, pxClient->pcCurrentFilename, xResult, 0 );
+					}
+
+					/* Although against the coding standard of FreeRTOS, a return is
+					 * done here  to simplify this conditional code. */
+					return xRc;
 				}
-				/* Although against the coding standard of FreeRTOS, a return is
-				done here  to simplify this conditional code. */
-				return xRc;
 			}
 		}
-	}
 	#endif /* ipconfigHTTP_HAS_HANDLE_REQUEST_HOOK */
 
 	if( pxClient->pcUrlData[ 0 ] != '/' )
@@ -261,15 +273,16 @@ char pcSlash[ 2 ];
 		/* The browser provided a starting '/' already. */
 		pcSlash[ 0 ] = '\0';
 	}
+
 	snprintf( pxClient->pcCurrentFilename, sizeof( pxClient->pcCurrentFilename ), "%s%s%s",
-		pxClient->pcRootDir,
-		pcSlash,
-		pxClient->pcUrlData);
+			  pxClient->pcRootDir,
+			  pcSlash,
+			  pxClient->pcUrlData );
 
 	pxClient->pxFileHandle = ff_fopen( pxClient->pcCurrentFilename, "rb" );
 
 	FreeRTOS_printf( ( "Open file '%s': %s\n", pxClient->pcCurrentFilename,
-		pxClient->pxFileHandle != NULL ? "Ok" : strerror( stdioGET_ERRNO() ) ) );
+					   pxClient->pxFileHandle != NULL ? "Ok" : strerror( stdioGET_ERRNO() ) ) );
 
 	if( pxClient->pxFileHandle == NULL )
 	{
@@ -287,64 +300,65 @@ char pcSlash[ 2 ];
 }
 /*-----------------------------------------------------------*/
 
-static BaseType_t prvProcessCmd( HTTPClient_t *pxClient, BaseType_t xIndex )
+static BaseType_t prvProcessCmd( HTTPClient_t * pxClient,
+								 BaseType_t xIndex )
 {
-BaseType_t xResult = 0;
+	BaseType_t xResult = 0;
 
 	/* A new command has been received. Process it. */
 	switch( xIndex )
 	{
-	case ECMD_GET:
-		xResult = prvOpenURL( pxClient );
-		break;
+		case ECMD_GET:
+			xResult = prvOpenURL( pxClient );
+			break;
 
-	case ECMD_HEAD:
-	case ECMD_POST:
-	case ECMD_PUT:
-	case ECMD_DELETE:
-	case ECMD_TRACE:
-	case ECMD_OPTIONS:
-	case ECMD_CONNECT:
-	case ECMD_PATCH:
-	case ECMD_UNK:
-		{
+		case ECMD_HEAD:
+		case ECMD_POST:
+		case ECMD_PUT:
+		case ECMD_DELETE:
+		case ECMD_TRACE:
+		case ECMD_OPTIONS:
+		case ECMD_CONNECT:
+		case ECMD_PATCH:
+		case ECMD_UNK:
 			FreeRTOS_printf( ( "prvProcessCmd: Not implemented: %s\n",
-				xWebCommands[xIndex].pcCommandName ) );
-		}
-		break;
+							   xWebCommands[ xIndex ].pcCommandName ) );
+			break;
 	}
 
 	return xResult;
 }
 /*-----------------------------------------------------------*/
 
-BaseType_t xHTTPClientWork( TCPClient_t *pxTCPClient )
+BaseType_t xHTTPClientWork( TCPClient_t * pxTCPClient )
 {
-BaseType_t xRc;
-HTTPClient_t *pxClient = ( HTTPClient_t * ) pxTCPClient;
+	BaseType_t xRc;
+	HTTPClient_t * pxClient = ( HTTPClient_t * ) pxTCPClient;
 
 	if( pxClient->pxFileHandle != NULL )
 	{
 		prvSendFile( pxClient );
 	}
 
-	xRc = FreeRTOS_recv( pxClient->xSocket, ( void * )pcCOMMAND_BUFFER, sizeof( pcCOMMAND_BUFFER ), 0 );
+	xRc = FreeRTOS_recv( pxClient->xSocket, ( void * ) pcCOMMAND_BUFFER, sizeof( pcCOMMAND_BUFFER ), 0 );
 
 	if( xRc > 0 )
 	{
-	BaseType_t xIndex;
-	const char *pcEndOfCmd;
-	const struct xWEB_COMMAND *curCmd;
-	char *pcBuffer = pcCOMMAND_BUFFER;
+		BaseType_t xIndex;
+		const char * pcEndOfCmd;
+		const struct xWEB_COMMAND * curCmd;
+		char * pcBuffer = pcCOMMAND_BUFFER;
 
 		if( xRc < ( BaseType_t ) sizeof( pcCOMMAND_BUFFER ) )
 		{
 			pcBuffer[ xRc ] = '\0';
 		}
+
 		while( xRc && ( pcBuffer[ xRc - 1 ] == 13 || pcBuffer[ xRc - 1 ] == 10 ) )
 		{
 			pcBuffer[ --xRc ] = '\0';
 		}
+
 		pcEndOfCmd = pcBuffer + xRc;
 
 		curCmd = xWebCommands;
@@ -358,17 +372,20 @@ HTTPClient_t *pxClient = ( HTTPClient_t * ) pxTCPClient;
 		/* Last entry is "ECMD_UNK". */
 		for( xIndex = 0; xIndex < WEB_CMD_COUNT - 1; xIndex++, curCmd++ )
 		{
-		BaseType_t xLength;
+			BaseType_t xLength;
 
 			xLength = curCmd->xCommandLength;
+
 			if( ( xRc >= xLength ) && ( memcmp( curCmd->pcCommandName, pcBuffer, xLength ) == 0 ) )
 			{
-			char *pcLastPtr;
+				char * pcLastPtr;
 
 				pxClient->pcUrlData += xLength + 1;
-				for( pcLastPtr = (char *)pxClient->pcUrlData; pcLastPtr < pcEndOfCmd; pcLastPtr++ )
+
+				for( pcLastPtr = ( char * ) pxClient->pcUrlData; pcLastPtr < pcEndOfCmd; pcLastPtr++ )
 				{
 					char ch = *pcLastPtr;
+
 					if( ( ch == '\0' ) || ( strchr( "\n\r \t", ch ) != NULL ) )
 					{
 						*pcLastPtr = '\0';
@@ -376,6 +393,7 @@ HTTPClient_t *pxClient = ( HTTPClient_t * ) pxTCPClient;
 						break;
 					}
 				}
+
 				break;
 			}
 		}
@@ -390,26 +408,36 @@ HTTPClient_t *pxClient = ( HTTPClient_t * ) pxTCPClient;
 		/* The connection will be closed and the client will be deleted. */
 		FreeRTOS_printf( ( "xHTTPClientWork: rc = %ld\n", xRc ) );
 	}
+
 	return xRc;
 }
 /*-----------------------------------------------------------*/
 
-static const char *pcGetContentsType (const char *apFname)
+static const char * pcGetContentsType( const char * apFname )
 {
-	const char *slash = NULL;
-	const char *dot = NULL;
-	const char *ptr;
-	const char *pcResult = "text/html";
+	const char * slash = NULL;
+	const char * dot = NULL;
+	const char * ptr;
+	const char * pcResult = "text/html";
 	BaseType_t x;
 
 	for( ptr = apFname; *ptr; ptr++ )
 	{
-		if (*ptr == '.') dot = ptr;
-		if (*ptr == '/') slash = ptr;
+		if( *ptr == '.' )
+		{
+			dot = ptr;
+		}
+
+		if( *ptr == '/' )
+		{
+			slash = ptr;
+		}
 	}
+
 	if( dot > slash )
 	{
 		dot++;
+
 		for( x = 0; x < ARRAY_SIZE( pxTypeCouples ); x++ )
 		{
 			if( strcasecmp( dot, pxTypeCouples[ x ].pcExtension ) == 0 )
@@ -419,6 +447,6 @@ static const char *pcGetContentsType (const char *apFname)
 			}
 		}
 	}
+
 	return pcResult;
 }
-

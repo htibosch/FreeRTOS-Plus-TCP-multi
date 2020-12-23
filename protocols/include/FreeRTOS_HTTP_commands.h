@@ -1,6 +1,6 @@
 /*
  * FreeRTOS+TCP V2.3.1
- * Copyright (C) 2017 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -24,9 +24,10 @@
  */
 
 #ifndef FREERTOS_HTTP_COMMANDS_H
-#define	FREERTOS_HTTP_COMMANDS_H
+#define FREERTOS_HTTP_COMMANDS_H
 
-enum {
+enum
+{
 	WEB_REPLY_OK = 200,
 	WEB_NO_CONTENT = 204,
 	WEB_BAD_REQUEST = 400,
@@ -37,7 +38,8 @@ enum {
 	WEB_INTERNAL_SERVER_ERROR = 500,
 };
 
-enum EWebCommand {
+enum EWebCommand
+{
 	ECMD_GET,
 	ECMD_HEAD,
 	ECMD_POST,
@@ -53,16 +55,14 @@ enum EWebCommand {
 struct xWEB_COMMAND
 {
 	BaseType_t xCommandLength;
-	const char *pcCommandName;
+	const char * pcCommandName;
 	const unsigned char ucCommandType;
 };
 
-#define	WEB_CMD_COUNT	(ECMD_UNK+1)
+#define WEB_CMD_COUNT    ( ECMD_UNK + 1 )
 
-extern const struct xWEB_COMMAND xWebCommands[WEB_CMD_COUNT];
+extern const struct xWEB_COMMAND xWebCommands[ WEB_CMD_COUNT ];
 
-extern const char *webCodename (int aCode);
+extern const char * webCodename( int aCode );
 
-#endif	/* FREERTOS_HTTP_COMMANDS_H */
-
-
+#endif /* FREERTOS_HTTP_COMMANDS_H */
