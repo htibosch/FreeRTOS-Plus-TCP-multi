@@ -1,5 +1,6 @@
 # FreeRTOS-Plus-TCP-multi
 FreeRTOS+TCP with multiple interfaces and IPv6
+To find the latest source code, please find the original releases on [github/freertos](https://github.com/FreeRTOS/FreeRTOS-Plus-TCP)
 
 ## Getting started
 The easiest way to use FreeRTOS-Plus-TCP is to start with the pre-configured demo application project (found in [this directory](https://github.com/FreeRTOS/FreeRTOS/tree/master/FreeRTOS-Plus/Demo/FreeRTOS_Plus_TCP_Minimal_Windows_Simulator)).  That way you will have the correct FreeRTOS source files included, and the correct include paths configured.  Once a demo application is building and executing you can remove the demo application files, and start to add in your own application source files.  See the [FreeRTOS Kernel Quick Start Guide](https://www.freertos.org/FreeRTOS-quick-start-guide.html) for detailed instructions and other useful links.
